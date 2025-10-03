@@ -31,37 +31,6 @@ class School(models.Model):
         return self.name
 
 
-class Bus(models.Model):
-    """Placeholder Bus model - will be expanded in buses app"""
-    BUS_STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('maintenance', 'Maintenance'),
-        ('retired', 'Retired'),
-    ]
-
-    bus_id: models.UUIDField = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )
-    license_plate: models.CharField = models.CharField(
-        max_length=20, unique=True
-    )
-    capacity: models.PositiveIntegerField = models.PositiveIntegerField()
-    status: models.CharField = models.CharField(
-        max_length=20, choices=BUS_STATUS_CHOICES, default='active'
-    )
-    created_at: models.DateTimeField = models.DateTimeField(
-        default=timezone.now
-    )
-    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"{self.license_plate}"
-
-    def clean(self):
-        if self.capacity <= 0:
-            raise ValidationError(BUS_CAPACITY_ERROR)
-
-
 class Student(models.Model):
     """Student model with PII encryption and row-level security"""
 
@@ -83,7 +52,7 @@ class Student(models.Model):
     grade: models.CharField = models.CharField(max_length=10)
     section: models.CharField = models.CharField(max_length=10, blank=True)
     assigned_bus: models.ForeignKey = models.ForeignKey(  # type: ignore[misc]
-        Bus,
+        'buses.Bus',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

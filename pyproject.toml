@@ -41,18 +41,38 @@ dependencies = [
     "psycopg2-binary>=2.9.0,<3.0",
     "celery>=5.3.0,<6.0",
     "redis>=5.0.0,<6.0",
+    "django-redis>=5.4.0,<6.0",
+
+    # Monitoring & Observability
+    "django-prometheus>=2.3.1,<3.0",
+    "drf-api-logger>=1.1.12,<2.0",
+
+    # Security & Performance
+    "django-cors-headers>=4.3.0,<5.0",
+    "django-celery-beat>=2.5.0,<3.0",
+    "django-celery-results>=2.6.0,<3.0",
+    "django-filter>=23.5,<24.0",
+    # Removed django-ratelimit - DRF throttling is sufficient
+    "django-csp>=3.8,<4.0",  # Content Security Policy
+
+    # API Enhancement
+    "djangorestframework-api-key>=2.3.0,<3.0",  # Better API key management
+    # Removed drf-flex-fields - overkill for our use case
+    # Removed drf-nested-routers - not needed yet
 
     # Utilities
     "python-decouple>=3.8,<4.0",
-    "django-cors-headers>=4.3.0,<5.0",
     "requests>=2.31.0,<3.0",
     "ulid-py>=1.1.0,<2.0",
     "drf-spectacular>=0.27.0,<1.0",
+    "python-json-logger>=2.0.7,<3.0",
+    "django-auditlog>=3.0.0,<4.0",  # Comprehensive audit logging
+    "django-model-utils>=4.5.0,<5.0",  # Model utilities
 ]
 
 [tool.setuptools]
 # Explicitly define packages to avoid flat-layout issues
-packages = ["bus_kiosk_backend", "users", "students", "imperial_governance"]
+packages = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks", "imperial_governance"]
 
 [project.optional-dependencies]
 # Development dependencies
@@ -69,6 +89,11 @@ dev = [
     "mypy>=1.8.0,<2.0",
     "black>=24.0.0,<25.0",
     "pre-commit>=3.0.0,<4.0",
+
+    # Development tools
+    "django-debug-toolbar>=4.3.0,<5.0",  # Debug toolbar
+    "django-extensions>=3.2.3,<4.0",  # Management commands
+    "werkzeug>=3.0.0,<4.0",  # Better debugging
 ]
 
 # Testing dependencies
@@ -77,6 +102,9 @@ testing = [
     "pytest-django>=4.5.0,<5.0",
     "pytest-cov>=4.0.0,<5.0",
     "factory-boy>=3.3.0,<4.0",
+    "faker>=24.0.0,<25.0",  # Better test data generation
+    "pytest-xdist>=3.5.0,<4.0",  # Parallel test execution
+    "pytest-mock>=3.12.0,<4.0",  # Better mocking
 ]
 
 # Documentation
@@ -131,7 +159,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 # Django-aware import sorting
-known-first-party = ["bus_kiosk_backend", "users", "students"]
+known-first-party = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
 force-sort-within-sections = true
 
 [tool.black]

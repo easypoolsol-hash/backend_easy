@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
+from buses.models import Bus
 from .models import (
-    Bus,
     FaceEmbeddingMetadata,
     Parent,
     School,

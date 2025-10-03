@@ -4,8 +4,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from buses.models import Bus
 from .models import (
-    Bus,
     FaceEmbeddingMetadata,
     Parent,
     School,

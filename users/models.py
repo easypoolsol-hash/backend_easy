@@ -27,7 +27,7 @@ class Role(models.Model):
         default=dict, help_text="JSON object defining role permissions"
     )
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(default=lambda: timezone.now())
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -79,7 +79,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # For Django admin access
     last_login = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(default=lambda: timezone.now())
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = UserManager()
@@ -137,7 +137,7 @@ class APIKey(models.Model):
     is_active = models.BooleanField(default=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(default=lambda: timezone.now())
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = "api_keys"
@@ -188,7 +188,7 @@ class AuditLog(models.Model):
     )
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
-    timestamp = models.DateTimeField(default=lambda: timezone.now())
+    timestamp = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = "audit_log"
