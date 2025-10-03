@@ -97,16 +97,17 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",  # Re-enable for docs
     ],
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
-    "ALLOWED_VERSIONS": ["v1"],
-    "VERSION_PARAM": "version",
+    # API is already versioned in URLs (/api/v1/), no need for additional versioning
+    # "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    # "ALLOWED_VERSIONS": ["v1"],
+    # "VERSION_PARAM": "version",
     "EXCEPTION_HANDLER": "bus_kiosk_backend.exceptions.custom_exception_handler",
 }
 
@@ -225,30 +226,24 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Industrial REST API for Bus Kiosk face recognition system",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
-    "SWAGGER_UI_DIST": "SIDECAR",
-    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
-    "REDOC_DIST": "SIDECAR",
+    "PREPROCESSING_HOOKS": [
+        "bus_kiosk_backend.schema_hooks.exclude_health_endpoints",
+    ],
     "SERVERS": [
         {"url": "http://localhost:8000", "description": "Development server"},
-        {"url": "https://api.bus-kiosk.com", "description": "Production server"},
     ],
     "SECURITY": [{"Bearer": []}],
-    "SECURITY_DEFINITIONS": {
+    "SECURITY_SCHEMES": {
         "Bearer": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header",
-            "description": (
-                "JWT Authorization header using the Bearer scheme. "
-                'Example: "Authorization: Bearer {token}"'
-            ),
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "JWT Authorization header using the Bearer scheme. Example: 'Authorization: Bearer {token}'",
         }
     },
 }
 
 MIDDLEWARE = [
-    "django_prometheus.middleware.PrometheusBeforeMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -256,9 +251,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "bus_kiosk_backend.middleware.RequestLoggingMiddleware",
-    "bus_kiosk_backend.middleware.SecurityHeadersMiddleware",
-    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "bus_kiosk_backend.urls"
@@ -266,7 +258,7 @@ ROOT_URLCONF = "bus_kiosk_backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -373,6 +365,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

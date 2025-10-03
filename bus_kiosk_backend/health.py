@@ -8,33 +8,25 @@ from django.db import connection
 from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_GET
-from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def health_check(request) -> Response:
+@require_GET
+def health_check(request):
     """
     Basic health check endpoint.
 
     Returns system status and basic metrics.
     """
-    return Response(
-        {
-            "status": "healthy",
-            "timestamp": time.time(),
-            "service": "bus-kiosk-backend",
-            "version": "1.0.0",
-        }
-    )
+    return JsonResponse({
+        "status": "healthy",
+        "timestamp": time.time(),
+        "service": "bus-kiosk-backend",
+        "version": "1.0.0",
+    })
 
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def detailed_health_check(request) -> Response:
+@require_GET
+def detailed_health_check(request):
     """
     Detailed health check with database and cache connectivity tests.
     """
@@ -92,11 +84,11 @@ def detailed_health_check(request) -> Response:
         health_data["checks"]["celery"] = {"status": "unhealthy", "error": str(e)}
 
     response_status = (
-        status.HTTP_200_OK
+        200
         if health_data["status"] == "healthy"
-        else status.HTTP_503_SERVICE_UNAVAILABLE
+        else 503
     )
-    return Response(health_data, status=response_status)
+    return JsonResponse(health_data, status=response_status)
 
 
 @require_GET
