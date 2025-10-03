@@ -1,0 +1,500 @@
+# ===========================================
+# DATABASE SCHEMA CONSTITUTION
+# ===========================================
+# Complete PostgreSQL schema definition
+# Referenced by: ../ssot.yaml
+
+database:
+  engine: PostgreSQL 15
+  extensions:
+    - pgvector: vector similarity search (metadata only)
+    - postgis: geospatial queries
+    - timescaledb: GPS time-series data
+    - pg_cron: scheduled tasks
+    - uuid-ossp: UUID generation
+
+# ===========================================
+# TABLES
+# ===========================================
+
+tables:
+  # ========================================
+  # STUDENTS DOMAIN
+  # ========================================
+  students:
+    fields:
+      student_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      school_id: UUID NOT NULL
+      name: TEXT NOT NULL  # Encrypted at app layer
+      grade: VARCHAR(10) NOT NULL
+      section: VARCHAR(10)
+      assigned_bus_id: UUID
+      status: VARCHAR(20) DEFAULT 'active'  # active/inactive/suspended
+      enrollment_date: DATE NOT NULL
+      created_at: TIMESTAMP DEFAULT NOW()
+      updated_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_students_school_status: (school_id, status)
+      - idx_students_bus: (assigned_bus_id) WHERE status='active'
+      - idx_students_name_trgm: USING gin(name gin_trgm_ops)  # Fuzzy search
+
+    constraints:
+      - fk_bus: FOREIGN KEY (assigned_bus_id) REFERENCES buses(bus_id)
+      - chk_status: CHECK (status IN ('active', 'inactive', 'suspended'))
+
+    triggers:
+      - update_timestamp: BEFORE UPDATE SET updated_at = NOW()
+
+  student_photos:
+    fields:
+      photo_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      student_id: UUID NOT NULL
+      photo_url: TEXT NOT NULL  # S3 path
+      is_primary: BOOLEAN DEFAULT false
+      captured_at: TIMESTAMP DEFAULT NOW()
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_photos_student: (student_id)
+
+    constraints:
+      - fk_student: FOREIGN KEY (student_id) REFERENCES students
+
+  parents:
+    fields:
+      parent_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      phone: VARCHAR(20) NOT NULL UNIQUE  # Encrypted
+      email: VARCHAR(255) UNIQUE  # Encrypted
+      name: TEXT NOT NULL  # Encrypted
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_parents_phone: (phone)
+      - idx_parents_email: (email)
+
+  student_parents:
+    fields:
+      student_id: UUID NOT NULL
+      parent_id: UUID NOT NULL
+      relationship: VARCHAR(50)  # mother/father/guardian
+      is_primary: BOOLEAN DEFAULT false
+
+    constraints:
+      - pk: PRIMARY KEY (student_id, parent_id)
+      - fk_student: FOREIGN KEY (student_id) REFERENCES students
+      - fk_parent: FOREIGN KEY (parent_id) REFERENCES parents
+
+    indexes:
+      - idx_parent_students: (parent_id)
+
+  face_embeddings_metadata:
+    comment: "Actual vectors stored in Qdrant, metadata only"
+    fields:
+      embedding_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      student_photo_id: UUID NOT NULL         # Link to photo
+      model_name: VARCHAR(100) NOT NULL       # e.g., ArcFace, FaceNet
+      model_version: VARCHAR(50) NOT NULL
+      qdrant_point_id: VARCHAR(100) NOT NULL  # Reference in vector DB
+      quality_score: FLOAT NOT NULL
+      is_primary: BOOLEAN DEFAULT false
+      captured_at: TIMESTAMP NOT NULL
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_embeddings_photo_model: (student_photo_id, model_name, model_version)
+
+    constraints:
+      - fk_photo: FOREIGN KEY (student_photo_id) REFERENCES student_photos
+      - chk_quality: CHECK (quality_score BETWEEN 0 AND 1)
+
+  # ========================================
+  # BUSES DOMAIN
+  # ========================================
+  buses:
+    fields:
+      bus_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      license_plate: VARCHAR(20) NOT NULL UNIQUE
+      route_id: UUID
+      capacity: INTEGER NOT NULL
+      device_id: VARCHAR(100) UNIQUE  # Kiosk identifier
+      status: VARCHAR(20) DEFAULT 'active'
+      manufacturer: VARCHAR(100)
+      model: VARCHAR(100)
+      year: INTEGER
+      last_maintenance: DATE
+      created_at: TIMESTAMP DEFAULT NOW()
+      updated_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_buses_route: (route_id) WHERE status='active'
+      - idx_buses_device: (device_id)
+      - idx_buses_license: (license_plate)
+
+    constraints:
+      - fk_route: FOREIGN KEY (route_id) REFERENCES routes
+      - chk_status: CHECK (status IN ('active', 'maintenance', 'retired'))
+      - chk_capacity: CHECK (capacity > 0)
+
+  routes:
+    fields:
+      route_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      name: VARCHAR(100) NOT NULL
+      description: TEXT
+      stops: JSONB NOT NULL  # [{name, lat, lon, sequence, estimated_time}]
+      schedule: JSONB  # {morning: {start, end}, afternoon: {...}}
+      is_active: BOOLEAN DEFAULT true
+      created_at: TIMESTAMP DEFAULT NOW()
+      updated_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_routes_active: (is_active)
+      - idx_routes_stops_gin: USING gin(stops)  # JSONB search
+
+  # ========================================
+  # KIOSKS DOMAIN
+  # ========================================
+  kiosks:
+    fields:
+      kiosk_id: VARCHAR(100) PRIMARY KEY
+      bus_id: UUID
+      api_key_hash: VARCHAR(255) NOT NULL UNIQUE
+      firmware_version: VARCHAR(50)
+      last_heartbeat: TIMESTAMP
+      is_active: BOOLEAN DEFAULT true
+      battery_level: INTEGER  # Percentage
+      storage_used_mb: INTEGER
+      created_at: TIMESTAMP DEFAULT NOW()
+      updated_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_kiosk_bus: (bus_id)
+      - idx_kiosk_heartbeat: (last_heartbeat) WHERE is_active=true
+      - idx_kiosk_active: (is_active)
+
+    constraints:
+      - fk_bus: FOREIGN KEY (bus_id) REFERENCES buses
+
+  device_logs:
+    fields:
+      log_id: BIGSERIAL PRIMARY KEY
+      kiosk_id: VARCHAR(100) NOT NULL
+      log_level: VARCHAR(20) NOT NULL  # INFO/WARN/ERROR
+      message: TEXT NOT NULL
+      metadata: JSONB
+      timestamp: TIMESTAMP NOT NULL DEFAULT NOW()
+
+    indexes:
+      - idx_logs_kiosk_time: (kiosk_id, timestamp DESC)
+      - idx_logs_level: (log_level) WHERE log_level IN ('ERROR', 'WARN')
+
+    partitioning:
+      type: RANGE
+      column: timestamp
+      interval: 1 MONTH
+      retention: 3 MONTHS
+
+  # ========================================
+  # EVENTS DOMAIN
+  # ========================================
+  boarding_events:
+    comment: "Append-only, never delete. Partitioned monthly."
+    fields:
+      event_id: VARCHAR(26) PRIMARY KEY  # ULID
+      student_id: UUID NOT NULL
+      kiosk_id: VARCHAR(100) NOT NULL
+      confidence_score: FLOAT NOT NULL
+      timestamp: TIMESTAMP NOT NULL
+      gps_coords: POINT  # PostGIS
+      bus_route: VARCHAR(100)
+      face_image_url: TEXT  # S3 path (optional, for verification)
+      model_version: VARCHAR(50) NOT NULL
+      metadata: JSONB
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_events_student_time: (student_id, timestamp DESC)
+      - idx_events_kiosk_time: (kiosk_id, timestamp DESC)
+      - idx_events_timestamp: (timestamp DESC)
+      - idx_events_gps: USING gist(gps_coords)
+
+    constraints:
+      - fk_student: FOREIGN KEY (student_id) REFERENCES students
+      - fk_kiosk: FOREIGN KEY (kiosk_id) REFERENCES kiosks
+      - chk_confidence: CHECK (confidence_score BETWEEN 0 AND 1)
+
+    partitioning:
+      type: RANGE
+      column: timestamp
+      interval: 1 MONTH
+      retention: 7 YEARS  # Compliance requirement
+
+  attendance_records:
+    comment: "Derived from boarding_events, updated daily"
+    fields:
+      record_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      student_id: UUID NOT NULL
+      date: DATE NOT NULL
+      morning_boarded: BOOLEAN DEFAULT false
+      morning_time: TIMESTAMP
+      afternoon_boarded: BOOLEAN DEFAULT false
+      afternoon_time: TIMESTAMP
+      status: VARCHAR(20)  # present/absent/partial
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_attendance_student_date: UNIQUE (student_id, date)
+      - idx_attendance_date: (date DESC)
+
+    constraints:
+      - fk_student: FOREIGN KEY (student_id) REFERENCES students
+
+  # ========================================
+  # GPS TRACKING (TimescaleDB)
+  # ========================================
+  gps_tracks:
+    comment: "TimescaleDB hypertable for time-series data"
+    fields:
+      track_id: BIGSERIAL
+      kiosk_id: VARCHAR(100) NOT NULL
+      timestamp: TIMESTAMP NOT NULL
+      coords: POINT NOT NULL  # PostGIS
+      accuracy: FLOAT
+      speed: FLOAT  # km/h
+      heading: INTEGER  # 0-360 degrees
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_gps_kiosk_time: (kiosk_id, timestamp DESC)
+      - idx_gps_coords: USING gist(coords)
+
+    timescaledb:
+      hypertable: true
+      time_column: timestamp
+      chunk_interval: 1 DAY
+      compression:
+        enabled: true
+        after: 7 DAYS
+        orderby: kiosk_id, timestamp DESC
+      retention:
+        drop_after: 90 DAYS
+
+    continuous_aggregates:
+      - name: gps_5min_buckets
+        query: |
+          SELECT kiosk_id,
+                 time_bucket('5 minutes', timestamp) AS bucket,
+                 first(coords, timestamp) AS coords,
+                 avg(speed) AS avg_speed
+          GROUP BY kiosk_id, bucket
+        refresh_policy: 10 MINUTES
+
+  # ========================================
+  # NOTIFICATIONS DOMAIN
+  # ========================================
+  notifications:
+    fields:
+      notification_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      recipient_type: VARCHAR(20) NOT NULL  # parent/admin/driver
+      recipient_id: UUID NOT NULL
+      event_type: VARCHAR(50) NOT NULL  # boarding/alert/update
+      event_id: VARCHAR(26)  # ULID reference
+      title: TEXT NOT NULL
+      body: TEXT NOT NULL
+      channels: JSONB NOT NULL  # {sms: true, email: false, push: true}
+      status: VARCHAR(20) DEFAULT 'pending'
+      sent_at: TIMESTAMP
+      delivered_at: TIMESTAMP
+      error_message: TEXT
+      retry_count: INTEGER DEFAULT 0
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_notif_recipient: (recipient_id, created_at DESC)
+      - idx_notif_status: (status) WHERE status='pending'
+      - idx_notif_event: (event_id)
+
+    constraints:
+      - chk_recipient_type: CHECK (recipient_type IN ('parent', 'admin', 'driver'))
+      - chk_status: CHECK (status IN ('pending', 'sent', 'delivered', 'failed'))
+
+  # ========================================
+  # USERS & AUTH
+  # ========================================
+  users:
+    comment: "Django auth_user extended"
+    fields:
+      user_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      username: VARCHAR(150) UNIQUE NOT NULL
+      email: VARCHAR(255) UNIQUE NOT NULL
+      password_hash: VARCHAR(255) NOT NULL
+      role: VARCHAR(50) NOT NULL
+      is_active: BOOLEAN DEFAULT true
+      last_login: TIMESTAMP
+      created_at: TIMESTAMP DEFAULT NOW()
+      updated_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_users_email: (email)
+      - idx_users_role: (role) WHERE is_active=true
+
+    constraints:
+      - chk_role: CHECK (role IN ('super_admin', 'backend_engineer', 'school_admin', 'parent'))
+
+  api_keys:
+    comment: "For kiosk device authentication"
+    fields:
+      key_id: UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+      kiosk_id: VARCHAR(100) NOT NULL
+      key_hash: VARCHAR(255) NOT NULL UNIQUE
+      name: VARCHAR(100)
+      permissions: JSONB  # Scoped permissions
+      is_active: BOOLEAN DEFAULT true
+      expires_at: TIMESTAMP
+      last_used: TIMESTAMP
+      created_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_apikey_kiosk: (kiosk_id)
+      - idx_apikey_active: (is_active) WHERE is_active=true
+
+    constraints:
+      - fk_kiosk: FOREIGN KEY (kiosk_id) REFERENCES kiosks
+
+  audit_log:
+    comment: "Immutable audit trail for compliance"
+    fields:
+      log_id: BIGSERIAL PRIMARY KEY
+      user_id: UUID
+      action: VARCHAR(100) NOT NULL
+      resource_type: VARCHAR(50) NOT NULL
+      resource_id: VARCHAR(100)
+      changes: JSONB
+      ip_address: INET
+      timestamp: TIMESTAMP NOT NULL DEFAULT NOW()
+
+    indexes:
+      - idx_audit_user_time: (user_id, timestamp DESC)
+      - idx_audit_resource: (resource_type, resource_id)
+      - idx_audit_timestamp: (timestamp DESC)
+
+    partitioning:
+      type: RANGE
+      column: timestamp
+      interval: 1 MONTH
+      retention: 7 YEARS
+
+# ===========================================
+# VIEWS (Read-only computed data)
+# ===========================================
+
+views:
+  active_students_with_buses:
+    query: |
+      SELECT s.student_id, s.name, s.grade,
+             b.license_plate, r.name AS route_name
+      FROM students s
+      LEFT JOIN buses b ON s.assigned_bus_id = b.bus_id
+      LEFT JOIN routes r ON b.route_id = r.route_id
+      WHERE s.status = 'active'
+
+  daily_attendance_summary:
+    query: |
+      SELECT date,
+             COUNT(*) FILTER (WHERE status='present') AS present,
+             COUNT(*) FILTER (WHERE status='absent') AS absent,
+             COUNT(*) FILTER (WHERE status='partial') AS partial
+      FROM attendance_records
+      GROUP BY date
+      ORDER BY date DESC
+
+# ===========================================
+# FUNCTIONS
+# ===========================================
+
+functions:
+  calculate_attendance_status:
+    returns: VARCHAR(20)
+    params:
+      - morning_boarded: BOOLEAN
+      - afternoon_boarded: BOOLEAN
+    body: |
+      BEGIN
+        IF morning_boarded AND afternoon_boarded THEN
+          RETURN 'present';
+        ELSIF NOT morning_boarded AND NOT afternoon_boarded THEN
+          RETURN 'absent';
+        ELSE
+          RETURN 'partial';
+        END IF;
+      END;
+
+  is_kiosk_within_route:
+    returns: BOOLEAN
+    params:
+      - p_coords: POINT
+      - p_route_id: UUID
+      - p_tolerance_meters: INTEGER DEFAULT 100
+    body: |
+      -- Check if GPS point is within tolerance of any route stop
+      SELECT EXISTS(
+        SELECT 1 FROM routes
+        CROSS JOIN LATERAL jsonb_array_elements(stops) AS stop
+        WHERE route_id = p_route_id
+          AND ST_DWithin(
+            p_coords::geography,
+            ST_SetSRID(ST_MakePoint(
+              (stop->>'lon')::float,
+              (stop->>'lat')::float
+            ), 4326)::geography,
+            p_tolerance_meters
+          )
+      );
+
+# ===========================================
+# MATERIALIZED VIEWS (For analytics)
+# ===========================================
+
+materialized_views:
+  bus_utilization_monthly:
+    refresh: DAILY
+    indexes: [month, bus_id]
+    query: |
+      SELECT date_trunc('month', be.timestamp) AS month,
+             b.bus_id,
+             b.license_plate,
+             COUNT(DISTINCT be.student_id) AS unique_students,
+             COUNT(*) AS total_boardings,
+             (COUNT(DISTINCT be.student_id)::float / b.capacity * 100) AS utilization_pct
+      FROM boarding_events be
+      JOIN buses b ON be.kiosk_id = (SELECT device_id FROM buses WHERE bus_id = b.bus_id)
+      GROUP BY month, b.bus_id, b.license_plate, b.capacity
+
+# ===========================================
+# POLICIES (Row-Level Security)
+# ===========================================
+
+row_level_security:
+  students:
+    enable: true
+    policies:
+      - name: parents_own_children
+        for: SELECT
+        to: parent_role
+        using: |
+          student_id IN (
+            SELECT student_id FROM student_parents
+            WHERE parent_id = current_setting('app.current_parent_id')::uuid
+          )
+
+  boarding_events:
+    enable: true
+    policies:
+      - name: parents_own_children_events
+        for: SELECT
+        to: parent_role
+        using: |
+          student_id IN (
+            SELECT student_id FROM student_parents
+            WHERE parent_id = current_setting('app.current_parent_id')::uuid
+          )

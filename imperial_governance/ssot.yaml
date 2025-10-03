@@ -1,0 +1,290 @@
+# ===========================================
+# BACKEND SSOT - Bus Kiosk System
+# ===========================================
+# Main constitutional document
+# Details delegated to constitutions/*
+
+system:
+  name: Bus Kiosk Backend
+  version: 1.0.0
+  architecture: modular_monolith
+  framework: Django + DRF
+  database: PostgreSQL 15 + pgvector + PostGIS
+  deployment: Docker Compose on AWS Lightsail
+  scale: 1000 buses, ~30k students
+
+# ===========================================
+# CORE PRINCIPLES
+# ===========================================
+principles:
+  - environment_first: All config via .env
+  - stateless_api: No session state in Django
+  - append_only_events: Never delete boarding events
+  - idempotent_writes: ULID for event deduplication
+  - async_notifications: Celery for all notifications
+  - vector_search_separate: Face embeddings NOT in PostgreSQL
+
+# ===========================================
+# DOMAIN APPS (Django Apps)
+# ===========================================
+domains:
+  students:
+    responsibility: Student identity, enrollment, face data
+    models: [Student, FaceEmbedding, Parent]
+
+  buses:
+    responsibility: Fleet, routes, schedules
+    models: [Bus, Route, Stop]
+
+  kiosks:
+    responsibility: Device management, heartbeat, sync
+    models: [Kiosk, DeviceLog]
+
+  events:
+    responsibility: Boarding events, attendance tracking
+    models: [BoardingEvent, AttendanceRecord]
+    partitioning: monthly
+
+  notifications:
+    responsibility: Parent alerts, delivery tracking
+    models: [Notification, DeliveryLog]
+    async: celery
+
+  analytics:
+    responsibility: Reports, dashboards, metrics
+    read_only: true
+
+  users:
+    responsibility: Auth, roles, permissions
+    models: [User, Role, APIKey]
+
+# ===========================================
+# CRITICAL DATA MODELS (Summary)
+# ===========================================
+# Full schema: constitutions/database_schema.yaml
+
+key_models:
+  Student:
+    pk: student_id (UUID)
+    encrypted: [name, parent_contact]
+    indexed: [school_id, bus_id, status]
+
+  FaceEmbedding:
+    storage: Qdrant (NOT PostgreSQL)
+    dimension: 192
+    metadata_in_postgres: [student_id, quality_score, model_version]
+
+  BoardingEvent:
+    pk: event_id (ULID)
+    partitioned: monthly
+    never_delete: true
+    indexed: [student_id+timestamp, kiosk_id+timestamp]
+
+  Kiosk:
+    pk: kiosk_id (string)
+    auth: api_key (hashed)
+    heartbeat: last_seen timestamp
+
+# ===========================================
+# API STRUCTURE (Summary)
+# ===========================================
+# Full contracts: constitutions/api_contracts.yaml
+
+api:
+  versioning: /api/v1/
+  base_url: https://api.buskiosk.com
+
+  critical_endpoints:
+    # Kiosk (high throughput)
+    - POST /kiosk/boarding/bulk  # Batch events
+    - WS /kiosk/gps/stream       # Real-time GPS
+    - POST /kiosk/heartbeat      # Health check
+    - GET /kiosk/sync/faces      # Download embeddings
+
+    # Admin
+    - CRUD /students/
+    - CRUD /buses/
+    - GET /analytics/attendance
+
+    # Parent
+    - GET /parent/children/:id/location  # SSE
+    - GET /parent/children/:id/events
+
+  authentication:
+    kiosk: API_KEY header
+    admin: JWT
+    parent: JWT
+
+  rate_limits:
+    kiosk: 1000/hour
+    admin: 100/minute
+    parent: 60/minute
+
+# ===========================================
+# ROLES & PERMISSIONS (Summary)
+# ===========================================
+# Full RBAC: constitutions/security_rbac.yaml
+
+roles:
+  SUPER_ADMIN:
+    count: 1
+    can: ["*"]
+
+  BACKEND_ENGINEER:
+    can: [logs, metrics, db_readonly]
+
+  SCHOOL_ADMIN:
+    can: [students.*, buses.*, analytics.read]
+
+  KIOSK_DEVICE:
+    can: [events.create, gps.create, faces.read]
+    auth: api_key + device_id
+
+  PARENT:
+    can: [own_children.read, bus_location.read]
+    isolation: row_level_security
+
+# ===========================================
+# INFRASTRUCTURE (Summary)
+# ===========================================
+# Full deployment: constitutions/deployment.yaml
+
+infrastructure:
+  containers:
+    - nginx: reverse_proxy + SSL
+    - django: replicas=2
+    - celery_worker: replicas=3
+    - celery_beat: replicas=1
+    - redis: cache + broker
+    - postgres: main database
+    - qdrant: face vector search
+    - prometheus: metrics
+    - grafana: dashboards
+
+  database:
+    engine: PostgreSQL 15
+    extensions: [pgvector, postgis, timescaledb]
+    connection_pool: 60
+    backup: 6h incremental, daily full
+
+  monitoring:
+    logs: CloudWatch
+    metrics: Prometheus
+    tracing: OpenTelemetry
+    alerts: Slack + SMS
+
+# ===========================================
+# CRITICAL PATTERNS
+# ===========================================
+
+patterns:
+  idempotency:
+    boarding_events: ULID (client-generated)
+
+  async_processing:
+    notifications: Celery queue
+    analytics: Celery beat (hourly)
+
+  caching:
+    student_data: Redis, 1h TTL
+    face_embeddings: Redis, 24h TTL
+
+  graceful_degradation:
+    face_sync: serve cached if Qdrant down
+    notifications: queue for retry
+
+  data_retention:
+    boarding_events: 7 years (compliance)
+    gps_tracks: 90 days
+    logs: 30 days
+
+# ===========================================
+# GPS OPTIMIZATION
+# ===========================================
+
+gps:
+  transport: HTTP POST (batched, not WebSocket)
+  batch_size: 10 points or 5 seconds
+  compression: gzip
+  deduplication: client-side, 5m threshold
+  storage: TimescaleDB hypertable
+  compression: after 7 days
+
+# ===========================================
+# PERFORMANCE TARGETS
+# ===========================================
+
+performance:
+  api_latency:
+    kiosk: p95 < 200ms
+    admin: p95 < 500ms
+  throughput:
+    boarding_events: 1000/min sustained
+  database:
+    query_timeout: 30s
+    slow_query_log: >1s
+
+# ===========================================
+# SECURITY ESSENTIALS
+# ===========================================
+# Full policies: constitutions/security_rbac.yaml
+
+security:
+  encryption:
+    at_rest: PostgreSQL TDE
+    in_transit: TLS 1.3
+    pii_fields: AES-256 (name, contact)
+
+  audit:
+    log_all: auth events, data modifications
+    retention: 7 years
+
+  compliance:
+    - GDPR: data portability, right to deletion
+    - FERPA: student data protection
+
+# ===========================================
+# ENVIRONMENTS
+# ===========================================
+
+environments:
+  local:
+    docker_compose: docker-compose.dev.yml
+    hot_reload: true
+
+  staging:
+    auto_deploy: on merge to staging branch
+    synthetic_data: true
+
+  production:
+    deployment: blue-green
+    backup: automated 6h
+    rollback: automated on health check fail
+
+# ===========================================
+# CONSTITUTIONAL REFERENCES
+# ===========================================
+
+constitutions:
+  database: constitutions/database_schema.yaml
+  api: constitutions/api_contracts.yaml
+  deployment: constitutions/deployment.yaml
+  security: constitutions/security_rbac.yaml
+
+# ===========================================
+# CI/CD GATES
+# ===========================================
+
+ci_cd:
+  required_checks:
+    - black --check .
+    - mypy --strict
+    - pytest --cov=90
+    - bandit -r .
+    - migration dry-run
+  deployment:
+    - build docker image
+    - run integration tests
+    - deploy to staging
+    - smoke tests
+    - deploy to production (blue-green)

@@ -1,0 +1,150 @@
+# ===========================================
+# API CONTRACTS CONSTITUTION
+# ===========================================
+# Complete API endpoint definitions
+# Referenced by: ../ssot.yaml
+
+api:
+  base_url: https://api.buskiosk.com
+  version: v1
+  prefix: /api/v1
+
+  common_headers:
+    request:
+      - Content-Type: application/json
+      - Accept: application/json
+      - X-Request-ID: UUID (optional, for tracing)
+    response:
+      - X-Request-ID: UUID (echoed back)
+      - X-RateLimit-Remaining: int
+      - X-RateLimit-Reset: timestamp
+
+  error_format:
+    schema:
+      error:
+        code: string  # e.g. "INVALID_INPUT"
+        message: string  # Human-readable
+        details: object (optional)
+        trace_id: string (optional)
+    example:
+      error:
+        code: "STUDENT_NOT_FOUND"
+        message: "Student with ID xyz not found"
+        trace_id: "req_abc123"
+
+# ===========================================
+# AUTHENTICATION
+# ===========================================
+
+authentication:
+  kiosk:
+    method: API Key
+    header: X-API-Key
+    validation: hash comparison + device_id check
+
+  admin_parent:
+    method: JWT Bearer Token
+    header: Authorization: Bearer <token>
+    token_lifetime: 8 hours
+    refresh_token_lifetime: 30 days
+
+  endpoints:
+    POST /auth/token/:
+      description: Get JWT token
+      auth: none
+      body:
+        username: string
+        password: string
+      response:
+        access_token: string
+        refresh_token: string
+        expires_in: int
+
+    POST /auth/refresh/:
+      description: Refresh JWT token
+      auth: refresh_token
+      body:
+        refresh_token: string
+      response:
+        access_token: string
+        expires_in: int
+
+# ===========================================
+# KIOSK ENDPOINTS (High Throughput)
+# ===========================================
+
+kiosk_endpoints:
+  POST /kiosk/heartbeat:
+    description: Kiosk health check and status update
+    auth: API_KEY
+    rate_limit: 1/minute
+    request:
+      kiosk_id: string (required)
+      firmware_version: string (required)
+      battery_level: int (0-100, optional)
+      storage_used_mb: int (optional)
+      timestamp: ISO8601 (required)
+    response:
+      status: "ok"
+      server_time: ISO8601
+      sync_required: boolean
+      config_updates: object (optional)
+    errors:
+      401: INVALID_API_KEY
+      429: RATE_LIMIT_EXCEEDED
+
+  POST /kiosk/boarding/bulk:
+    description: Batch upload boarding events
+    auth: API_KEY
+    rate_limit: 100/minute
+    idempotency: event_id (ULID)
+    request:
+      events: array (max 50)
+        - event_id: string (ULID, required)
+          student_id: UUID (required)
+          kiosk_id: string (required)
+          confidence_score: float (0-1, required)
+          timestamp: ISO8601 (required)
+          gps_coords:
+            lat: float (required)
+            lon: float (required)
+            accuracy: float (optional)
+          bus_route: string (optional)
+          model_version: string (required)
+    response:
+      accepted: int  # Count of accepted events
+      rejected: array
+        - event_id: string
+          reason: string
+      status: "ok" | "partial"
+    errors:
+      400: INVALID_BATCH
+      413: BATCH_TOO_LARGE
+      422: DUPLICATE_EVENT_ID
+
+  POST /kiosk/gps/batch:
+    description: Batch GPS location updates
+    auth: API_KEY
+    rate_limit: 200/minute
+    request:
+      kiosk_id: string (required)
+      tracks: array (max 10)
+        - timestamp: ISO8601 (required)
+          coords:
+            lat: float (required)
+            lon: float (required)
+          accuracy: float (optional)
+          speed: float (optional, km/h)
+          heading: int (optional, 0-360)
+    response:
+      accepted: int
+      status: "ok"
+    errors:
+      400: INVALID_GPS_DATA
+
+  GET /kiosk/sync/faces:
+    description: Download face embeddings for recognition
+    auth: API_KEY
+    rate_limit: 10/hour
+    query_params:
+      since: ISO8601
