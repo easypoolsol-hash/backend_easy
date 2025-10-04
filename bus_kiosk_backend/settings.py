@@ -44,6 +44,14 @@ DEBUG = True
 
 ALLOWED_HOSTS: list[str] = []
 
+# GitHub Actions CI environment detection
+if os.getenv("GITHUB_ACTIONS") == "true":
+    DEBUG = True
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+else:
+    DEBUG = os.getenv("DEBUG", "False").lower() == "true"
+    ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+
 
 # Application definition
 

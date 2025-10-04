@@ -108,9 +108,13 @@ jobs:
         DB_HOST: localhost
         DB_PORT: 5432
         REDIS_URL: redis://localhost:6379/0
-        ALLOWED_HOSTS: localhost,127.0.0.1
+        CELERY_BROKER_URL: redis://localhost:6379/0
+        CELERY_RESULT_BACKEND: redis://localhost:6379/0
+        ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+        GITHUB_ACTIONS: true
       run: |
-        python manage.py test --verbosity=2
+        python manage.py migrate --check || (echo "Migrations check failed" && exit 1)
+        pytest --maxfail=3 --tb=short --cov-report=xml:coverage.xml || (echo "Tests failed - showing full traceback:" && pytest --maxfail=1 --tb=long --lf && exit 1)
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
@@ -182,7 +186,7 @@ jobs:
 
     - name: Run tests in Docker container
       run: |
-        docker-compose up -d db redis && docker-compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py test --verbosity=2\"
+        docker-compose up -d db redis && docker-compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && pytest --maxfail=3 --tb=short --cov-report=xml:coverage.xml\"
 
     - name: Show container logs (if tests fail)
       if: failure()
