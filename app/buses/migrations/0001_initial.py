@@ -8,51 +8,188 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Route',
+            name="Route",
             fields=[
-                ('route_id', models.UUIDField(default=uuid.uuid4, editable=False, help_text='UUID primary key', primary_key=True, serialize=False)),
-                ('name', models.CharField(help_text="Route name (e.g., 'Route A', 'North Loop')", max_length=100, unique=True)),
-                ('description', models.TextField(blank=True, help_text='Detailed description of the route')),
-                ('stops', models.JSONField(default=list, help_text='Array of stop objects: [{name, lat, lon, sequence, estimated_time}]')),
-                ('schedule', models.JSONField(default=dict, help_text='Schedule data: {morning: {start, end}, afternoon: {start, end}}')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this route is currently active')),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='When this route was created')),
-                ('updated_at', models.DateTimeField(auto_now=True, help_text='When this route was last updated')),
+                (
+                    "route_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="UUID primary key",
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="Route name (e.g., 'Route A', 'North Loop')",
+                        max_length=100,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True, help_text="Detailed description of the route"
+                    ),
+                ),
+                (
+                    "stops",
+                    models.JSONField(
+                        default=list,
+                        help_text="Array of stop objects: [{name, lat, lon, sequence, estimated_time}]",
+                    ),
+                ),
+                (
+                    "schedule",
+                    models.JSONField(
+                        default=dict,
+                        help_text="Schedule data: {morning: {start, end}, afternoon: {start, end}}",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this route is currently active"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="When this route was created"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this route was last updated"
+                    ),
+                ),
             ],
             options={
-                'db_table': 'routes',
-                'ordering': ['name'],
-                'indexes': [models.Index(fields=['is_active'], name='idx_routes_active')],
+                "db_table": "routes",
+                "ordering": ["name"],
+                "indexes": [
+                    models.Index(fields=["is_active"], name="idx_routes_active")
+                ],
             },
         ),
         migrations.CreateModel(
-            name='Bus',
+            name="Bus",
             fields=[
-                ('bus_id', models.UUIDField(default=uuid.uuid4, editable=False, help_text='UUID primary key', primary_key=True, serialize=False)),
-                ('license_plate', models.CharField(help_text='Vehicle license plate number', max_length=20, unique=True)),
-                ('capacity', models.PositiveIntegerField(help_text='Maximum number of passengers', validators=[django.core.validators.MinValueValidator(1)])),
-                ('device_id', models.CharField(blank=True, help_text='Kiosk device identifier installed on this bus', max_length=100, null=True, unique=True)),
-                ('status', models.CharField(choices=[('active', 'Active'), ('maintenance', 'Under Maintenance'), ('retired', 'Retired')], default='active', help_text='Current operational status', max_length=20)),
-                ('manufacturer', models.CharField(blank=True, help_text='Bus manufacturer', max_length=100)),
-                ('model', models.CharField(blank=True, help_text='Bus model', max_length=100)),
-                ('year', models.PositiveIntegerField(blank=True, help_text='Manufacturing year', null=True)),
-                ('last_maintenance', models.DateField(blank=True, help_text='Date of last maintenance', null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True, help_text='When this bus was added to the system')),
-                ('updated_at', models.DateTimeField(auto_now=True, help_text='When this bus record was last updated')),
-                ('route', models.ForeignKey(blank=True, help_text='Route this bus is assigned to', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='buses', to='buses.route')),
+                (
+                    "bus_id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        help_text="UUID primary key",
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "license_plate",
+                    models.CharField(
+                        help_text="Vehicle license plate number",
+                        max_length=20,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "capacity",
+                    models.PositiveIntegerField(
+                        help_text="Maximum number of passengers",
+                        validators=[django.core.validators.MinValueValidator(1)],
+                    ),
+                ),
+                (
+                    "device_id",
+                    models.CharField(
+                        blank=True,
+                        help_text="Kiosk device identifier installed on this bus",
+                        max_length=100,
+                        null=True,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("active", "Active"),
+                            ("maintenance", "Under Maintenance"),
+                            ("retired", "Retired"),
+                        ],
+                        default="active",
+                        help_text="Current operational status",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "manufacturer",
+                    models.CharField(
+                        blank=True, help_text="Bus manufacturer", max_length=100
+                    ),
+                ),
+                (
+                    "model",
+                    models.CharField(blank=True, help_text="Bus model", max_length=100),
+                ),
+                (
+                    "year",
+                    models.PositiveIntegerField(
+                        blank=True, help_text="Manufacturing year", null=True
+                    ),
+                ),
+                (
+                    "last_maintenance",
+                    models.DateField(
+                        blank=True, help_text="Date of last maintenance", null=True
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="When this bus was added to the system",
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this bus record was last updated"
+                    ),
+                ),
+                (
+                    "route",
+                    models.ForeignKey(
+                        blank=True,
+                        help_text="Route this bus is assigned to",
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="buses",
+                        to="buses.route",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'buses',
-                'ordering': ['license_plate'],
-                'indexes': [models.Index(fields=['route', 'status'], name='idx_buses_route_status'), models.Index(fields=['device_id'], name='idx_buses_device'), models.Index(fields=['license_plate'], name='idx_buses_license'), models.Index(fields=['status'], name='idx_buses_status')],
+                "db_table": "buses",
+                "ordering": ["license_plate"],
+                "indexes": [
+                    models.Index(
+                        fields=["route", "status"], name="idx_buses_route_status"
+                    ),
+                    models.Index(fields=["device_id"], name="idx_buses_device"),
+                    models.Index(fields=["license_plate"], name="idx_buses_license"),
+                    models.Index(fields=["status"], name="idx_buses_status"),
+                ],
             },
         ),
     ]

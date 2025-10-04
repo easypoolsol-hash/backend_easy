@@ -6,12 +6,15 @@ Tests CRUD operations for all main API resources.
 # Django imports - only import if Django is available
 try:
     import os
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bus_kiosk_backend.settings')
+
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
     import django
+
     django.setup()
     from django.contrib.auth import get_user_model
     from rest_framework import status
     from rest_framework.test import APITestCase
+
     DJANGO_AVAILABLE = True
 except Exception:
     DJANGO_AVAILABLE = False
@@ -19,6 +22,7 @@ except Exception:
 
 # Django test classes - only define if Django is available
 if DJANGO_AVAILABLE:
+
     class TestAPIEndpoints(APITestCase):
         """Test all API endpoints with authentication."""
 
@@ -29,22 +33,22 @@ if DJANGO_AVAILABLE:
             # Create required role if it doesn't exist
             role, _ = Role.objects.get_or_create(
                 name="backend_engineer",
-                defaults={"description": "Backend Engineer Role"}
+                defaults={"description": "Backend Engineer Role"},
             )
 
             user_model = get_user_model()
             self.user = user_model.objects.create_user(
-                username='testuser_api',
-                email='api@test.com',
-                password='testpass123',
-                role=role
+                username="testuser_api",
+                email="api@test.com",
+                password="testpass123",
+                role=role,
             )
 
             # Get JWT token
-            token_response = self.client.post('/api/v1/auth/token/', {
-                'username': 'testuser_api',
-                'password': 'testpass123'
-            })
+            token_response = self.client.post(
+                "/api/v1/auth/token/",
+                {"username": "testuser_api", "password": "testpass123"},
+            )
 
             # Debug: print response details
             print(f"Token response status: {token_response.status_code}")
@@ -52,132 +56,137 @@ if DJANGO_AVAILABLE:
             print(f"Token response content: {token_response.content}")
 
             # Check if response was successful
-            self.assertEqual(token_response.status_code, status.HTTP_200_OK,
-                           f"Token request failed: {token_response.data}")
+            self.assertEqual(
+                token_response.status_code,
+                status.HTTP_200_OK,
+                f"Token request failed: {token_response.data}",
+            )
 
             # Check if 'access' key exists
-            self.assertIn('access', token_response.data,
-                         f"Access token not found in response: {token_response.data}")
+            self.assertIn(
+                "access",
+                token_response.data,
+                f"Access token not found in response: {token_response.data}",
+            )
 
-            self.access_token = token_response.data['access']
-            self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
+            self.access_token = token_response.data["access"]
+            self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.access_token}")
 
         def test_users_endpoints(self):
             """Test users API endpoints."""
             # Test GET users list
-            response = self.client.get('/api/v1/users/')
+            response = self.client.get("/api/v1/users/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
             # Test GET current user
-            response = self.client.get('/api/v1/users/me/')
+            response = self.client.get("/api/v1/users/me/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         def test_roles_endpoints(self):
             """Test roles API endpoints."""
             # Test GET roles list
-            response = self.client.get('/api/v1/roles/')
+            response = self.client.get("/api/v1/roles/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_students_endpoints(self):
             """Test students API endpoints."""
             # Test GET students list
-            response = self.client.get('/api/v1/students/')
+            response = self.client.get("/api/v1/students/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_schools_endpoints(self):
             """Test schools API endpoints."""
             # Test GET schools list
-            response = self.client.get('/api/v1/schools/')
+            response = self.client.get("/api/v1/schools/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_buses_endpoints(self):
             """Test buses API endpoints."""
             # Test GET buses list
-            response = self.client.get('/api/v1/buses/')
+            response = self.client.get("/api/v1/buses/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_routes_endpoints(self):
             """Test routes API endpoints."""
             # Test GET routes list
-            response = self.client.get('/api/v1/routes/')
+            response = self.client.get("/api/v1/routes/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_kiosks_endpoints(self):
             """Test kiosks API endpoints."""
             # Test GET kiosks list
-            response = self.client.get('/api/v1/kiosks/')
+            response = self.client.get("/api/v1/kiosks/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_boarding_events_endpoints(self):
             """Test boarding events API endpoints."""
             # Test GET boarding events list
-            response = self.client.get('/api/v1/boarding-events/')
+            response = self.client.get("/api/v1/boarding-events/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_attendance_endpoints(self):
             """Test attendance API endpoints."""
             # Test GET attendance list
-            response = self.client.get('/api/v1/attendance/')
+            response = self.client.get("/api/v1/attendance/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_api_keys_endpoints(self):
             """Test API keys endpoints."""
             # Test GET API keys list
-            response = self.client.get('/api/v1/api-keys/')
+            response = self.client.get("/api/v1/api-keys/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_audit_logs_endpoints(self):
             """Test audit logs endpoints."""
             # Test GET audit logs list
-            response = self.client.get('/api/v1/audit-logs/')
+            response = self.client.get("/api/v1/audit-logs/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_device_logs_endpoints(self):
             """Test device logs endpoints."""
             # Test GET device logs list
-            response = self.client.get('/api/v1/logs/')
+            response = self.client.get("/api/v1/logs/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_student_photos_endpoints(self):
             """Test student photos endpoints."""
             # Test GET student photos list
-            response = self.client.get('/api/v1/student-photos/')
+            response = self.client.get("/api/v1/student-photos/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_parents_endpoints(self):
             """Test parents endpoints."""
             # Test GET parents list
-            response = self.client.get('/api/v1/parents/')
+            response = self.client.get("/api/v1/parents/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_student_parents_endpoints(self):
             """Test student-parents endpoints."""
             # Test GET student-parents list
-            response = self.client.get('/api/v1/student-parents/')
+            response = self.client.get("/api/v1/student-parents/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
+            self.assertIn("results", response.data)
 
         def test_face_embeddings_endpoints(self):
             """Test face embeddings endpoints."""
             # Test GET face embeddings list
-            response = self.client.get('/api/v1/face-embeddings/')
+            response = self.client.get("/api/v1/face-embeddings/")
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertIn('results', response.data)
-
+            self.assertIn("results", response.data)
 
     class TestAPIEndpointsWithoutAuth(APITestCase):
         """Test that API endpoints require authentication."""
@@ -185,22 +194,22 @@ if DJANGO_AVAILABLE:
         def test_all_endpoints_require_auth(self):
             """Test that all API endpoints return 401/403 without authentication."""
             endpoints = [
-                '/api/v1/users/',
-                '/api/v1/roles/',
-                '/api/v1/students/',
-                '/api/v1/schools/',
-                '/api/v1/buses/',
-                '/api/v1/routes/',
-                '/api/v1/kiosks/',
-                '/api/v1/boarding-events/',
-                '/api/v1/attendance/',
-                '/api/v1/api-keys/',
-                '/api/v1/audit-logs/',
-                '/api/v1/logs/',
-                '/api/v1/student-photos/',
-                '/api/v1/parents/',
-                '/api/v1/student-parents/',
-                '/api/v1/face-embeddings/',
+                "/api/v1/users/",
+                "/api/v1/roles/",
+                "/api/v1/students/",
+                "/api/v1/schools/",
+                "/api/v1/buses/",
+                "/api/v1/routes/",
+                "/api/v1/kiosks/",
+                "/api/v1/boarding-events/",
+                "/api/v1/attendance/",
+                "/api/v1/api-keys/",
+                "/api/v1/audit-logs/",
+                "/api/v1/logs/",
+                "/api/v1/student-photos/",
+                "/api/v1/parents/",
+                "/api/v1/student-parents/",
+                "/api/v1/face-embeddings/",
             ]
 
             for endpoint in endpoints:
@@ -209,14 +218,14 @@ if DJANGO_AVAILABLE:
                 self.assertIn(
                     response.status_code,
                     [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN],
-                    f"Endpoint {endpoint} should require auth but returned {response.status_code}"
+                    f"Endpoint {endpoint} should require auth but returned {response.status_code}",
                 )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
 
     import pytest
 
     # Run tests using pytest
-    sys.exit(pytest.main([__file__, '-v']))
+    sys.exit(pytest.main([__file__, "-v"]))

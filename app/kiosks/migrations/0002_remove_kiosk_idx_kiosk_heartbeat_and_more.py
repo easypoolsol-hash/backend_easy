@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("buses", "0001_initial"),
         ("kiosks", "0001_initial"),

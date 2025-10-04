@@ -40,12 +40,13 @@ def measure_response_time(func):
     """
     Decorator to measure response time of health checks.
     """
+
     def wrapper(*args, **kwargs):
         start_time = time.time()
         try:
             result = func(*args, **kwargs)
             elapsed = time.time() - start_time
-            result['response_time_ms'] = round(elapsed * 1000, 2)
+            result["response_time_ms"] = round(elapsed * 1000, 2)
             return result
         except Exception as e:
             elapsed = time.time() - start_time
@@ -53,8 +54,9 @@ def measure_response_time(func):
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "response_time_ms": round(elapsed * 1000, 2)
+                "response_time_ms": round(elapsed * 1000, 2),
             }
+
     return wrapper
 
 
@@ -80,16 +82,16 @@ def check_database() -> dict[str, Any]:
             return {
                 "status": "healthy",
                 "query_time_ms": round(query_time * 1000, 2),
-                "database_engine": getattr(connection, 'vendor', 'unknown'),
+                "database_engine": getattr(connection, "vendor", "unknown"),
                 "database_name": str(
-                    getattr(connection, 'settings_dict', {}).get('NAME', 'unknown')
-                )
+                    getattr(connection, "settings_dict", {}).get("NAME", "unknown")
+                ),
             }
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "database_engine": getattr(connection, 'vendor', 'unknown')
+            "database_engine": getattr(connection, "vendor", "unknown"),
         }
 
 
@@ -113,7 +115,7 @@ def check_cache() -> dict[str, Any]:
                 return {
                     "status": "unhealthy",
                     "error": "Cache set/get mismatch",
-                    "cache_backend": cache.__class__.__name__
+                    "cache_backend": cache.__class__.__name__,
                 }
 
             # Clean up
@@ -122,14 +124,10 @@ def check_cache() -> dict[str, Any]:
             return {
                 "status": "healthy",
                 "cache_backend": cache.__class__.__name__,
-                "cache_key_prefix": getattr(cache, 'key_prefix', 'none')
+                "cache_key_prefix": getattr(cache, "key_prefix", "none"),
             }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "cache_backend": "unknown"
-        }
+        return {"status": "unhealthy", "error": str(e), "cache_backend": "unknown"}
 
 
 @measure_response_time
@@ -153,7 +151,7 @@ def check_celery() -> dict[str, Any]:
                     "status": "warning",
                     "message": "No active Celery workers found",
                     "broker_url": current_app.conf.broker_url,
-                    "active_workers": 0
+                    "active_workers": 0,
                 }
 
             # Get queue statistics
@@ -165,18 +163,16 @@ def check_celery() -> dict[str, Any]:
                 "active_workers": worker_count,
                 "active_tasks": active_task_count,
                 "broker_url": current_app.conf.broker_url.replace(
-                    current_app.conf.broker_url.split('@')[0] + '@', '***@'
+                    current_app.conf.broker_url.split("@")[0] + "@", "***@"
                 ),  # Mask credentials
                 "result_backend": current_app.conf.result_backend.replace(
-                    current_app.conf.result_backend.split('@')[0] + '@', '***@'
-                ) if current_app.conf.result_backend else None
+                    current_app.conf.result_backend.split("@")[0] + "@", "***@"
+                )
+                if current_app.conf.result_backend
+                else None,
             }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-            "broker_url": "unknown"
-        }
+        return {"status": "unhealthy", "error": str(e), "broker_url": "unknown"}
 
 
 @measure_response_time
@@ -196,7 +192,7 @@ def check_system_resources() -> dict[str, Any]:
             memory_total_gb = round(memory.total / (1024**3), 2)
 
             # Disk usage
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
             disk_percent = disk.percent
             disk_used_gb = round(disk.used / (1024**3), 2)
             disk_total_gb = round(disk.total / (1024**3), 2)
@@ -229,20 +225,20 @@ def check_system_resources() -> dict[str, Any]:
                 "memory": {
                     "percent": memory_percent,
                     "used_gb": memory_used_gb,
-                    "total_gb": memory_total_gb
+                    "total_gb": memory_total_gb,
                 },
                 "disk": {
                     "percent": disk_percent,
                     "used_gb": disk_used_gb,
-                    "total_gb": disk_total_gb
+                    "total_gb": disk_total_gb,
                 },
-                "warnings": warnings if warnings else None
+                "warnings": warnings if warnings else None,
             }
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "note": "System resource monitoring unavailable"
+            "note": "System resource monitoring unavailable",
         }
 
 
@@ -259,11 +255,11 @@ def check_business_logic() -> dict[str, Any]:
             from django.apps import apps
 
             critical_models = [
-                ('users', 'User'),
-                ('students', 'Student'),
-                ('buses', 'Bus'),
-                ('events', 'BoardingEvent'),
-                ('kiosks', 'Kiosk'),
+                ("users", "User"),
+                ("students", "Student"),
+                ("buses", "Bus"),
+                ("events", "BoardingEvent"),
+                ("kiosks", "Kiosk"),
             ]
 
             for app_label, model_name in critical_models:
@@ -275,12 +271,12 @@ def check_business_logic() -> dict[str, Any]:
                     checks[f"{app_label}_{model_name.lower()}"] = {
                         "status": "healthy",
                         "record_count": count,
-                        "table_name": table_name
+                        "table_name": table_name,
                     }
                 except Exception as e:
                     checks[f"{app_label}_{model_name.lower()}"] = {
                         "status": "unhealthy",
-                        "error": str(e)
+                        "error": str(e),
                     }
 
             # Overall business logic status
@@ -292,13 +288,13 @@ def check_business_logic() -> dict[str, Any]:
             return {
                 "status": status,
                 "checks": checks,
-                "unhealthy_components": unhealthy_checks if unhealthy_checks else None
+                "unhealthy_components": unhealthy_checks if unhealthy_checks else None,
             }
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "note": "Business logic health check failed"
+            "note": "Business logic health check failed",
         }
 
 
@@ -319,24 +315,29 @@ def health_check(request):
 
         response_time = time.time() - start_time
 
-        return JsonResponse({
-            "status": "healthy",
-            "timestamp": time.time(),
-            "service": "bus-kiosk-backend",
-            "version": "1.0.0",
-            "response_time_ms": round(response_time * 1000, 2),
-            "environment": os.getenv("DJANGO_SETTINGS_MODULE", "unknown"),
-        })
+        return JsonResponse(
+            {
+                "status": "healthy",
+                "timestamp": time.time(),
+                "service": "bus-kiosk-backend",
+                "version": "1.0.0",
+                "response_time_ms": round(response_time * 1000, 2),
+                "environment": os.getenv("DJANGO_SETTINGS_MODULE", "unknown"),
+            }
+        )
     except Exception as e:
         logger.error(f"Basic health check failed: {e}")
-        return JsonResponse({
-            "status": "unhealthy",
-            "timestamp": time.time(),
-            "service": "bus-kiosk-backend",
-            "version": "1.0.0",
-            "error": str(e),
-            "response_time_ms": round((time.time() - start_time) * 1000, 2),
-        }, status=503)
+        return JsonResponse(
+            {
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "bus-kiosk-backend",
+                "version": "1.0.0",
+                "error": str(e),
+                "response_time_ms": round((time.time() - start_time) * 1000, 2),
+            },
+            status=503,
+        )
 
 
 @require_GET
@@ -356,13 +357,17 @@ def detailed_health_check(request):
     # Check multiple indicators: pytest environment, Django test command, test database, or sys.argv
     import sys
     from django.conf import settings as django_settings
+
     is_testing = (
-        'test' in os.getenv('DJANGO_SETTINGS_MODULE', '').lower() or
-        'pytest' in os.getenv('_', '').lower() or
-        'pytest' in os.getenv('PYTEST_CURRENT_TEST', '') or
-        'pytest' in sys.argv[0].lower() or
-        'test' in sys.argv or
-        'test_' in django_settings.DATABASES['default']['NAME']  # Django creates test databases with test_ prefix
+        "test" in os.getenv("DJANGO_SETTINGS_MODULE", "").lower()
+        or "pytest" in os.getenv("_", "").lower()
+        or "pytest" in os.getenv("PYTEST_CURRENT_TEST", "")
+        or "pytest" in sys.argv[0].lower()
+        or "test" in sys.argv
+        or "test_"
+        in django_settings.DATABASES["default"][
+            "NAME"
+        ]  # Django creates test databases with test_ prefix
     )
 
     health_data: dict[str, Any] = {
@@ -411,7 +416,7 @@ def detailed_health_check(request):
             health_data["checks"][check_name] = {
                 "status": "unhealthy",
                 "error": str(e),
-                "response_time_ms": round((time.time() - start_time) * 1000, 2)
+                "response_time_ms": round((time.time() - start_time) * 1000, 2),
             }
             health_data["status"] = "unhealthy"
 
@@ -437,6 +442,7 @@ def prometheus_metrics(request):
     """
     try:
         from django_prometheus import exports  # type: ignore[import-untyped]
+
         return exports.ExportToDjangoView(request)
     except ImportError:
         logger.error("Prometheus not configured")

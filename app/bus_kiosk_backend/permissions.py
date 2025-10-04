@@ -9,13 +9,14 @@ class IsKiosk(BasePermission):
 
     def has_permission(self, request, view):
         # Check for kiosk API key in header
-        api_key = request.headers.get('X-Kiosk-API-Key')
+        api_key = request.headers.get("X-Kiosk-API-Key")
         if not api_key:
             return False
 
         # In a real implementation, you'd validate the API key against the database
         # For now, we'll just check if it exists
         from kiosks.models import Kiosk
+
         try:
             kiosk = Kiosk.objects.get(api_key_hash=api_key)
             # Store kiosk in request for use in views
@@ -37,7 +38,7 @@ class IsSchoolAdmin(BasePermission):
             return False
 
         # Check role-based access (your custom role system)
-        if hasattr(request.user, 'role') and request.user.role.name == 'school_admin':
+        if hasattr(request.user, "role") and request.user.role.name == "school_admin":
             return True
 
         # Alternative: Check Django permissions

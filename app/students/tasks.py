@@ -5,9 +5,11 @@ from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
+
 @shared_task
-def process_student_attendance(student_name, boarding_time,
-                              bus_id=None, face_confidence=None):
+def process_student_attendance(
+    student_name, boarding_time, bus_id=None, face_confidence=None
+):
     """
     Process boarding event asynchronously after kiosk approval
     - Store attendance record in database
@@ -17,7 +19,6 @@ def process_student_attendance(student_name, boarding_time,
     """
     try:
         from datetime import datetime
-
 
         logger.info(f"Processing boarding for {student_name} at {boarding_time}")
 
@@ -42,7 +43,7 @@ def process_student_attendance(student_name, boarding_time,
             "boarding_time": boarding_time,
             "bus_id": bus_id,
             "face_confidence": face_confidence,
-            "processed_at": datetime.now().isoformat()
+            "processed_at": datetime.now().isoformat(),
         }
 
     except Exception as e:
@@ -51,8 +52,9 @@ def process_student_attendance(student_name, boarding_time,
             "status": "error",
             "student_name": student_name,
             "error": f"{e!s}",
-            "processed_at": datetime.now().isoformat()
+            "processed_at": datetime.now().isoformat(),
         }
+
 
 @shared_task
 def calculate_daily_attendance():
@@ -68,15 +70,15 @@ def calculate_daily_attendance():
     # Pretend we calculated attendance
     total_students = 150
     present_students = 142
-    attendance_rate = (present_students / total_students * 100)
+    attendance_rate = present_students / total_students * 100
 
     today = datetime.now().strftime("%Y-%m-%d")
 
     logger.info(f"Daily attendance calculated for {today}")
 
     return {
-        'date': today,
-        'total_students': total_students,
-        'present_students': present_students,
-        'attendance_rate': round(attendance_rate, 1)
+        "date": today,
+        "total_students": total_students,
+        "present_students": present_students,
+        "attendance_rate": round(attendance_rate, 1),
     }

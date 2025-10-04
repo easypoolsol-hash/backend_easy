@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('students', '0001_initial'),
+        ("students", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='faceembeddingmetadata',
-            name='model_name',
-            field=models.CharField(help_text='Face recognition model', max_length=100),
+            model_name="faceembeddingmetadata",
+            name="model_name",
+            field=models.CharField(help_text="Face recognition model", max_length=100),
         ),
     ]

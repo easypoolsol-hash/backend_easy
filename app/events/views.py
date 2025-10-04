@@ -23,18 +23,18 @@ from .serializers import (
 class BoardingEventViewSet(viewsets.ModelViewSet):
     """ViewSet for boarding events"""
 
-    queryset = BoardingEvent.objects.select_related('student').order_by('-timestamp')
+    queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['kiosk_id', 'student', 'timestamp', 'bus_route']
+    filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]
 
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action == "create":
             return BoardingEventCreateSerializer
         return BoardingEventSerializer
 
     def get_permissions(self):
-        if self.action in ['create', 'bulk_create']:
+        if self.action in ["create", "bulk_create"]:
             return [IsKiosk()]
         return [IsAuthenticated()]
 
@@ -42,21 +42,21 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
         """Filter queryset based on user role"""
         queryset = super().get_queryset()
 
-        if hasattr(self.request.user, 'role'):
-            if self.request.user.role == 'parent':
+        if hasattr(self.request.user, "role"):
+            if self.request.user.role == "parent":
                 # Parents can only see their children's events
                 student_ids = Student.objects.filter(
                     student_parents__parent__user=self.request.user
-                ).values_list('student_id', flat=True)
+                ).values_list("student_id", flat=True)
                 queryset = queryset.filter(student_id__in=student_ids)
-            elif self.request.user.role == 'school_admin':
+            elif self.request.user.role == "school_admin":
                 # School admins can see all events in their school
                 # This would need school filtering logic
                 pass
 
         return queryset
 
-    @action(detail=False, methods=['post'], url_path='bulk')
+    @action(detail=False, methods=["post"], url_path="bulk")
     def bulk_create(self, request):
         """Bulk create boarding events (for high-throughput kiosk operations)"""
         serializer = BoardingEventCreateSerializer(data=request.data, many=True)
@@ -64,14 +64,14 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 
         events = serializer.save()
         return Response(
-            {'created': len(events), 'events': [e.event_id for e in events]},
-            status=status.HTTP_201_CREATED
+            {"created": len(events), "events": [e.event_id for e in events]},
+            status=status.HTTP_201_CREATED,
         )
 
-    @action(detail=False, methods=['get'], url_path='recent')
+    @action(detail=False, methods=["get"], url_path="recent")
     def recent_events(self, request):
         """Get recent boarding events for dashboard"""
-        hours = int(request.query_params.get('hours', 24))
+        hours = int(request.query_params.get("hours", 24))
         since = timezone.now() - timedelta(hours=hours)
 
         events = self.get_queryset().filter(timestamp__gte=since)[:100]
@@ -82,80 +82,81 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only ViewSet for attendance records"""
 
-    queryset = AttendanceRecord.objects.select_related('student').order_by('-date')
+    queryset = AttendanceRecord.objects.select_related("student").order_by("-date")
     serializer_class = AttendanceRecordSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['student', 'date', 'status']
+    filterset_fields = ["student", "date", "status"]
 
     def get_queryset(self):
         """Filter queryset based on user role"""
         queryset = super().get_queryset()
 
-        if hasattr(self.request.user, 'role'):
-            if self.request.user.role == 'parent':
+        if hasattr(self.request.user, "role"):
+            if self.request.user.role == "parent":
                 # Parents can only see their children's attendance
                 student_ids = Student.objects.filter(
                     student_parents__parent__user=self.request.user
-                ).values_list('student_id', flat=True)
+                ).values_list("student_id", flat=True)
                 queryset = queryset.filter(student_id__in=student_ids)
-            elif self.request.user.role == 'school_admin':
+            elif self.request.user.role == "school_admin":
                 # School admins can see all attendance in their school
                 pass
 
         return queryset
 
-    @action(detail=False, methods=['get'], url_path='summary')
+    @action(detail=False, methods=["get"], url_path="summary")
     def attendance_summary(self, request):
         """Get attendance summary for date range"""
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
 
         if not start_date or not end_date:
             return Response(
-                {'error': 'start_date and end_date parameters required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "start_date and end_date parameters required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Aggregate attendance data
         summary_data = AttendanceRecord.objects.filter(
             date__range=[start_date, end_date]
         ).aggregate(
-            total_students=Count('student', distinct=True),
-            present_count=Count('record_id', filter=Q(status='present')),
-            absent_count=Count('record_id', filter=Q(status='absent')),
-            partial_count=Count('record_id', filter=Q(status='partial')),
+            total_students=Count("student", distinct=True),
+            present_count=Count("record_id", filter=Q(status="present")),
+            absent_count=Count("record_id", filter=Q(status="absent")),
+            partial_count=Count("record_id", filter=Q(status="partial")),
         )
 
-        if summary_data['total_students'] > 0:
-            summary_data['attendance_rate'] = (
-                summary_data['present_count'] / summary_data['total_students']
+        if summary_data["total_students"] > 0:
+            summary_data["attendance_rate"] = (
+                summary_data["present_count"] / summary_data["total_students"]
             )
         else:
-            summary_data['attendance_rate'] = 0
+            summary_data["attendance_rate"] = 0
 
-        summary_data['date'] = f"{start_date} to {end_date}"
+        summary_data["date"] = f"{start_date} to {end_date}"
 
         serializer = AttendanceSummarySerializer(summary_data)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='student/(?P<student_id>[^/.]+)')
+    @action(detail=False, methods=["get"], url_path="student/(?P<student_id>[^/.]+)")
     def student_attendance(self, request, student_id=None):
         """Get attendance history for a specific student"""
         try:
             student = Student.objects.get(student_id=student_id)
         except Student.DoesNotExist:
             return Response(
-                {'error': 'Student not found'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         # Check permissions
-        if (hasattr(request.user, 'role') and request.user.role == 'parent' and
-            not student.student_parents.filter(parent__user=request.user).exists()):
+        if (
+            hasattr(request.user, "role")
+            and request.user.role == "parent"
+            and not student.student_parents.filter(parent__user=request.user).exists()
+        ):
             return Response(
-                {'error': 'Permission denied'},
-                status=status.HTTP_403_FORBIDDEN
+                {"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
             )
 
         records = self.get_queryset().filter(student=student)

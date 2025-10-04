@@ -15,12 +15,15 @@ sys.path.insert(0, str(project_root))
 
 TESTS_DIR = "tests"
 
+
 def run_command(command, description):
     """Run a command and return success status."""
     print(f"\n🔧 {description}")
     print(f"Command: {' '.join(command)}")
     try:
-        result = subprocess.run(command, cwd=project_root, capture_output=True, text=True)
+        result = subprocess.run(
+            command, cwd=project_root, capture_output=True, text=True
+        )
         if result.returncode == 0:
             print("✅ Success")
             return True
@@ -33,15 +36,22 @@ def run_command(command, description):
         print(f"❌ Error: {e}")
         return False
 
+
 def run_pytest_tests():
     """Run pytest tests."""
-    return run_command([
-        sys.executable, "-m", "pytest",
-        TESTS_DIR,
-        "-v",
-        "--tb=short",
-        "--disable-warnings"
-    ], "Running pytest tests")
+    return run_command(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            TESTS_DIR,
+            "-v",
+            "--tb=short",
+            "--disable-warnings",
+        ],
+        "Running pytest tests",
+    )
+
 
 def run_standalone_tests():
     """Run standalone test files."""
@@ -50,15 +60,15 @@ def run_standalone_tests():
         os.path.join(project_root, TESTS_DIR, "test_auth.py"),
         os.path.join(project_root, TESTS_DIR, "test_api_endpoints.py"),
         os.path.join(project_root, TESTS_DIR, "test_security.py"),
-        os.path.join(project_root, TESTS_DIR, "test_openapi_schema.py")
+        os.path.join(project_root, TESTS_DIR, "test_openapi_schema.py"),
     ]
 
     all_passed = True
     for test_file in test_files:
         if os.path.exists(test_file):
-            success = run_command([
-                sys.executable, test_file
-            ], f"Running standalone tests in {test_file}")
+            success = run_command(
+                [sys.executable, test_file], f"Running standalone tests in {test_file}"
+            )
             if not success:
                 all_passed = False
         else:
@@ -66,18 +76,28 @@ def run_standalone_tests():
 
     return all_passed
 
+
 def run_django_tests():
     """Run Django test suite."""
-    return run_command([
-        sys.executable, "manage.py", "test",
-        "--verbosity=2",
-        "--keepdb"  # Keep test database for faster runs
-    ], "Running Django tests")
+    return run_command(
+        [
+            sys.executable,
+            "manage.py",
+            "test",
+            "--verbosity=2",
+            "--keepdb",  # Keep test database for faster runs
+        ],
+        "Running Django tests",
+    )
+
 
 def run_linting():
     """Run code linting."""
     commands = [
-        ([sys.executable, "-m", "flake8", TESTS_DIR, "--max-line-length=100"], "Running flake8 linting"),
+        (
+            [sys.executable, "-m", "flake8", TESTS_DIR, "--max-line-length=100"],
+            "Running flake8 linting",
+        ),
         ([sys.executable, "-m", "mypy", TESTS_DIR], "Running mypy type checking"),
     ]
 
@@ -88,6 +108,7 @@ def run_linting():
             all_passed = False
 
     return all_passed
+
 
 def main():
     """Main test runner."""
@@ -130,6 +151,7 @@ def main():
     else:
         print("💥 Some tests failed!")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

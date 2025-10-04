@@ -18,7 +18,7 @@ class BusFactory(DjangoModelFactory):
     license_plate = factory.Sequence(lambda n: f"BUS-{n:03d}")
     capacity = 50
     model = factory.Sequence(lambda n: f"Model-{n}")
-    status = 'active'
+    status = "active"
 
 
 class KioskFactory(DjangoModelFactory):
@@ -45,5 +45,5 @@ class DeviceLogFactory(DjangoModelFactory):
 
     kiosk: Any = factory.SubFactory(KioskFactory)
     log_level = "INFO"
-    message: Any = factory.Faker('sentence')
-    metadata = factory.LazyFunction(lambda: {'test': True})
+    message: Any = factory.Faker("sentence")
+    metadata = factory.LazyFunction(lambda: {"test": True})

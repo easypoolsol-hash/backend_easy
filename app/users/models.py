@@ -55,9 +55,11 @@ class UserManager(BaseUserManager):
 
         email = self.normalize_email(email)
         # Set default role if not provided
-        if 'role' not in extra_fields:
+        if "role" not in extra_fields:
             try:
-                extra_fields['role'] = Role.objects.get_or_create(name="backend_engineer")[0]
+                extra_fields["role"] = Role.objects.get_or_create(
+                    name="backend_engineer"
+                )[0]
             except Exception:
                 # If Role table doesn't exist yet, skip setting role
                 pass
@@ -71,7 +73,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         # Set default role if not provided
-        if 'role' not in extra_fields:
+        if "role" not in extra_fields:
             try:
                 extra_fields.setdefault(
                     "role", Role.objects.get_or_create(name="super_admin")[0]

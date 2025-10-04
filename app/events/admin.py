@@ -6,55 +6,43 @@ from .models import AttendanceRecord, BoardingEvent
 @admin.register(BoardingEvent)
 class BoardingEventAdmin(admin.ModelAdmin):
     """Admin interface for boarding events"""
+
     list_display = [
-        'event_id_short',
-        'student',
-        'kiosk_id',
-        'confidence_score',
-        'timestamp',
-        'bus_route',
-        'model_version'
+        "event_id_short",
+        "student",
+        "kiosk_id",
+        "confidence_score",
+        "timestamp",
+        "bus_route",
+        "model_version",
     ]
     list_filter = [
-        'timestamp',
-        'kiosk_id',
-        'model_version',
-        'bus_route',
+        "timestamp",
+        "kiosk_id",
+        "model_version",
+        "bus_route",
     ]
-    search_fields = [
-        'event_id',
-        'student__name',
-        'kiosk_id',
-        'bus_route'
-    ]
-    readonly_fields = [
-        'event_id',
-        'created_at'
-    ]
-    date_hierarchy = 'timestamp'
-    ordering = ['-timestamp']
+    search_fields = ["event_id", "student__name", "kiosk_id", "bus_route"]
+    readonly_fields = ["event_id", "created_at"]
+    date_hierarchy = "timestamp"
+    ordering = ["-timestamp"]
 
     fieldsets = (
-        ('Event Info', {
-            'fields': ('event_id', 'student', 'kiosk_id', 'timestamp')
-        }),
-        ('Recognition', {
-            'fields': ('confidence_score', 'model_version', 'face_image_url')
-        }),
-        ('Location', {
-            'fields': ('latitude', 'longitude', 'bus_route')
-        }),
-        ('Metadata', {
-            'fields': ('metadata', 'created_at'),
-            'classes': ('collapse',)
-        }),
+        ("Event Info", {"fields": ("event_id", "student", "kiosk_id", "timestamp")}),
+        (
+            "Recognition",
+            {"fields": ("confidence_score", "model_version", "face_image_url")},
+        ),
+        ("Location", {"fields": ("latitude", "longitude", "bus_route")}),
+        ("Metadata", {"fields": ("metadata", "created_at"), "classes": ("collapse",)}),
     )
 
     def event_id_short(self, obj):
         """Display shortened ULID for readability"""
         return f"{obj.event_id[:8]}..."
+
     event_id_short.short_description = "Event ID"  # type: ignore[attr-defined]
-    event_id_short.admin_order_field = 'event_id'  # type: ignore[attr-defined]
+    event_id_short.admin_order_field = "event_id"  # type: ignore[attr-defined]
 
     def has_add_permission(self, request):
         """Boarding events should only be created by kiosks, not manually"""
@@ -68,43 +56,27 @@ class BoardingEventAdmin(admin.ModelAdmin):
 @admin.register(AttendanceRecord)
 class AttendanceRecordAdmin(admin.ModelAdmin):
     """Admin interface for attendance records"""
+
     list_display = [
-        'student',
-        'date',
-        'status',
-        'morning_boarded',
-        'afternoon_boarded',
-        'morning_time',
-        'afternoon_time'
+        "student",
+        "date",
+        "status",
+        "morning_boarded",
+        "afternoon_boarded",
+        "morning_time",
+        "afternoon_time",
     ]
-    list_filter = [
-        'status',
-        'date',
-        'morning_boarded',
-        'afternoon_boarded'
-    ]
-    search_fields = [
-        'student__name',
-        'student__student_id'
-    ]
-    readonly_fields = ['record_id', 'created_at']
-    date_hierarchy = 'date'
-    ordering = ['-date']
+    list_filter = ["status", "date", "morning_boarded", "afternoon_boarded"]
+    search_fields = ["student__name", "student__student_id"]
+    readonly_fields = ["record_id", "created_at"]
+    date_hierarchy = "date"
+    ordering = ["-date"]
 
     fieldsets = (
-        ('Record Info', {
-            'fields': ('record_id', 'student', 'date', 'status')
-        }),
-        ('Morning Session', {
-            'fields': ('morning_boarded', 'morning_time')
-        }),
-        ('Afternoon Session', {
-            'fields': ('afternoon_boarded', 'afternoon_time')
-        }),
-        ('Metadata', {
-            'fields': ('created_at',),
-            'classes': ('collapse',)
-        }),
+        ("Record Info", {"fields": ("record_id", "student", "date", "status")}),
+        ("Morning Session", {"fields": ("morning_boarded", "morning_time")}),
+        ("Afternoon Session", {"fields": ("afternoon_boarded", "afternoon_time")}),
+        ("Metadata", {"fields": ("created_at",), "classes": ("collapse",)}),
     )
 
     def has_add_permission(self, request):

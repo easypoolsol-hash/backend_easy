@@ -35,9 +35,9 @@ AUTH_USER_MODEL = "users.User"
 
 # Override database configuration for tests
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',  # Use in-memory database for tests
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",  # Use in-memory database for tests
     }
 }
 
@@ -72,7 +72,7 @@ TEMPLATES = [
 
 # Use faster password hasher for tests
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.MD5PasswordHasher',
+    "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
 # Disable Celery during tests
@@ -81,25 +81,25 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 # Disable caching during tests
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     },
-    'api_cache': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    "api_cache": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     },
 }
 
 # Basic logging for tests
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'WARNING',
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
     },
 }

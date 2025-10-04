@@ -6,9 +6,9 @@ from .models import DeviceLog, Kiosk
 class KioskSerializer(serializers.ModelSerializer):
     """Serializer for kiosks"""
 
-    bus = serializers.CharField(source='bus.bus_id', read_only=True)
+    bus = serializers.CharField(source="bus.bus_id", read_only=True)
     bus_license_plate = serializers.CharField(
-        source='bus.license_plate', read_only=True
+        source="bus.license_plate", read_only=True
     )
     status_display = serializers.ReadOnlyField()
     is_online = serializers.ReadOnlyField()
@@ -17,20 +17,20 @@ class KioskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Kiosk
         fields = [
-            'kiosk_id',
-            'bus',
-            'bus_license_plate',
-            'firmware_version',
-            'last_heartbeat',
-            'is_active',
-            'battery_level',
-            'storage_used_mb',
-            'status_display',
-            'is_online',
-            'created_at',
-            'updated_at'
+            "kiosk_id",
+            "bus",
+            "bus_license_plate",
+            "firmware_version",
+            "last_heartbeat",
+            "is_active",
+            "battery_level",
+            "storage_used_mb",
+            "status_display",
+            "is_online",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['kiosk_id', 'created_at', 'updated_at', 'api_key_hash']
+        read_only_fields = ["kiosk_id", "created_at", "updated_at", "api_key_hash"]
 
     def validate_battery_level(self, value):
         """Validate battery level is between 0 and 100"""
@@ -51,7 +51,7 @@ class KioskHeartbeatSerializer(serializers.Serializer):
         """Validate kiosk exists"""
         try:
             kiosk = Kiosk.objects.get(kiosk_id=value)
-            self.context['kiosk'] = kiosk
+            self.context["kiosk"] = kiosk
             return value
         except Kiosk.DoesNotExist as e:
             raise serializers.ValidationError("Kiosk not found") from e
@@ -60,20 +60,20 @@ class KioskHeartbeatSerializer(serializers.Serializer):
 class DeviceLogSerializer(serializers.ModelSerializer):
     """Serializer for device logs"""
 
-    kiosk_id = serializers.CharField(source='kiosk.kiosk_id', read_only=True)
+    kiosk_id = serializers.CharField(source="kiosk.kiosk_id", read_only=True)
 
     class Meta:
         model = DeviceLog
         fields = [
-            'log_id',
-            'kiosk',
-            'kiosk_id',
-            'log_level',
-            'message',
-            'metadata',
-            'timestamp'
+            "log_id",
+            "kiosk",
+            "kiosk_id",
+            "log_level",
+            "message",
+            "metadata",
+            "timestamp",
         ]
-        read_only_fields = ['log_id', 'timestamp']
+        read_only_fields = ["log_id", "timestamp"]
 
 
 class KioskStatusSerializer(serializers.Serializer):

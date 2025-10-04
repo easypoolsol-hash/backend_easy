@@ -14,34 +14,33 @@ class Kiosk(models.Model):
     kiosk_id = models.CharField(
         max_length=100,
         primary_key=True,
-        help_text="Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)"
+        help_text="Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)",
     )
     bus = models.OneToOneField(
         Bus,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='kiosk',
-        help_text="Bus this kiosk is installed on"
+        related_name="kiosk",
+        help_text="Bus this kiosk is installed on",
     )
     api_key_hash = models.CharField(
         max_length=255,
         unique=True,
-        help_text="Hashed API key for device authentication"
+        help_text="Hashed API key for device authentication",
     )
     firmware_version = models.CharField(
         max_length=50,
         blank=True,
-        help_text="Current firmware version installed on device"
+        help_text="Current firmware version installed on device",
     )
     last_heartbeat = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Timestamp of last heartbeat received from device"
+        help_text="Timestamp of last heartbeat received from device",
     )
     is_active = models.BooleanField(
-        default=True,
-        help_text="Whether this kiosk is active and accepting requests"
+        default=True, help_text="Whether this kiosk is active and accepting requests"
     )
     battery_level = models.DecimalField(
         max_digits=5,
@@ -49,29 +48,25 @@ class Kiosk(models.Model):
         null=True,
         blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Battery level percentage (0-100)"
+        help_text="Battery level percentage (0-100)",
     )
     storage_used_mb = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text="Storage used in MB on the device"
+        null=True, blank=True, help_text="Storage used in MB on the device"
     )
     created_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="When this kiosk was registered"
+        auto_now_add=True, help_text="When this kiosk was registered"
     )
     updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="When this kiosk record was last updated"
+        auto_now=True, help_text="When this kiosk record was last updated"
     )
 
     class Meta:
-        db_table = 'kiosks'
-        ordering = ['kiosk_id']
+        db_table = "kiosks"
+        ordering = ["kiosk_id"]
         indexes = [
-            models.Index(fields=['bus'], name='idx_kiosk_bus'),
-            models.Index(fields=['last_heartbeat'], name='idx_kiosk_heartbeat'),
-            models.Index(fields=['is_active'], name='idx_kiosk_active'),
+            models.Index(fields=["bus"], name="idx_kiosk_bus"),
+            models.Index(fields=["last_heartbeat"], name="idx_kiosk_heartbeat"),
+            models.Index(fields=["is_active"], name="idx_kiosk_active"),
         ]
 
     def __str__(self):
@@ -104,8 +99,9 @@ class Kiosk(models.Model):
     def update_heartbeat(self):
         """Update the last heartbeat timestamp"""
         from django.utils import timezone
+
         self.last_heartbeat = timezone.now()
-        self.save(update_fields=['last_heartbeat', 'updated_at'])
+        self.save(update_fields=["last_heartbeat", "updated_at"])
 
 
 class DeviceLog(models.Model):
@@ -115,66 +111,60 @@ class DeviceLog(models.Model):
     """
 
     LOG_LEVELS = [
-        ('DEBUG', 'Debug'),
-        ('INFO', 'Info'),
-        ('WARN', 'Warning'),
-        ('ERROR', 'Error'),
-        ('CRITICAL', 'Critical'),
+        ("DEBUG", "Debug"),
+        ("INFO", "Info"),
+        ("WARN", "Warning"),
+        ("ERROR", "Error"),
+        ("CRITICAL", "Critical"),
     ]
 
     log_id = models.BigAutoField(
-        primary_key=True,
-        help_text="Auto-incrementing log entry ID"
+        primary_key=True, help_text="Auto-incrementing log entry ID"
     )
     kiosk = models.ForeignKey(
         Kiosk,
         on_delete=models.CASCADE,
-        related_name='logs',
-        help_text="Kiosk that generated this log entry"
+        related_name="logs",
+        help_text="Kiosk that generated this log entry",
     )
     log_level = models.CharField(
-        max_length=20,
-        choices=LOG_LEVELS,
-        help_text="Log level severity"
+        max_length=20, choices=LOG_LEVELS, help_text="Log level severity"
     )
-    message = models.TextField(
-        help_text="Log message content"
-    )
+    message = models.TextField(help_text="Log message content")
     metadata = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Additional structured data as JSON"
+        default=dict, blank=True, help_text="Additional structured data as JSON"
     )
     timestamp = models.DateTimeField(
-        default=timezone.now,
-        help_text="When this log entry was created"
+        default=timezone.now, help_text="When this log entry was created"
     )
 
     class Meta:
-        db_table = 'device_logs'
-        ordering = ['-timestamp']
+        db_table = "device_logs"
+        ordering = ["-timestamp"]
         indexes = [
-            models.Index(fields=['kiosk', 'timestamp'], name='idx_logs_kiosk_time'),
-            models.Index(fields=['log_level'], name='idx_logs_level'),
-            models.Index(fields=['timestamp'], name='idx_logs_timestamp'),
+            models.Index(fields=["kiosk", "timestamp"], name="idx_logs_kiosk_time"),
+            models.Index(fields=["log_level"], name="idx_logs_level"),
+            models.Index(fields=["timestamp"], name="idx_logs_timestamp"),
         ]
         # Note: Monthly partitioning by timestamp would be implemented in
         # PostgreSQL migration. Partitioning is not directly supported in
         # Django ORM, requires raw SQL in migrations
 
     def __str__(self):
-        return f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: " \
-               f"{self.message[:50]}..."
+        return (
+            f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: "
+            f"{self.message[:50]}..."
+        )
 
     @classmethod
     def log(cls, kiosk, level, message, metadata=None, timestamp=None):
         """Convenience method to create a log entry"""
         data = {
-            'kiosk': kiosk,
-            'log_level': level,
-            'message': message,
-            'metadata': metadata or {},
+            "kiosk": kiosk,
+            "log_level": level,
+            "message": message,
+            "metadata": metadata or {},
         }
         if timestamp is not None:
-            data['timestamp'] = timestamp
+            data["timestamp"] = timestamp
         return cls.objects.create(**data)

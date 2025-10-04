@@ -37,14 +37,14 @@ LOGS_DIR.mkdir(exist_ok=True)
 # In production, this MUST be set via environment variable
 SECRET_KEY = os.getenv(
     "SECRET_KEY",
-    "django-insecure-nt^m$n3edy=!)w9=b0$@)jc3r4$csehg)6a#-q2u1*n01f$zl@"  # Dev fallback only
+    "django-insecure-nt^m$n3edy=!)w9=b0$@)jc3r4$csehg)6a#-q2u1*n01f$zl@",  # Dev fallback only
 )
 
 # Encryption key for PII data (generate a new one for production)
 # In production, this MUST be set via environment variable
 ENCRYPTION_KEY = os.getenv(
     "ENCRYPTION_KEY",
-    "your-32-byte-encryption-key-here-change-in-production"  # Dev fallback only
+    "your-32-byte-encryption-key-here-change-in-production",  # Dev fallback only
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -421,9 +421,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-] if (BASE_DIR / "static").exists() else []
+STATICFILES_DIRS = (
+    [
+        BASE_DIR / "static",
+    ]
+    if (BASE_DIR / "static").exists()
+    else []
+)
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type

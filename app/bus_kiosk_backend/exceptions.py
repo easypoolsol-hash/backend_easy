@@ -56,7 +56,7 @@ def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
                     "request_id": None,
                 }
             },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 

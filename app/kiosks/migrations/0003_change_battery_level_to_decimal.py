@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("kiosks", "0002_remove_kiosk_idx_kiosk_heartbeat_and_more"),
     ]

@@ -3,7 +3,6 @@ Schema preprocessing hooks for drf-spectacular.
 """
 
 
-
 def exclude_health_endpoints(endpoints):
     """
     Exclude health check and monitoring endpoints from OpenAPI schema.
@@ -13,9 +12,9 @@ def exclude_health_endpoints(endpoints):
     """
     filtered_endpoints = []
     excluded_patterns = [
-        '/health/',
-        '/health/detailed/',
-        '/metrics/',
+        "/health/",
+        "/health/detailed/",
+        "/metrics/",
     ]
 
     for path, path_regex, method, callback in endpoints:

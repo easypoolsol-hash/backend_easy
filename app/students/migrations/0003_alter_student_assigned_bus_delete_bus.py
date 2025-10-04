@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("buses", "0001_initial"),
         ("students", "0002_alter_faceembeddingmetadata_model_name"),

@@ -22,26 +22,26 @@ from .serializers import (
 class KioskViewSet(viewsets.ModelViewSet):
     """ViewSet for kiosk management"""
 
-    queryset = Kiosk.objects.select_related('bus').order_by('kiosk_id')
+    queryset = Kiosk.objects.select_related("bus").order_by("kiosk_id")
     serializer_class = KioskSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['is_active', 'bus']
+    filterset_fields = ["is_active", "bus"]
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsSchoolAdmin()]
         return [IsAuthenticated()]
 
-    @action(detail=True, methods=['get'], url_path='logs')
+    @action(detail=True, methods=["get"], url_path="logs")
     def kiosk_logs(self, request, pk=None):
         """Get logs for a specific kiosk"""
         kiosk = self.get_object()
-        logs = kiosk.logs.order_by('-timestamp')[:100]  # Last 100 logs
+        logs = kiosk.logs.order_by("-timestamp")[:100]  # Last 100 logs
         serializer = DeviceLogSerializer(logs, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='status')
+    @action(detail=False, methods=["get"], url_path="status")
     def status_summary(self, request):
         """Get overall kiosk status summary"""
         kiosks = self.get_queryset()
@@ -53,28 +53,27 @@ class KioskViewSet(viewsets.ModelViewSet):
         # Online = active kiosks with recent heartbeat (last 5 minutes)
         five_minutes_ago = timezone.now() - timedelta(minutes=5)
         online = kiosks.filter(
-            is_active=True,
-            last_heartbeat__gte=five_minutes_ago
+            is_active=True, last_heartbeat__gte=five_minutes_ago
         ).count()
 
         offline = active - online
 
         # Serialize all kiosks
-        serializer = KioskSerializer(kiosks, many=True, context={'request': request})
+        serializer = KioskSerializer(kiosks, many=True, context={"request": request})
 
         summary_data = {
-            'total_kiosks': total,
-            'active_kiosks': active,
-            'online_kiosks': online,
-            'offline_kiosks': offline,
-            'kiosks': serializer.data
+            "total_kiosks": total,
+            "active_kiosks": active,
+            "online_kiosks": online,
+            "offline_kiosks": offline,
+            "kiosks": serializer.data,
         }
 
         summary_serializer = KioskStatusSerializer(summary_data)
         return Response(summary_serializer.data)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsKiosk])
 def kiosk_heartbeat(request):
     """
@@ -84,100 +83,94 @@ def kiosk_heartbeat(request):
     serializer = KioskHeartbeatSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    kiosk = serializer.context['kiosk']
+    kiosk = serializer.context["kiosk"]
 
     # Update kiosk with heartbeat data
-    update_data = {
-        'last_heartbeat': timezone.now()
-    }
+    update_data = {"last_heartbeat": timezone.now()}
 
-    if 'firmware_version' in serializer.validated_data:
-        update_data['firmware_version'] = serializer.validated_data['firmware_version']
-    if 'battery_level' in serializer.validated_data:
-        update_data['battery_level'] = serializer.validated_data['battery_level']
-    if 'storage_used_mb' in serializer.validated_data:
-        update_data['storage_used_mb'] = serializer.validated_data['storage_used_mb']
+    if "firmware_version" in serializer.validated_data:
+        update_data["firmware_version"] = serializer.validated_data["firmware_version"]
+    if "battery_level" in serializer.validated_data:
+        update_data["battery_level"] = serializer.validated_data["battery_level"]
+    if "storage_used_mb" in serializer.validated_data:
+        update_data["storage_used_mb"] = serializer.validated_data["storage_used_mb"]
 
     Kiosk.objects.filter(kiosk_id=kiosk.kiosk_id).update(**update_data)
 
     # Log the heartbeat
     DeviceLog.log(
         kiosk=kiosk,
-        level='INFO',
-        message='Heartbeat received',
+        level="INFO",
+        message="Heartbeat received",
         metadata={
-            'battery_level': update_data.get('battery_level'),
-            'storage_used_mb': update_data.get('storage_used_mb'),
-            'firmware_version': update_data.get('firmware_version')
-        }
+            "battery_level": update_data.get("battery_level"),
+            "storage_used_mb": update_data.get("storage_used_mb"),
+            "firmware_version": update_data.get("firmware_version"),
+        },
     )
 
-    return Response({
-        'status': 'ok',
-        'kiosk_id': kiosk.kiosk_id,
-        'timestamp': timezone.now()
-    })
+    return Response(
+        {"status": "ok", "kiosk_id": kiosk.kiosk_id, "timestamp": timezone.now()}
+    )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsKiosk])
 def kiosk_log(request):
     """
     Kiosk logging endpoint - devices can send log messages.
     Supports bulk logging for efficiency.
     """
-    kiosk_id = request.data.get('kiosk_id')
-    logs_data = request.data.get('logs', [])
+    kiosk_id = request.data.get("kiosk_id")
+    logs_data = request.data.get("logs", [])
 
     if not kiosk_id or not logs_data:
         return Response(
-            {'error': 'kiosk_id and logs are required'},
-            status=status.HTTP_400_BAD_REQUEST
+            {"error": "kiosk_id and logs are required"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
         kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
     except Kiosk.DoesNotExist:
-        return Response(
-            {'error': 'Kiosk not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"error": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
     # Create log entries
     log_entries = []
     for log_data in logs_data:
-        log_entries.append(DeviceLog(
-            kiosk=kiosk,
-            log_level=log_data.get('level', 'INFO'),
-            message=log_data.get('message', ''),
-            metadata=log_data.get('metadata', {}),
-            timestamp=log_data.get('timestamp') or timezone.now()  # Explicitly set timestamp
-        ))
+        log_entries.append(
+            DeviceLog(
+                kiosk=kiosk,
+                log_level=log_data.get("level", "INFO"),
+                message=log_data.get("message", ""),
+                metadata=log_data.get("metadata", {}),
+                timestamp=log_data.get("timestamp")
+                or timezone.now(),  # Explicitly set timestamp
+            )
+        )
 
     DeviceLog.objects.bulk_create(log_entries)
 
-    return Response({
-        'status': 'ok',
-        'logged_count': len(log_entries),
-        'kiosk_id': kiosk_id
-    })
+    return Response(
+        {"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk_id}
+    )
 
 
 class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only ViewSet for device logs"""
 
-    queryset = DeviceLog.objects.select_related('kiosk').order_by('-timestamp')
+    queryset = DeviceLog.objects.select_related("kiosk").order_by("-timestamp")
     serializer_class = DeviceLogSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['kiosk', 'log_level', 'timestamp']
+    filterset_fields = ["kiosk", "log_level", "timestamp"]
 
     def get_queryset(self):
         """Filter logs based on user permissions"""
         queryset = super().get_queryset()
 
-        if hasattr(self.request.user, 'role'):
-            if self.request.user.role == 'school_admin':
+        if hasattr(self.request.user, "role"):
+            if self.request.user.role == "school_admin":
                 # School admins can see all logs
                 pass
             else:
@@ -187,19 +180,17 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
 
         return queryset
 
-    @action(detail=False, methods=['get'], url_path='summary')
+    @action(detail=False, methods=["get"], url_path="summary")
     def logs_summary(self, request):
         """Get logs summary by level and time"""
         # Group logs by level for the last 24 hours
         yesterday = timezone.now() - timedelta(days=1)
 
-        summary = DeviceLog.objects.filter(
-            timestamp__gte=yesterday
-        ).values('log_level').annotate(
-            count=Count('log_id')
-        ).order_by('log_level')
+        summary = (
+            DeviceLog.objects.filter(timestamp__gte=yesterday)
+            .values("log_level")
+            .annotate(count=Count("log_id"))
+            .order_by("log_level")
+        )
 
-        return Response({
-            'period': 'last 24 hours',
-            'summary': list(summary)
-        })
+        return Response({"period": "last 24 hours", "summary": list(summary)})

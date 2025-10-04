@@ -5,10 +5,10 @@ from .views import AttendanceRecordViewSet, BoardingEventViewSet
 
 # Create a router for the events app
 router = DefaultRouter()
-router.register(r'boarding-events', BoardingEventViewSet, basename='boarding-event')
-router.register(r'attendance', AttendanceRecordViewSet, basename='attendance')
+router.register(r"boarding-events", BoardingEventViewSet, basename="boarding-event")
+router.register(r"attendance", AttendanceRecordViewSet, basename="attendance")
 
 # URL patterns
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]
