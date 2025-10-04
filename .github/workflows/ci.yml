@@ -181,9 +181,6 @@ jobs:
     - name: Load Docker image
       run: docker load --input /tmp/image.tar
 
-    - name: Set IMAGE_NAME environment variable
-      run: echo "IMAGE_NAME=${{ env.IMAGE_NAME }}" >> $GITHUB_ENV
-
     - name: Set environment variables for Docker Compose
       run: |
         echo "DB_NAME=test_db" >> $GITHUB_ENV
@@ -202,7 +199,8 @@ jobs:
         DB_PORT: 5432
         REDIS_URL: redis://redis:6379/0
       run: |
-        docker compose up -d db redis && docker compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && pytest tests/ -k 'TestAPIEndpoints or TestAuthentication or TestDocumentationSecurity' --maxfail=3 --tb=short -vv --cov-report=xml:coverage.xml\"
+        docker compose up -d db redis
+        docker compose run --rm web ./scripts/ci-test.sh
 
     - name: Show container logs (if tests fail)
       if: failure()
