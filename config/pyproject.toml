@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "bus-kiosk-backend"
 version = "1.0.0"
 description = "Industrial Django backend for bus kiosk face recognition system"
-readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
@@ -74,7 +73,7 @@ dependencies = [
 
 [tool.setuptools]
 # Explicitly define packages to avoid flat-layout issues
-packages = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks", "imperial_governance"]
+packages = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
 
 [project.optional-dependencies]
 # Development dependencies
