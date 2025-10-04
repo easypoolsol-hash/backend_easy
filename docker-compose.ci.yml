@@ -1,0 +1,63 @@
+# Docker Compose configuration for CI testing
+# This file is used by GitHub Actions CI pipeline to test the Docker image
+# It mirrors production setup but with test configuration
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database (same as production)
+  postgres:
+    image: postgres:15
+    container_name: ci_postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-test_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ci_network
+
+  # Redis Cache (same as production)
+  redis:
+    image: redis:7
+    container_name: ci_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ci_network
+
+  # Backend Application (the image we're testing)
+  backend:
+    image: ${IMAGE_NAME:-bus_kiosk_backend}:test
+    container_name: ci_backend
+    env_file:
+      - .env.ci
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ci_network
+    command: >
+      sh -c "
+      echo '🔍 Testing Docker Image in CI...' &&
+      echo '📊 Running migrations...' &&
+      python manage.py migrate --noinput &&
+      echo '📦 Collecting static files...' &&
+      python manage.py collectstatic --noinput &&
+      echo '🧪 Running test suite...' &&
+      python manage.py test --verbosity=2 &&
+      echo '✅ Docker image tests passed!'
+      "
+
+networks:
+  ci_network:
+    driver: bridge
