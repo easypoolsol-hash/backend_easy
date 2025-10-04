@@ -42,7 +42,7 @@ jobs:
       run: ruff check .
 
     - name: Run MyPy type checking
-      run: mypy .
+      run: mypy . --no-incremental
 
   # Job 2: Unit & Integration Tests (with Services)
   test:
