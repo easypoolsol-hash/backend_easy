@@ -51,8 +51,8 @@ class KioskHeartbeatSerializer(serializers.Serializer):
             kiosk = Kiosk.objects.get(kiosk_id=value)
             self.context['kiosk'] = kiosk
             return value
-        except Kiosk.DoesNotExist:
-            raise serializers.ValidationError("Kiosk not found")
+        except Kiosk.DoesNotExist as e:
+            raise serializers.ValidationError("Kiosk not found") from e
 
 
 class DeviceLogSerializer(serializers.ModelSerializer):

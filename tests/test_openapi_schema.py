@@ -3,8 +3,9 @@
 Test script to verify OpenAPI schema generation and security schemes.
 """
 
+
 import requests
-import json
+
 
 def test_openapi_schema():
     """Test the OpenAPI schema generation."""

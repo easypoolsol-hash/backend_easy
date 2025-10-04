@@ -1,8 +1,9 @@
-import factory
 from django.utils import timezone
+import factory
 from factory.django import DjangoModelFactory
 
 from buses.models import Bus
+
 from .models import DeviceLog, Kiosk
 
 

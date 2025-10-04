@@ -1,16 +1,20 @@
-import json
 from datetime import timedelta
+
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APIClient, APITestCase
 
-from buses.models import Bus
-from .factories import BusFactory, DeviceLogFactory, KioskFactory
-from .models import DeviceLog, Kiosk
-from .serializers import KioskHeartbeatSerializer, KioskSerializer, KioskStatusSerializer
 from users.models import Role, User
+
+from .factories import BusFactory, DeviceLogFactory, KioskFactory
+from .models import DeviceLog
+from .serializers import (
+    KioskHeartbeatSerializer,
+    KioskSerializer,
+    KioskStatusSerializer,
+)
 
 
 class KioskModelTest(TestCase):

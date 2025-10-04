@@ -3,7 +3,6 @@ Authentication and authorization tests.
 Tests JWT token generation, validation, and protected endpoints.
 """
 
-import pytest
 import requests
 
 # Django imports - only import if Django is available
@@ -12,10 +11,9 @@ try:
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bus_kiosk_backend.settings')
     import django
     django.setup()
-    from django.test import TestCase
     from django.contrib.auth import get_user_model
-    from rest_framework.test import APITestCase
     from rest_framework import status
+    from rest_framework.test import APITestCase
     DJANGO_AVAILABLE = True
 except Exception:
     DJANGO_AVAILABLE = False

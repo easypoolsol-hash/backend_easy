@@ -2,7 +2,6 @@
 Schema preprocessing hooks for drf-spectacular.
 """
 
-from drf_spectacular.utils import OpenApiParameter
 
 
 def exclude_health_endpoints(endpoints):

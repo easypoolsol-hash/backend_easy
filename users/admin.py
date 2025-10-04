@@ -19,13 +19,15 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ['username', 'email']
     readonly_fields = ['user_id', 'last_login', 'created_at', 'updated_at']
 
-    fieldsets = BaseUserAdmin.fieldsets + (  # type: ignore[operator]
+    fieldsets = (
+        *BaseUserAdmin.fieldsets,
         ('Bus Kiosk Fields', {
             'fields': ('role', 'user_id', 'created_at', 'updated_at')
         }),
     )
 
-    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+    add_fieldsets = (
+        *BaseUserAdmin.add_fieldsets,
         ('Bus Kiosk Fields', {
             'fields': ('email', 'role')
         }),

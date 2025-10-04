@@ -2,9 +2,9 @@
 Industrial-grade middleware for enhanced security, monitoring, and performance.
 """
 
+from collections.abc import Callable
 import time
 import uuid
-from typing import Callable
 
 from django.http import HttpRequest, HttpResponse
 from django.utils import timezone

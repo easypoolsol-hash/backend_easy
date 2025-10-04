@@ -83,8 +83,9 @@ class Kiosk(models.Model):
         if not self.last_heartbeat:
             return False
 
-        from django.utils import timezone
         from datetime import timedelta
+
+        from django.utils import timezone
 
         # Consider online if heartbeat within last 5 minutes
         return self.last_heartbeat > timezone.now() - timedelta(minutes=5)

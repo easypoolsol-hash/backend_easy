@@ -1,10 +1,14 @@
+import time
+
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from buses.models import Bus
+
 from .models import (
     FaceEmbeddingMetadata,
     Parent,
@@ -22,6 +26,7 @@ from .serializers import (
     StudentPhotoSerializer,
     StudentSerializer,
 )
+from .tasks import process_student_attendance
 
 # pylint: disable=no-member
 
@@ -282,12 +287,6 @@ class FaceEmbeddingMetadataViewSet(viewsets.ModelViewSet):
         # Set this embedding as primary
         embedding.is_primary = True
         embedding.save()
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from students.tasks import process_student_attendance
-import time
 
 
 class KioskBoardingView(APIView):

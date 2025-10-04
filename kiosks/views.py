@@ -1,4 +1,4 @@
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -13,7 +13,7 @@ from .serializers import (
     DeviceLogSerializer,
     KioskHeartbeatSerializer,
     KioskSerializer,
-    KioskStatusSerializer
+    KioskStatusSerializer,
 )
 
 

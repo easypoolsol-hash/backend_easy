@@ -1,12 +1,12 @@
 from django.test import TestCase
 from django.utils import timezone
+from rest_framework import serializers, status
 from rest_framework.test import APITestCase
-from rest_framework import status
 
-from students.models import Student, School
-from users.models import User, Role
 from buses.models import Bus
 from kiosks.models import Kiosk
+from students.models import School, Student
+from users.models import Role, User
 
 from .models import AttendanceRecord, BoardingEvent
 
@@ -57,7 +57,7 @@ class BoardingEventModelTest(TestCase):
         self.assertEqual(event.confidence_score, 0.8)
 
         # Invalid scores
-        with self.assertRaises(Exception):
+        with self.assertRaises(serializers.ValidationError):
             invalid_event = BoardingEvent(
                 student=self.student,
                 kiosk_id='KIOSK001',
@@ -68,7 +68,7 @@ class BoardingEventModelTest(TestCase):
             )
             invalid_event.full_clean()
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(serializers.ValidationError):
             invalid_event = BoardingEvent(
                 student=self.student,
                 kiosk_id='KIOSK001',

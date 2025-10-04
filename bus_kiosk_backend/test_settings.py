@@ -3,7 +3,6 @@ Test settings for Django project.
 Uses SQLite for faster testing instead of PostgreSQL.
 """
 
-import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

@@ -4,10 +4,10 @@ Test Runner for Bus Kiosk Backend API
 Run all tests or specific test categories.
 """
 
-import subprocess
-import sys
 import os
 from pathlib import Path
+import subprocess
+import sys
 
 # Add the project root to Python path
 project_root = Path(__file__).parent.parent

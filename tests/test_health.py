@@ -3,7 +3,6 @@ Health and monitoring endpoint tests.
 Tests basic health checks and system monitoring.
 """
 
-import pytest
 import requests
 
 

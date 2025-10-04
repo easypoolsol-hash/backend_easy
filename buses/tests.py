@@ -1,9 +1,9 @@
 from django.test import TestCase
 from django.utils import timezone
-from rest_framework.test import APITestCase
 from rest_framework import status
+from rest_framework.test import APITestCase
 
-from students.models import Student, School
+from students.models import School, Student
 from users.models import Role, User
 
 from .models import Bus, Route

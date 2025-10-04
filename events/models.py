@@ -1,6 +1,7 @@
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
 import uuid
+
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 import ulid
 
 from students.models import Student

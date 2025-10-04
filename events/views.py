@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from bus_kiosk_backend.permissions import IsKiosk, IsSchoolAdmin
+from bus_kiosk_backend.permissions import IsKiosk
 from students.models import Student
 
 from .models import AttendanceRecord, BoardingEvent
@@ -14,7 +14,7 @@ from .serializers import (
     AttendanceRecordSerializer,
     AttendanceSummarySerializer,
     BoardingEventCreateSerializer,
-    BoardingEventSerializer
+    BoardingEventSerializer,
 )
 
 

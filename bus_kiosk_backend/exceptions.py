@@ -3,7 +3,7 @@ Custom exception handler for industrial-grade error responses.
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.http import Http404
@@ -19,7 +19,7 @@ from rest_framework.views import exception_handler
 logger = logging.getLogger(__name__)
 
 
-def custom_exception_handler(exc: Exception, context: Dict[str, Any]) -> Response:
+def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Response:
     """
     Custom exception handler that provides detailed, structured error responses.
 
@@ -90,7 +90,7 @@ def get_error_message(exc: Exception, response_data: Any) -> str:
         return "An unexpected error occurred. Please try again later."
 
 
-def log_error(exc: Exception, context: Dict[str, Any], status_code: int) -> None:
+def log_error(exc: Exception, context: dict[str, Any], status_code: int) -> None:
     """Log errors for monitoring and debugging."""
     view = context.get("view", {})
     request = context.get("request")

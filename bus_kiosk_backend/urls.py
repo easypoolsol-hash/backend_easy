@@ -29,9 +29,6 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import SessionAuthentication
-from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .health import detailed_health_check, health_check, prometheus_metrics
@@ -264,9 +261,17 @@ urlpatterns.extend([
     path("health/detailed/", detailed_health_check, name="detailed_health_check"),
     path("metrics/", prometheus_metrics, name="prometheus_metrics"),
     # API documentation - drf-spectacular with no throttling
-    path("docs/", NoThrottleSpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path(
+        "docs/",
+        NoThrottleSpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui"
+    ),
     path("docs/schema/", NoThrottleSpectacularAPIView.as_view(), name="schema"),
-    path("docs/redoc/", NoThrottleSpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    path(
+        "docs/redoc/",
+        NoThrottleSpectacularRedocView.as_view(url_name="schema"),
+        name="redoc"
+    ),
     path(
         "api/v1/",
         include(

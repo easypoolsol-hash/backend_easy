@@ -3,21 +3,19 @@ Health check endpoints for monitoring system status.
 Industry-standard health monitoring with comprehensive checks.
 """
 
+from contextlib import contextmanager
 import logging
 import os
 import platform
-import psutil
 import time
-from contextlib import contextmanager
-from typing import Dict, Any, Optional
+from typing import Any
 
 import django
-from django.conf import settings
 from django.db import connection
 from django.http import JsonResponse
-from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_GET
+import psutil
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +32,7 @@ def health_check_timeout(timeout_seconds: float = 5.0):
         elapsed = time.time() - start_time
         if elapsed > timeout_seconds:
             logger.warning(f"Health check timed out after {elapsed:.2f}s: {e}")
-            raise TimeoutError(f"Health check timed out after {elapsed:.2f}s")
+            raise TimeoutError(f"Health check timed out after {elapsed:.2f}s") from e
         raise
 
 
@@ -61,7 +59,7 @@ def measure_response_time(func):
 
 
 @measure_response_time
-def check_database() -> Dict[str, Any]:
+def check_database() -> dict[str, Any]:
     """
     Check database connectivity and performance.
     """
@@ -76,14 +74,16 @@ def check_database() -> Dict[str, Any]:
                     SELECT COUNT(*) as user_count
                     FROM (SELECT 1 as dummy LIMIT 1) as test_table
                 """)
-                result = cursor.fetchone()
+                cursor.fetchone()  # Execute query to test connectivity
             query_time = time.time() - start_time
 
             return {
                 "status": "healthy",
                 "query_time_ms": round(query_time * 1000, 2),
                 "database_engine": getattr(connection, 'vendor', 'unknown'),
-                "database_name": str(getattr(connection, 'settings_dict', {}).get('NAME', 'unknown'))
+                "database_name": str(
+                    getattr(connection, 'settings_dict', {}).get('NAME', 'unknown')
+                )
             }
     except Exception as e:
         return {
@@ -94,7 +94,7 @@ def check_database() -> Dict[str, Any]:
 
 
 @measure_response_time
-def check_cache() -> Dict[str, Any]:
+def check_cache() -> dict[str, Any]:
     """
     Check cache backend connectivity and performance.
     """
@@ -133,7 +133,7 @@ def check_cache() -> Dict[str, Any]:
 
 
 @measure_response_time
-def check_celery() -> Dict[str, Any]:
+def check_celery() -> dict[str, Any]:
     """
     Check Celery broker and worker status.
     """
@@ -145,7 +145,8 @@ def check_celery() -> Dict[str, Any]:
 
             # Check active workers
             active_tasks = inspect.active()
-            stats = inspect.stats()
+            # Note: stats inspection removed to avoid potential performance impact
+            # stats = inspect.stats()
 
             if not active_tasks:
                 return {
@@ -179,7 +180,7 @@ def check_celery() -> Dict[str, Any]:
 
 
 @measure_response_time
-def check_system_resources() -> Dict[str, Any]:
+def check_system_resources() -> dict[str, Any]:
     """
     Check system resource usage (CPU, memory, disk).
     """
@@ -246,7 +247,7 @@ def check_system_resources() -> Dict[str, Any]:
 
 
 @measure_response_time
-def check_business_logic() -> Dict[str, Any]:
+def check_business_logic() -> dict[str, Any]:
     """
     Check application-specific business logic health.
     """
@@ -283,7 +284,9 @@ def check_business_logic() -> Dict[str, Any]:
                     }
 
             # Overall business logic status
-            unhealthy_checks = [k for k, v in checks.items() if v["status"] == "unhealthy"]
+            unhealthy_checks = [
+                k for k, v in checks.items() if v["status"] == "unhealthy"
+            ]
             status = "unhealthy" if unhealthy_checks else "healthy"
 
             return {

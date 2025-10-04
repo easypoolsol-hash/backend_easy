@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission, DjangoModelPermissions
+from rest_framework.permissions import BasePermission
 
 
 class IsKiosk(BasePermission):
@@ -41,6 +41,7 @@ class IsSchoolAdmin(BasePermission):
             return True
 
         # Alternative: Check Django permissions
-        # return request.user.has_perm('kiosks.change_kiosk') or request.user.has_perm('kiosks.delete_kiosk')
+        # return request.user.has_perm('kiosks.change_kiosk') or \
+        #        request.user.has_perm('kiosks.delete_kiosk')
 
         return False
