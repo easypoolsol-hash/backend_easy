@@ -38,11 +38,14 @@ jobs:
         cp config/pyproject.toml app/pyproject.toml
         # Install all dependencies from app directory
         cd app && pip install -e .[dev,testing]
-
-    - name: Run quality checks
+    - name: Run quality checks (ruff + mypy)
       run: |
-        chmod +x bin/quality-check.sh
-        ./bin/quality-check.sh
+        # Run Ruff linting
+        python -m pip install ruff
+        cd app && ruff check .
+        # Run MyPy type checking
+        python -m pip install mypy
+        cd app && mypy . --config-file ../config/mypy.ini --no-incremental
 
   # Job 2: Unit & Integration Tests (host-based)
   test:
@@ -127,10 +130,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image
+    - name: Build Docker image (inline)
       run: |
-        chmod +x bin/build-image.sh
-        ./bin/build-image.sh test
+        export DOCKER_BUILDKIT=1
+        IMAGE_TAG=${{ secrets.DOCKER_USERNAME || 'testuser' }}/bus_kiosk_backend:test
+        docker build --target runtime --tag "$IMAGE_TAG" --build-arg BUILDKIT_INLINE_CACHE=1 --progress=plain .
       env:
         DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME || 'testuser' }}
 
