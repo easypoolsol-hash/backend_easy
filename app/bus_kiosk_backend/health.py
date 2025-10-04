@@ -354,8 +354,8 @@ def detailed_health_check(request):
 
     # Detect if we're running in test mode
     # Check multiple indicators: pytest environment, Django test command, test database, or sys.argv
-    from django.conf import settings as django_settings
     import sys
+    from django.conf import settings as django_settings
     is_testing = (
         'test' in os.getenv('DJANGO_SETTINGS_MODULE', '').lower() or
         'pytest' in os.getenv('_', '').lower() or
