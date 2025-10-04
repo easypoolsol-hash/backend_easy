@@ -215,6 +215,7 @@ if DJANGO_AVAILABLE:
 
 if __name__ == '__main__':
     import sys
+
     import pytest
 
     # Run tests using pytest
