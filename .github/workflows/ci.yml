@@ -31,12 +31,18 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
+    - name: Install all dependencies from pyproject.toml
+      run: |
+        python -m pip install --upgrade pip
+        # Copy pyproject.toml to app directory where the packages are
+        cp config/pyproject.toml app/pyproject.toml
+        # Install all dependencies from app directory
+        cd app && pip install -e .[dev,testing]
+
     - name: Run quality checks
       run: |
         chmod +x bin/quality-check.sh
         ./bin/quality-check.sh
-      env:
-        CI: true
 
   # Job 2: Unit & Integration Tests
   test:
