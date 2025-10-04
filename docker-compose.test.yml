@@ -60,13 +60,14 @@ services:
     volumes:
       - ./app:/app
       - ./build:/app/build
+      - ./logs:/app/logs
     <<: *service_deps
     # The CI runner installs testing dependencies; this service only runs tests
+    # This service is a pure test runner. Migrations should be applied by
+    # the environment that actually executes tests (CI host or local run-tests.sh).
     command: >
       sh -c "
         cd /app &&
-        echo '🔄 Running migrations (assumes deps installed on host)...' &&
-        python manage.py migrate --noinput &&
         echo '🧪 Running tests (pytest must be available in the image)...' &&
         python -m pytest tests/ -v --tb=short --cov-report=xml:/app/../build/coverage.xml
       "
@@ -99,6 +100,8 @@ services:
     environment:
       <<: *image_test_env
     <<: *service_deps
+    volumes:
+      - ./logs:/app/logs
     command: python manage.py check
 
 networks:
