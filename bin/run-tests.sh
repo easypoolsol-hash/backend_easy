@@ -52,13 +52,9 @@ if ! nc -z localhost 6379 2>/dev/null; then
 fi
 echo "✅ Services are accessible"
 echo ""
-
-# Install dependencies if in CI
-if [ "${CI}" = "true" ]; then
-    echo "📦 Installing dependencies..."
-    python -m pip install --upgrade pip
-    pip install -e .[dev,testing]
-fi
+# Note: Dependencies are installed by CI workflow (ci.yml). For local use,
+# ensure you have a virtualenv with dev and testing extras installed, e.g.
+# python -m pip install -e '.[dev,testing]'
 
 # Run migrations
 echo "🔄 Running migrations..."

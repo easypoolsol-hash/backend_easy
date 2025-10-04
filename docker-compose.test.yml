@@ -61,14 +61,13 @@ services:
       - ./app:/app
       - ./build:/app/build
     <<: *service_deps
+    # The CI runner installs testing dependencies; this service only runs tests
     command: >
       sh -c "
         cd /app &&
-        echo '📦 Installing testing dependencies...' &&
-        pip install --no-cache-dir --user pytest>=7.0.0 pytest-django>=4.5.0 pytest-cov>=4.0.0 factory-boy>=3.3.0 faker>=24.0.0 pytest-xdist>=3.5.0 pytest-mock>=3.12.0 &&
-        echo '🔄 Running migrations...' &&
+        echo '🔄 Running migrations (assumes deps installed on host)...' &&
         python manage.py migrate --noinput &&
-        echo '🧪 Running tests...' &&
+        echo '🧪 Running tests (pytest must be available in the image)...' &&
         python -m pytest tests/ -v --tb=short --cov-report=xml:/app/../build/coverage.xml
       "
 
