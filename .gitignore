@@ -193,3 +193,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Security scanning reports
+trivy-results.sarif
+trivy-results.json
+*.sarif
+*.sarif.json

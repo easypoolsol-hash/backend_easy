@@ -252,18 +252,25 @@ jobs:
     - name: Load Docker image
       run: docker load --input /tmp/image.tar
 
-    - name: Run Trivy vulnerability scanner on image
+    # SARIF scanning commented out - run locally with scripts/security-scan.sh
+    # - name: Run Trivy vulnerability scanner on image
+    #   uses: aquasecurity/trivy-action@master
+    #   with:
+    #     image-ref: ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
+    #     format: 'sarif'
+    #     output: 'trivy-results.sarif'
+
+    # - name: Upload Trivy scan results
+    #   uses: github/codeql-action/upload-sarif@v3
+    #   if: always()
+    #   with:
+    #     sarif_file: 'trivy-results.sarif'
+
+    - name: Run Trivy vulnerability scanner (table format)
       uses: aquasecurity/trivy-action@master
       with:
         image-ref: ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
+        format: 'table'
 
   # Job 6: Push Image to Docker Hub (Only on master/main)
   push:
