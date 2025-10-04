@@ -1,6 +1,8 @@
+from datetime import timedelta
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.test import APITestCase
 
 from buses.models import Bus
@@ -57,7 +59,7 @@ class BoardingEventModelTest(TestCase):
         self.assertEqual(event.confidence_score, 0.8)
 
         # Invalid scores
-        with self.assertRaises(serializers.ValidationError):
+        with self.assertRaises(ValidationError):
             invalid_event = BoardingEvent(
                 student=self.student,
                 kiosk_id='KIOSK001',
@@ -68,7 +70,7 @@ class BoardingEventModelTest(TestCase):
             )
             invalid_event.full_clean()
 
-        with self.assertRaises(serializers.ValidationError):
+        with self.assertRaises(ValidationError):
             invalid_event = BoardingEvent(
                 student=self.student,
                 kiosk_id='KIOSK001',
@@ -107,7 +109,7 @@ class AttendanceRecordModelTest(TestCase):
         # Absent (no sessions)
         record2 = AttendanceRecord.objects.create(
             student=self.student,
-            date=timezone.now().date() - timezone.timedelta(days=1),
+            date=timezone.now().date() - timedelta(days=1),
             morning_boarded=False,
             afternoon_boarded=False
         )
@@ -116,7 +118,7 @@ class AttendanceRecordModelTest(TestCase):
         # Partial (one session)
         record3 = AttendanceRecord.objects.create(
             student=self.student,
-            date=timezone.now().date() - timezone.timedelta(days=2),
+            date=timezone.now().date() - timedelta(days=2),
             morning_boarded=True,
             afternoon_boarded=False
         )
@@ -155,7 +157,7 @@ class BoardingEventAPITest(APITestCase):
             'model_version': 'v1.0'
         }
 
-        response = self.client.post('/api/v1/boarding-events/', data, format='json', **{'HTTP_X_KIOSK_API_KEY': self.kiosk.api_key_hash})
+        response = self.client.post('/api/v1/boarding-events/', data, format='json', HTTP_X_KIOSK_API_KEY=self.kiosk.api_key_hash)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertIn('event_id', response.data)
 
@@ -173,11 +175,11 @@ class BoardingEventAPITest(APITestCase):
                 'student': str(self.student.student_id),
                 'kiosk_id': 'KIOSK001',
                 'confidence_score': 0.92,
-                'timestamp': (timezone.now() - timezone.timedelta(minutes=5)).isoformat(),
+                'timestamp': (timezone.now() - timedelta(minutes=5)).isoformat(),
                 'model_version': 'v1.0'
             }
         ]
 
-        response = self.client.post('/api/v1/boarding-events/bulk/', events_data, format='json', **{'HTTP_X_KIOSK_API_KEY': self.kiosk.api_key_hash})
+        response = self.client.post('/api/v1/boarding-events/bulk/', events_data, format='json', HTTP_X_KIOSK_API_KEY=self.kiosk.api_key_hash)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data['created'], 2)

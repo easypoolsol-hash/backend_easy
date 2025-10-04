@@ -30,8 +30,7 @@ if DJANGO_AVAILABLE:
             self.user = user_model.objects.create_user(
                 username='testuser_api',
                 email='api@test.com',
-                password='testpass123',
-                role_id='super_admin'
+                password='testpass123'
             )
 
             # Get JWT token

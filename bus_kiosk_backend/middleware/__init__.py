@@ -23,7 +23,7 @@ class RequestLoggingMiddleware:
     def __call__(self, request: HttpRequest) -> HttpResponse:
         # Generate request ID for tracing
         request_id = str(uuid.uuid4())
-        request.request_id = request_id
+        setattr(request, 'request_id', request_id)
 
         # Start timing
         start_time = time.time()

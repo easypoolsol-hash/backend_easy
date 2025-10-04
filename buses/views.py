@@ -48,7 +48,7 @@ class RouteViewSet(viewsets.ModelViewSet):
             'student_id': str(s.student_id),
             'name': s.name,
             'grade': s.grade,
-            'bus_license_plate': s.assigned_bus.license_plate if s.assigned_bus else None
+            'bus_license_plate': s.assigned_bus.license_plate if s.assigned_bus else None  # type: ignore
         } for s in students]
         return Response(data)
 
@@ -56,7 +56,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 class BusViewSet(viewsets.ModelViewSet):
     """ViewSet for buses"""
 
-    queryset = Bus.objects.select_related('route').prefetch_related('students').order_by('license_plate')
+    queryset = Bus.objects.select_related('route').prefetch_related('assigned_students').order_by('license_plate')
     serializer_class = BusSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
@@ -71,7 +71,7 @@ class BusViewSet(viewsets.ModelViewSet):
     def bus_students(self, request, pk=None):
         """Get all students assigned to this bus"""
         bus = self.get_object()
-        students = bus.students.filter(status='active')
+        students = bus.assigned_students.filter(status='active')
         # Return basic student info (would need StudentSerializer)
         data = [{
             'student_id': str(s.student_id),
@@ -95,7 +95,7 @@ class BusViewSet(viewsets.ModelViewSet):
             bus = get_object_or_404(Bus, bus_id=bus_id)
 
             # Check capacity
-            current_count = bus.students.filter(status='active').count()
+            current_count = bus.assigned_students.filter(status='active').count()
             if current_count + len(student_ids) > bus.capacity:
                 return Response(
                     {'error': f'Bus capacity exceeded. Current: {current_count}, Adding: {len(student_ids)}, Capacity: {bus.capacity}'},

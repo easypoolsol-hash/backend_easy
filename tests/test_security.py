@@ -29,8 +29,7 @@ if DJANGO_AVAILABLE:
             self.admin_user = user_model.objects.create_superuser(
                 username='admin_test',
                 email='admin@test.com',
-                password='adminpass123',
-                role_id='super_admin'
+                password='adminpass123'
             )
 
         def test_docs_redirect_without_auth(self):
@@ -179,7 +178,8 @@ if __name__ == '__main__':
         print(f"Error pages test failed: {e}")
 
     try:
-        test_security.test_sql_injection_protection()
+        test_data_validation = TestDataValidation()
+        test_data_validation.test_sql_injection_protection()
         print("SQL injection protection test passed")
     except Exception as e:
         print(f"SQL injection test failed: {e}")

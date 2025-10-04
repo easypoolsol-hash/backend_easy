@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -49,7 +50,7 @@ class KioskViewSet(viewsets.ModelViewSet):
         active = kiosks.filter(is_active=True).count()
 
         # Online = active kiosks with recent heartbeat (last 5 minutes)
-        five_minutes_ago = timezone.now() - timezone.timedelta(minutes=5)
+        five_minutes_ago = timezone.now() - timedelta(minutes=5)
         online = kiosks.filter(
             is_active=True,
             last_heartbeat__gte=five_minutes_ago
@@ -189,7 +190,7 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
     def logs_summary(self, request):
         """Get logs summary by level and time"""
         # Group logs by level for the last 24 hours
-        yesterday = timezone.now() - timezone.timedelta(days=1)
+        yesterday = timezone.now() - timedelta(days=1)
 
         summary = DeviceLog.objects.filter(
             timestamp__gte=yesterday

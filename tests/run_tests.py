@@ -118,8 +118,8 @@ def main():
             if not runner():
                 success = False
     else:
-        runner = test_runners.get(test_type)
-        if runner and not runner():
+        runner = test_runners.get(test_type)  # type: ignore[assignment]
+        if runner is not None and not runner():
             success = False
 
     # Summary

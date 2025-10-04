@@ -54,6 +54,14 @@ class UserManager(BaseUserManager):
             raise ValueError("Username is required")
 
         email = self.normalize_email(email)
+        # Set default role if not provided
+        if 'role' not in extra_fields:
+            try:
+                extra_fields['role'] = Role.objects.get_or_create(name="backend_engineer")[0]
+            except Exception:
+                # If Role table doesn't exist yet, skip setting role
+                pass
+
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)  # type: ignore[attr-defined]
         user.save(using=self._db)
@@ -62,9 +70,15 @@ class UserManager(BaseUserManager):
     def create_superuser(self, username, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault(
-            "role", Role.objects.get_or_create(name="super_admin")[0]
-        )
+        # Set default role if not provided
+        if 'role' not in extra_fields:
+            try:
+                extra_fields.setdefault(
+                    "role", Role.objects.get_or_create(name="super_admin")[0]
+                )
+            except Exception:
+                # If Role table doesn't exist yet, skip setting role
+                pass
 
         return self.create_user(username, email, password, **extra_fields)
 

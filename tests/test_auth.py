@@ -30,8 +30,7 @@ if DJANGO_AVAILABLE:
             self.user = user_model.objects.create_user(
                 username='testuser_auth',
                 email='auth@test.com',
-                password='testpass123',
-                role_id='super_admin'  # This will be created if it doesn't exist
+                password='testpass123'
             )
 
         def test_jwt_token_generation(self):

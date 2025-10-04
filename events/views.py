@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -70,7 +71,7 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
     def recent_events(self, request):
         """Get recent boarding events for dashboard"""
         hours = int(request.query_params.get('hours', 24))
-        since = timezone.now() - timezone.timedelta(hours=hours)
+        since = timezone.now() - timedelta(hours=hours)
 
         events = self.get_queryset().filter(timestamp__gte=since)[:100]
         serializer = self.get_serializer(events, many=True)

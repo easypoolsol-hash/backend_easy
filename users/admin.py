@@ -20,7 +20,7 @@ class UserAdmin(BaseUserAdmin):
     readonly_fields = ['user_id', 'last_login', 'created_at', 'updated_at']
 
     fieldsets = (
-        *BaseUserAdmin.fieldsets,
+        *BaseUserAdmin.fieldsets,  # type: ignore[misc]
         ('Bus Kiosk Fields', {
             'fields': ('role', 'user_id', 'created_at', 'updated_at')
         }),

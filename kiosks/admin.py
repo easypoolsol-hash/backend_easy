@@ -58,7 +58,7 @@ class KioskAdmin(admin.ModelAdmin):
             return format_html('<span style="color: green;">● Online</span>')
         else:
             return format_html('<span style="color: red;">● Offline</span>')
-    is_online_display.short_description = "Online Status"
+    is_online_display.short_description = "Online Status"  # type: ignore
 
     def get_queryset(self, request):
         """Optimize queryset"""
@@ -70,13 +70,13 @@ class KioskAdmin(admin.ModelAdmin):
         """Mark selected kiosks as active"""
         queryset.update(is_active=True)
         self.message_user(request, f"{queryset.count()} kiosks marked as active.")
-    mark_active.short_description = "Mark selected kiosks as active"
+    mark_active.short_description = "Mark selected kiosks as active"  # type: ignore
 
     def mark_inactive(self, request, queryset):
         """Mark selected kiosks as inactive"""
         queryset.update(is_active=False)
         self.message_user(request, f"{queryset.count()} kiosks marked as inactive.")
-    mark_inactive.short_description = "Mark selected kiosks as inactive"
+    mark_inactive.short_description = "Mark selected kiosks as inactive"  # type: ignore
 
 
 @admin.register(DeviceLog)
@@ -117,13 +117,13 @@ class DeviceLogAdmin(admin.ModelAdmin):
     def message_preview(self, obj):
         """Show first 50 characters of message"""
         return obj.message[:50] + "..." if len(obj.message) > 50 else obj.message
-    message_preview.short_description = "Message"
+    message_preview.short_description = "Message"  # type: ignore
 
     def has_metadata(self, obj):
         """Check if log entry has metadata"""
         return bool(obj.metadata)
-    has_metadata.boolean = True
-    has_metadata.short_description = "Has Metadata"
+    has_metadata.boolean = True  # type: ignore
+    has_metadata.short_description = "Has Metadata"  # type: ignore
 
     def get_queryset(self, request):
         """Optimize queryset"""

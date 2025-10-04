@@ -4,8 +4,64 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bus-kiosk-backend"
-version = "1.0.0"
-description = "Industrial Django backend for bus kiosk face recognition system"
+ve    "types-psutil>=5.9.0",
+    "types-django-filter>=23.0.0",sion = "1.0.0"
+descripti[tool.black]
+# Code formatting (complements ruff)
+line-length = 150
+target-version = ['py310']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.eggs|\.git|\.hg|\.mypy_cache|\.tox|\.venv|build|dist|migrations
+)/
+'''
+
+[tool.mypy]
+# Django-friendly MyPy configuration
+python_version = "3.10"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = false  # Allow untyped defs for Django patterns
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+# Django-specific settings
+plugins = ["mypy_django_plugin.main"]
+
+# Module-specific overrides
+[[tool.mypy.overrides]]
+module = [
+    "bus_kiosk_backend.*",
+    "users.*",
+    "students.*",
+    "buses.*",
+    "events.*",
+    "kiosks.*",
+]
+ignore_errors = false
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "*.tests.*",
+    "*test*.py",
+]
+ignore_errors = true  # Tests can be less strict
+
+[[tool.mypy.overrides]]
+module = [
+    "django_prometheus.*",
+    "factory.*",
+]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "bus_kiosk_backend.settings"strial Django backend for bus kiosk face recognition system"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
@@ -85,6 +141,8 @@ dev = [
     "types-PyYAML>=6.0.0,<7.0",
     "types-requests>=2.31.0,<3.0",
     "types-redis>=4.6.0,<5.0",
+    "types-psutil>=5.9.0,<6.0",
+    "types-django-filter>=23.5,<24.0",
 
     # Linting & Formatting (Industrial Django Stack)
     "ruff>=0.6.0,<1.0",

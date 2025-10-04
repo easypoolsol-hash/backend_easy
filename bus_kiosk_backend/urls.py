@@ -50,70 +50,6 @@ class NoThrottleSpectacularSwaggerView(SpectacularSwaggerView):
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Add instant logout detection script
-        context['custom_js'] = '''
-        <script>
-        (function() {
-            // Use BroadcastChannel for cross-tab communication
-            const logoutChannel = new BroadcastChannel('logout_channel');
-
-            // Listen for logout messages from other tabs
-            logoutChannel.onmessage = function(event) {
-                if (event.data === 'logout') {
-                    window.location.href = '/admin/login/';
-                }
-            };
-
-            let authCheckInterval;
-
-            function checkAuth() {
-                fetch('/auth-status/', {
-                    method: 'GET',
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.authenticated) {
-                        // User is not authenticated, broadcast logout to other tabs
-                        logoutChannel.postMessage('logout');
-                        // Redirect current tab
-                        window.location.href = '/admin/login/';
-                    }
-                })
-                .catch(function() {
-                    // If fetch fails, assume not authenticated
-                    logoutChannel.postMessage('logout');
-                    window.location.href = '/admin/login/';
-                });
-            }
-
-            // Check authentication immediately and then every 5 seconds
-            checkAuth();
-            authCheckInterval = setInterval(checkAuth, 5000);
-
-            // Clear interval when page is unloaded
-            window.addEventListener('beforeunload', function() {
-                if (authCheckInterval) {
-                    clearInterval(authCheckInterval);
-                }
-                logoutChannel.close();
-            });
-
-            // Also check when page becomes visible (user switches tabs)
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    checkAuth();
-                }
-            });
-        })();
-        </script>
-        '''
-        return context
 
 
 class NoThrottleSpectacularAPIView(SpectacularAPIView):
@@ -133,70 +69,6 @@ class NoThrottleSpectacularRedocView(SpectacularRedocView):
     def dispatch(self, *args, **kwargs):
         return super().dispatch(*args, **kwargs)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # Add instant logout detection script
-        context['custom_js'] = '''
-        <script>
-        (function() {
-            // Use BroadcastChannel for cross-tab communication
-            const logoutChannel = new BroadcastChannel('logout_channel');
-
-            // Listen for logout messages from other tabs
-            logoutChannel.onmessage = function(event) {
-                if (event.data === 'logout') {
-                    window.location.href = '/admin/login/';
-                }
-            };
-
-            let authCheckInterval;
-
-            function checkAuth() {
-                fetch('/auth-status/', {
-                    method: 'GET',
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.authenticated) {
-                        // User is not authenticated, broadcast logout to other tabs
-                        logoutChannel.postMessage('logout');
-                        // Redirect current tab
-                        window.location.href = '/admin/login/';
-                    }
-                })
-                .catch(function() {
-                    // If fetch fails, assume not authenticated
-                    logoutChannel.postMessage('logout');
-                    window.location.href = '/admin/login/';
-                });
-            }
-
-            // Check authentication immediately and then every 5 seconds
-            checkAuth();
-            authCheckInterval = setInterval(checkAuth, 5000);
-
-            // Clear interval when page is unloaded
-            window.addEventListener('beforeunload', function() {
-                if (authCheckInterval) {
-                    clearInterval(authCheckInterval);
-                }
-                logoutChannel.close();
-            });
-
-            // Also check when page becomes visible (user switches tabs)
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    checkAuth();
-                }
-            });
-        })();
-        </script>
-        '''
-        return context
 
 def home(request):
     """Home page for schools and administrators."""
@@ -251,23 +123,23 @@ if apps.is_installed('django.contrib.admin'):
 # Add other URLs
 urlpatterns.extend([
     # Home page for schools (root URL)
-    path("", home, name="home"),
+    path("", home, name="home"),  # type: ignore[list-item]
     # API info endpoint
-    path("api/", api_root, name="api_root"),
+    path("api/", api_root, name="api_root"),  # type: ignore[list-item]
     # Authentication status check (for client-side polling)
-    path("auth-status/", auth_status, name="auth_status"),
+    path("auth-status/", auth_status, name="auth_status"),  # type: ignore[list-item]
     # Health checks and monitoring (no auth required)
-    path("health/", health_check, name="health_check"),
-    path("health/detailed/", detailed_health_check, name="detailed_health_check"),
-    path("metrics/", prometheus_metrics, name="prometheus_metrics"),
+    path("health/", health_check, name="health_check"),  # type: ignore[list-item]
+    path("health/detailed/", detailed_health_check, name="detailed_health_check"),  # type: ignore[list-item]
+    path("metrics/", prometheus_metrics, name="prometheus_metrics"),  # type: ignore[list-item]
     # API documentation - drf-spectacular with no throttling
-    path(
+    path(  # type: ignore[list-item]
         "docs/",
         NoThrottleSpectacularSwaggerView.as_view(url_name="schema"),
         name="swagger-ui"
     ),
-    path("docs/schema/", NoThrottleSpectacularAPIView.as_view(), name="schema"),
-    path(
+    path("docs/schema/", NoThrottleSpectacularAPIView.as_view(), name="schema"),  # type: ignore[list-item]
+    path(  # type: ignore[list-item]
         "docs/redoc/",
         NoThrottleSpectacularRedocView.as_view(url_name="schema"),
         name="redoc"
@@ -276,24 +148,24 @@ urlpatterns.extend([
         "api/v1/",
         include(
             [
-                path(
-                    "auth/token/",
-                    TokenObtainPairView.as_view(),
-                    name="token_obtain_pair",
-                ),
-                path(
-                    "auth/token/refresh/",
-                    TokenRefreshView.as_view(),
-                    name="token_refresh",
-                ),
-                path("", include("users.urls")),
-                path("", include("students.urls")),
-                path("", include("buses.urls")),
-                path("", include("kiosks.urls")),
-                path("", include("events.urls")),
+    path(
+        "auth/token/",
+        TokenObtainPairView.as_view(),
+        name="token_obtain_pair",
+    ),
+    path(
+        "auth/token/refresh/",
+        TokenRefreshView.as_view(),
+        name="token_refresh",
+    ),
+    path("", include("users.urls")),
+    path("", include("students.urls")),
+    path("", include("buses.urls")),
+    path("", include("kiosks.urls")),
+    path("", include("events.urls")),
             ]
         ),
     ),
     # Authentication status endpoint
-    path("api/auth/status/", auth_status, name="auth_status"),
+    path("api/auth/status/", auth_status, name="auth_status"),  # type: ignore[list-item]
 ])

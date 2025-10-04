@@ -66,7 +66,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         # Filter by bus
         bus_id = self.request.query_params.get('bus_id')
         if bus_id:
-            queryset = queryset.filter(assigned_bus_id=bus_id)
+            queryset = queryset.filter(assigned_bus=bus_id)  # type: ignore
 
         # Filter by status
         status_filter = self.request.query_params.get('status')

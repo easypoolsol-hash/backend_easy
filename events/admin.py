@@ -53,8 +53,8 @@ class BoardingEventAdmin(admin.ModelAdmin):
     def event_id_short(self, obj):
         """Display shortened ULID for readability"""
         return f"{obj.event_id[:8]}..."
-    event_id_short.short_description = "Event ID"
-    event_id_short.admin_order_field = 'event_id'
+    event_id_short.short_description = "Event ID"  # type: ignore
+    event_id_short.admin_order_field = 'event_id'  # type: ignore
 
     def has_add_permission(self, request):
         """Boarding events should only be created by kiosks, not manually"""

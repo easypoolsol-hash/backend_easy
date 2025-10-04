@@ -38,6 +38,12 @@ class UserViewSet(viewsets.ModelViewSet):
         # Parents can only see themselves (future enhancement)
         return queryset
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        """Get current authenticated user information"""
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], permission_classes=[])
     def login(self, request):
         username = request.data.get('username')

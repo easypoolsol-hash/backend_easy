@@ -43,7 +43,21 @@ def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
         # Log the error for monitoring
         log_error(exc, context, response.status_code)
 
-    return response
+        return response
+    else:
+        # If DRF's exception_handler returns None, create our own response
+        return Response(
+            {
+                "error": {
+                    "code": "UNKNOWN_ERROR",
+                    "message": "An unexpected error occurred.",
+                    "details": str(exc),
+                    "timestamp": None,
+                    "request_id": None,
+                }
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 def get_error_code(exc: Exception, status_code: int) -> str:

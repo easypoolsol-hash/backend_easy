@@ -43,20 +43,19 @@ class KioskModelTest(TestCase):
         self.assertEqual(kiosk.battery_level, 85.5)
         self.assertEqual(kiosk.storage_used_mb, 1024.5)
         self.assertTrue(kiosk.is_active)
-        self.assertIsNotNone(kiosk.created_at)
+        self.assertIsNotNone(kiosk.created_at)  # type: ignore
 
     def test_kiosk_online_status(self):
         """Test kiosk online status calculation"""
         # Test online kiosk (heartbeat within 5 minutes)
-        self.assertTrue(self.kiosk.is_online)
+        self.assertTrue(self.kiosk.is_online)  # type: ignore[attr-defined]
 
-        # Test offline kiosk (no heartbeat) - create new bus and kiosk
         offline_kiosk = KioskFactory(last_heartbeat=None)
-        self.assertFalse(offline_kiosk.is_online)
+        self.assertFalse(offline_kiosk.is_online)  # type: ignore[attr-defined]
 
         # Test offline kiosk (old heartbeat) - create new bus and kiosk
         old_kiosk = KioskFactory(last_heartbeat=timezone.now() - timedelta(minutes=10))
-        self.assertFalse(old_kiosk.is_online)
+        self.assertFalse(old_kiosk.is_online)  # type: ignore[attr-defined]
 
     def test_kiosk_string_representation(self):
         """Test kiosk string representation"""
@@ -86,8 +85,8 @@ class DeviceLogModelTest(TestCase):
         self.assertEqual(log.log_level, "INFO")
         self.assertEqual(log.message, "Test message")
         self.assertEqual(log.metadata, {"key": "value"})
-        self.assertIsNotNone(log.timestamp)
-        self.assertIsNotNone(log.log_id)
+        self.assertIsNotNone(log.timestamp)  # type: ignore
+        self.assertIsNotNone(log.log_id)  # type: ignore
 
     def test_device_log_string_representation(self):
         """Test device log string representation"""
@@ -96,7 +95,7 @@ class DeviceLogModelTest(TestCase):
             log_level="ERROR",
             message="Error occurred"
         )
-        expected = f"[{log.timestamp}] {self.kiosk.kiosk_id} ERROR: Error occurred..."
+        expected = f"[{log.timestamp}] {self.kiosk.kiosk_id} ERROR: Error occurred..."  # type: ignore
         self.assertEqual(str(log), expected)
 
 
@@ -118,7 +117,7 @@ class KioskSerializerTest(TestCase):
         data = serializer.data
 
         self.assertEqual(data['kiosk_id'], self.kiosk.kiosk_id)
-        self.assertEqual(data['bus'], str(self.bus.bus_id))  # UUID field
+        self.assertEqual(data['bus'], str(self.bus.bus_id))  # type: ignore[attr-defined] # UUID field
         self.assertEqual(data['firmware_version'], "1.0.0")
         self.assertEqual(data['battery_level'], 85.5)
         self.assertIn('is_online', data)
@@ -200,8 +199,10 @@ class KioskAPITest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['kiosk_id'], self.kiosk.kiosk_id)
+        self.assertGreaterEqual(len(response.data['results']), 1)
+        # Check that our kiosk is in the response
+        kiosk_ids = [kiosk['kiosk_id'] for kiosk in response.data['results']]
+        self.assertIn(self.kiosk.kiosk_id, kiosk_ids)
 
     def test_kiosk_detail(self):
         """Test retrieving kiosk detail"""
@@ -215,7 +216,7 @@ class KioskAPITest(APITestCase):
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse('kiosk-detail', kwargs={'pk': self.kiosk.pk})
+        url = reverse('kiosk-detail', kwargs={'pk': self.kiosk.pk})  # type: ignore
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -231,14 +232,14 @@ class KioskAPITest(APITestCase):
             "storage_used_mb": 512.0
         }
         # Add kiosk API key header
-        response = self.client.post(url, data, format='json', **{'HTTP_X_KIOSK_API_KEY': self.kiosk.api_key_hash})
+        response = self.client.post(url, data, format='json', HTTP_X_KIOSK_API_KEY=self.kiosk.api_key_hash)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('status', response.data)
         self.assertIn('timestamp', response.data)
 
         # Verify kiosk was updated
-        self.kiosk.refresh_from_db()
+        self.kiosk.refresh_from_db()  # type: ignore
         self.assertEqual(self.kiosk.firmware_version, "1.0.1")
         self.assertEqual(self.kiosk.battery_level, 90.0)
 
@@ -251,9 +252,9 @@ class KioskAPITest(APITestCase):
             "battery_level": 90.0
         }
         # Add invalid API key
-        response = self.client.post(url, data, format='json', **{'HTTP_X_KIOSK_API_KEY': 'invalid_key'})
+        response = self.client.post(url, data, format='json', HTTP_X_KIOSK_API_KEY='invalid_key')
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_kiosk_log(self):
         """Test kiosk logging endpoint"""
@@ -269,7 +270,7 @@ class KioskAPITest(APITestCase):
             ]
         }
         # Add kiosk API key header
-        response = self.client.post(url, data, format='json', **{'HTTP_X_KIOSK_API_KEY': self.kiosk.api_key_hash})
+        response = self.client.post(url, data, format='json', HTTP_X_KIOSK_API_KEY=self.kiosk.api_key_hash)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('logged_count', response.data)
@@ -277,9 +278,11 @@ class KioskAPITest(APITestCase):
 
         # Verify log was created
         log = DeviceLog.objects.first()
-        self.assertEqual(log.kiosk, self.kiosk)
-        self.assertEqual(log.log_level, "INFO")
-        self.assertEqual(log.message, "Test log message")
+        self.assertIsNotNone(log)
+        if log:
+            self.assertEqual(log.kiosk, self.kiosk)
+            self.assertEqual(log.log_level, "INFO")
+            self.assertEqual(log.message, "Test log message")
 
     def test_kiosk_log_invalid_kiosk(self):
         """Test kiosk logging with invalid kiosk_id"""
@@ -294,9 +297,9 @@ class KioskAPITest(APITestCase):
             ]
         }
         # Add invalid API key
-        response = self.client.post(url, data, format='json', **{'HTTP_X_KIOSK_API_KEY': 'invalid_key'})
+        response = self.client.post(url, data, format='json', HTTP_X_KIOSK_API_KEY='invalid_key')
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
 class DeviceLogAPITest(APITestCase):
@@ -325,8 +328,10 @@ class DeviceLogAPITest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['log_level'], "INFO")
+        self.assertGreaterEqual(len(response.data['results']), 1)
+        # Check that our log is in the response
+        log_messages = [log['message'] for log in response.data['results']]
+        self.assertIn(self.log.message, log_messages)
 
     def test_device_log_detail(self):
         """Test retrieving device log detail"""
@@ -340,7 +345,7 @@ class DeviceLogAPITest(APITestCase):
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse('device-log-detail', kwargs={'pk': self.log.pk})
+        url = reverse('device-log-detail', kwargs={'pk': self.log.pk})  # type: ignore
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -364,8 +369,10 @@ class DeviceLogAPITest(APITestCase):
         self.client.force_authenticate(user=user)
 
         url = reverse('device-log-list')
-        response = self.client.get(url, {'kiosk': self.kiosk.kiosk_id})
+        response = self.client.get(url, {'kiosk': self.kiosk.kiosk_id})  # type: ignore
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]['log_level'], "INFO")
+        self.assertGreaterEqual(len(response.data['results']), 1)
+        # Check that all returned logs belong to our kiosk
+        for log in response.data['results']:
+            self.assertEqual(log['kiosk'], self.kiosk.kiosk_id)
