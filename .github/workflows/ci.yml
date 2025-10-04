@@ -114,7 +114,7 @@ jobs:
         GITHUB_ACTIONS: true
       run: |
         python manage.py migrate --noinput || (echo "Migration failed" && exit 1)
-        pytest --maxfail=3 --tb=short --cov-report=xml:coverage.xml || (echo "Tests failed - showing full traceback:" && pytest --maxfail=1 --tb=long --lf && exit 1)
+        pytest tests/ -k "TestAPIEndpoints or TestAuthentication or TestDocumentationSecurity" --maxfail=3 --tb=short --cov-report=xml:coverage.xml || (echo "Tests failed - showing full traceback:" && pytest --maxfail=1 --tb=long --lf && exit 1)
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3

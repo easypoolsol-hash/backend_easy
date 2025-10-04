@@ -193,8 +193,8 @@ addopts = [
 ]
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
+# Remove python_classes and python_functions to avoid discovering non-test classes
+# Django test discovery will handle proper test classes
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
