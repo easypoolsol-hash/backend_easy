@@ -3,8 +3,6 @@ API endpoints tests.
 Tests CRUD operations for all main API resources.
 """
 
-import requests
-
 # Django imports - only import if Django is available
 try:
     import os
@@ -181,47 +179,43 @@ if DJANGO_AVAILABLE:
             self.assertIn('results', response.data)
 
 
-class TestAPIEndpointsWithoutAuth:
-    """Test that API endpoints require authentication."""
+    class TestAPIEndpointsWithoutAuth(APITestCase):
+        """Test that API endpoints require authentication."""
 
-    def test_all_endpoints_require_auth(self):
-        """Test that all API endpoints return 401 without authentication."""
-        endpoints = [
-            '/api/v1/users/',
-            '/api/v1/roles/',
-            '/api/v1/students/',
-            '/api/v1/schools/',
-            '/api/v1/buses/',
-            '/api/v1/routes/',
-            '/api/v1/kiosks/',
-            '/api/v1/boarding-events/',
-            '/api/v1/attendance/',
-            '/api/v1/api-keys/',
-            '/api/v1/audit-logs/',
-            '/api/v1/logs/',
-            '/api/v1/student-photos/',
-            '/api/v1/parents/',
-            '/api/v1/student-parents/',
-            '/api/v1/face-embeddings/',
-        ]
+        def test_all_endpoints_require_auth(self):
+            """Test that all API endpoints return 401/403 without authentication."""
+            endpoints = [
+                '/api/v1/users/',
+                '/api/v1/roles/',
+                '/api/v1/students/',
+                '/api/v1/schools/',
+                '/api/v1/buses/',
+                '/api/v1/routes/',
+                '/api/v1/kiosks/',
+                '/api/v1/boarding-events/',
+                '/api/v1/attendance/',
+                '/api/v1/api-keys/',
+                '/api/v1/audit-logs/',
+                '/api/v1/logs/',
+                '/api/v1/student-photos/',
+                '/api/v1/parents/',
+                '/api/v1/student-parents/',
+                '/api/v1/face-embeddings/',
+            ]
 
-        for endpoint in endpoints:
-            response = requests.get(f'http://127.0.0.1:8000{endpoint}',
-                                  allow_redirects=False)
-            assert response.status_code == 401, f"Endpoint {endpoint} should require auth"
+            for endpoint in endpoints:
+                response = self.client.get(endpoint)
+                # Accept either 401 (Unauthorized) or 403 (Forbidden) as valid auth requirement
+                self.assertIn(
+                    response.status_code,
+                    [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN],
+                    f"Endpoint {endpoint} should require auth but returned {response.status_code}"
+                )
 
 
 if __name__ == '__main__':
-    # Run API endpoints tests
-    print("Running API Endpoints Tests...")
+    import sys
+    import pytest
 
-    # Test endpoints without auth (don't require Django setup)
-    test_no_auth = TestAPIEndpointsWithoutAuth()
-
-    try:
-        test_no_auth.test_all_endpoints_require_auth()
-        print("All endpoints properly require authentication")
-    except Exception as e:
-        print(f"Authentication requirement test failed: {e}")
-
-    print("API endpoints tests completed!")
+    # Run tests using pytest
+    sys.exit(pytest.main([__file__, '-v']))
