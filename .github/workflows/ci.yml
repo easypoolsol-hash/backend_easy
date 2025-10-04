@@ -34,18 +34,14 @@ jobs:
     - name: Install all dependencies from pyproject.toml
       run: |
         python -m pip install --upgrade pip
-        # Copy pyproject.toml to app directory where the packages are
         cp config/pyproject.toml app/pyproject.toml
-        # Install all dependencies from app directory
         cd app && pip install -e .[dev,testing]
+
     - name: Run quality checks (ruff + mypy)
       run: |
-        # Run Ruff linting
-        python -m pip install ruff
-        cd app && ruff check .
-        # Run MyPy type checking
-        python -m pip install mypy
-        cd app && mypy . --config-file ../config/mypy.ini --no-incremental
+        cd app
+        ruff check .
+        mypy . --config-file ../config/mypy.ini --no-incremental
 
   # Job 2: Unit & Integration Tests (host-based)
   test:
@@ -57,8 +53,14 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Docker Compose services (DB + Redis)
+      run: docker compose -f docker-compose.test.yml up -d db redis
+
+    - name: Wait for services to be healthy
       run: |
-        docker compose -f docker-compose.test.yml up -d db redis
+        echo "Waiting for PostgreSQL and Redis to be ready..."
+        timeout 60 bash -c 'until docker compose -f docker-compose.test.yml ps db | grep -q "healthy"; do sleep 2; done'
+        timeout 60 bash -c 'until docker compose -f docker-compose.test.yml ps redis | grep -q "healthy"; do sleep 2; done'
+        echo "Services are ready!"
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -80,12 +82,11 @@ jobs:
         cd app && pip install -e .[dev,testing]
 
     - name: Run migrations on runner
-      run: |
-        cd app
-        python manage.py migrate --noinput
+      run: cd app && python manage.py migrate --noinput
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
         DB_ENGINE: django.db.backends.postgresql
         DB_NAME: test_db
         DB_USER: postgres
@@ -95,12 +96,11 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
 
     - name: Run tests on runner
-      run: |
-        cd app
-        python -m pytest tests/ -v --tb=short --cov-report=xml:../build/coverage.xml
+      run: cd app && python -m pytest tests/ -v --tb=short --cov-report=xml:../build/coverage.xml
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
         DB_ENGINE: django.db.backends.postgresql
         DB_NAME: test_db
         DB_USER: postgres
@@ -117,6 +117,11 @@ jobs:
       with:
         file: ./build/coverage.xml
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Cleanup test services
+      if: always()
+      run: docker compose -f docker-compose.test.yml down -v
 
   # Job 3: Build Docker Image
   build:
@@ -130,17 +135,14 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image (inline)
+    - name: Build Docker image
       run: |
         export DOCKER_BUILDKIT=1
         IMAGE_TAG=${{ secrets.DOCKER_USERNAME || 'testuser' }}/bus_kiosk_backend:test
         docker build --target runtime --tag "$IMAGE_TAG" --build-arg BUILDKIT_INLINE_CACHE=1 --progress=plain .
-      env:
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME || 'testuser' }}
 
     - name: Save Docker image
-      run: |
-        docker save ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${IMAGE_NAME}:test -o /tmp/image.tar
+      run: docker save ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${IMAGE_NAME}:test -o /tmp/image.tar
 
     - name: Upload image artifact
       uses: actions/upload-artifact@v4
@@ -169,12 +171,12 @@ jobs:
 
     - name: Test built Docker image
       run: |
-        # Test built image using docker-compose.test.yml
         DOCKER_IMAGE=${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test \
         docker compose -f docker-compose.test.yml up image-test --abort-on-container-exit
 
-        # Cleanup
+        EXIT_CODE=$?
         docker compose -f docker-compose.test.yml down -v
+        exit $EXIT_CODE
 
   # Job 5: Security Scan
   security:
@@ -236,14 +238,12 @@ jobs:
 
     - name: Tag and push images
       run: |
-        # Tag for latest and commit SHA
         docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test \
           ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
 
         docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test \
           ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-        # Push both tags
         docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
         docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
