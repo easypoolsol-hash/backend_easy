@@ -182,22 +182,22 @@ jobs:
 
     - name: Run tests in Docker container
       run: |
-        docker-compose -f docker-compose.ci.yml up --abort-on-container-exit --exit-code-from backend
+        docker-compose up -d db redis && docker-compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py test --verbosity=2\"
 
     - name: Show container logs (if tests fail)
       if: failure()
       run: |
         echo "📋 Backend container logs:"
-        docker-compose -f docker-compose.ci.yml logs backend
+        docker-compose logs web
         echo "� PostgreSQL container logs:"
-        docker-compose -f docker-compose.ci.yml logs postgres
+        docker-compose logs db
         echo "📋 Redis container logs:"
-        docker-compose -f docker-compose.ci.yml logs redis
+        docker-compose logs redis
 
     - name: Cleanup test containers
       if: always()
       run: |
-        docker-compose -f docker-compose.ci.yml down -v
+        docker-compose down -v
 
   # Job 5: Security Scan
   security:

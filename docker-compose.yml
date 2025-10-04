@@ -1,3 +1,7 @@
+# Docker Compose for Local Development & CI Testing
+# This file is used for BOTH local development AND CI pipeline
+# For production deployment, use infrastructure/docker-compose.yml
+
 version: '3.8'
 
 services:
@@ -10,19 +14,12 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - .env.ci
     environment:
-      - DEBUG=True
-      - SECRET_KEY=${SECRET_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=${DB_NAME:-bus_kiosk}
-      - DB_USER=${DB_USER:-bus_kiosk_user}
-      - DB_PASSWORD=${DB_PASSWORD}
+      # Override for Docker network
       - DB_HOST=db
-      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-web,localhost,127.0.0.1,0.0.0.0}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     volumes:
@@ -47,9 +44,11 @@ services:
     image: postgres:15-alpine
     container_name: bus_kiosk_db
     restart: unless-stopped
+    env_file:
+      - .env.ci
     environment:
-      - POSTGRES_DB=${DB_NAME:-bus_kiosk}
-      - POSTGRES_USER=${DB_USER:-bus_kiosk_user}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -58,7 +57,7 @@ services:
     networks:
       - bus_kiosk_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-bus_kiosk_user} -d ${DB_NAME:-bus_kiosk}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -69,6 +68,8 @@ services:
     container_name: bus_kiosk_redis
     restart: unless-stopped
     command: redis-server --appendonly yes
+    env_file:
+      - .env.ci
     volumes:
       - redis_data:/data
     ports:
@@ -108,16 +109,10 @@ services:
     container_name: bus_kiosk_celery_worker
     restart: unless-stopped
     command: celery -A bus_kiosk_backend worker --loglevel=info --concurrency=4
+    env_file:
+      - .env.ci
     environment:
-      - DEBUG=True
-      - SECRET_KEY=${SECRET_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=${DB_NAME:-bus_kiosk}
-      - DB_USER=${DB_USER:-bus_kiosk_user}
-      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
-      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -144,16 +139,10 @@ services:
     container_name: bus_kiosk_celery_beat
     restart: unless-stopped
     command: celery -A bus_kiosk_backend beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env.ci
     environment:
-      - DEBUG=True
-      - SECRET_KEY=${SECRET_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=${DB_NAME:-bus_kiosk}
-      - DB_USER=${DB_USER:-bus_kiosk_user}
-      - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=db
-      - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
@@ -187,8 +176,10 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: bus_kiosk_postgres_exporter
     restart: unless-stopped
+    env_file:
+      - .env.ci
     environment:
-      - DATA_SOURCE_NAME=postgresql://${DB_USER:-bus_kiosk_user}:${DB_PASSWORD}@db:5432/${DB_NAME:-bus_kiosk}?sslmode=disable
+      - DATA_SOURCE_NAME=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable
     depends_on:
       - db
     ports:
@@ -201,9 +192,10 @@ services:
     image: oliver006/redis_exporter:latest
     container_name: bus_kiosk_redis_exporter
     restart: unless-stopped
+    env_file:
+      - .env.ci
     environment:
       - REDIS_ADDR=redis://redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     depends_on:
       - redis
     ports:
@@ -216,6 +208,8 @@ services:
     image: prom/prometheus:latest
     container_name: bus_kiosk_prometheus
     restart: unless-stopped
+    env_file:
+      - .env.ci
     volumes:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -241,6 +235,8 @@ services:
     image: grafana/grafana:latest
     container_name: bus_kiosk_grafana
     restart: unless-stopped
+    env_file:
+      - .env.ci
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
@@ -262,6 +258,8 @@ services:
     image: prom/alertmanager:latest
     container_name: bus_kiosk_alertmanager
     restart: unless-stopped
+    env_file:
+      - .env.ci
     volumes:
       - ./infrastructure/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager

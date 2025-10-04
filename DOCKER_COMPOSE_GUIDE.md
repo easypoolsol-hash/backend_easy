@@ -7,9 +7,10 @@ This project uses Docker Compose for local development and CI testing with **pro
 ```
 project/
 ├── docker-compose.yml              # Full local development stack
-├── docker-compose.ci.yml           # CI testing configuration
+├── docker-compose.ci.yml           # CI testing configuration (for Docker tests)
 ├── .env.example                    # Example environment variables
-├── .env.ci                         # CI environment variables
+├── .env.ci                         # CI environment (for docker-compose tests)
+├── .env.ci.local                   # CI environment (for native Python tests)
 └── infrastructure/
     └── docker-compose.yml          # Production deployment (separate)
 ```
@@ -131,7 +132,9 @@ REDIS_URL=redis://redis:6379/0
 ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
-### CI Testing (.env.ci)
+### CI Testing - Docker Compose (.env.ci)
+
+Used by `docker-compose.ci.yml` (Job 4: test-image)
 
 ```bash
 # Django
@@ -139,29 +142,56 @@ DEBUG=True
 SECRET_KEY=test-secret-key-for-ci
 ENCRYPTION_KEY=test-32-byte-encryption-key-ci
 
-# Database (matches docker-compose.ci.yml)
+# Database (service name for Docker network)
 DB_NAME=test_db
 DB_USER=postgres
 DB_PASSWORD=postgres
-DB_HOST=postgres  # ← Note: service name in docker-compose
+DB_HOST=postgres  # ← Service name (inside Docker network)
 DB_PORT=5432
 
-# Redis (matches docker-compose.ci.yml)
+# Redis (service name for Docker network)
 REDIS_URL=redis://redis:6379/0
 ```
+
+### CI Testing - Native Python (.env.ci.local)
+
+Used by GitHub Actions Job 2 (test) - runs Python directly on runner
+
+```bash
+# Django
+DEBUG=True
+SECRET_KEY=test-secret-key-for-ci
+ENCRYPTION_KEY=test-32-byte-encryption-key-ci
+
+# Database (localhost for runner)
+DB_NAME=test_db
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_HOST=localhost  # ← localhost (runs on GitHub runner, not Docker)
+DB_PORT=5432
+
+# Redis (localhost for runner)
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Key Difference:**
+- `.env.ci` → Used by `docker-compose.ci.yml` → Containers use service names
+- `.env.ci.local` → Used by Job 2 native tests → Python uses localhost
 
 ---
 
 ## 🎯 Production vs CI vs Local
 
-| Aspect | Local Dev | CI Testing | Production |
-|--------|-----------|------------|------------|
-| **File** | `docker-compose.yml` | `docker-compose.ci.yml` | `infrastructure/docker-compose.yml` |
-| **Services** | All + Monitoring | Backend + DB + Redis | Full stack |
-| **Volumes** | Yes (hot reload) | No (test image) | Yes (persistence) |
-| **Ports** | All exposed | None exposed | Reverse proxy only |
-| **Purpose** | Development | Testing image | Serve users |
-| **DEBUG** | True | True | False |
+| Aspect | Local Dev | CI Testing (Job 2) | CI Testing (Job 4) | Production |
+|--------|-----------|-------------------|-------------------|------------|
+| **File** | `docker-compose.yml` | `.env.ci.local` | `docker-compose.ci.yml` | `infrastructure/docker-compose.yml` |
+| **Environment** | `.env` | Native Python on runner | Docker containers | `.env.production` |
+| **DB Host** | `db` | `localhost` | `postgres` | `db` |
+| **Services** | All + Monitoring | GitHub services | Backend + DB + Redis | Full stack |
+| **Volumes** | Yes (hot reload) | N/A | No (test image) | Yes (persistence) |
+| **Ports** | All exposed | 5432, 6379 exposed | None exposed | Reverse proxy only |
+| **Purpose** | Development | Fast unit tests | Test Docker image | Serve users |
+| **DEBUG** | True | True | True | False |
 
 ---
 

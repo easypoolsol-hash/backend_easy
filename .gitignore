@@ -110,6 +110,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Exception: CI environment file is committed for local dev and CI testing
+!.env.ci
+
 # Spyder project settings
 .spyderproject
 .spyproject

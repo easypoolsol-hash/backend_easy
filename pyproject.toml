@@ -100,6 +100,12 @@ dev = [
     "werkzeug>=3.0.0,<4.0",  # Better debugging
 ]
 
+# Testing dependencies - also need stubs for dev
+testing_stubs = [
+    "types-factory-boy>=0.4.1,<1.0",  # Type stubs for factory-boy
+]
+
+
 # Testing dependencies
 testing = [
     "pytest>=7.0.0,<8.0",
@@ -109,6 +115,7 @@ testing = [
     "faker>=24.0.0,<25.0",  # Better test data generation
     "pytest-xdist>=3.5.0,<4.0",  # Parallel test execution
     "pytest-mock>=3.12.0,<4.0",  # Better mocking
+    "types-factory-boy>=0.4.1,<1.0",  # Type stubs for factory-boy
 ]
 
 # Documentation

@@ -43,7 +43,7 @@ class KioskModelTest(TestCase):
         self.assertEqual(kiosk.battery_level, 85.5)
         self.assertEqual(kiosk.storage_used_mb, 1024.5)
         self.assertTrue(kiosk.is_active)
-        self.assertIsNotNone(kiosk.created_at)  # type: ignore
+        self.assertIsNotNone(kiosk.created_at)  # type: ignore[attr-defined]
 
     def test_kiosk_online_status(self):
         """Test kiosk online status calculation"""
@@ -85,8 +85,8 @@ class DeviceLogModelTest(TestCase):
         self.assertEqual(log.log_level, "INFO")
         self.assertEqual(log.message, "Test message")
         self.assertEqual(log.metadata, {"key": "value"})
-        self.assertIsNotNone(log.timestamp)  # type: ignore
-        self.assertIsNotNone(log.log_id)  # type: ignore
+        self.assertIsNotNone(log.timestamp)  # type: ignore[attr-defined]
+        self.assertIsNotNone(log.log_id)  # type: ignore[attr-defined]
 
     def test_device_log_string_representation(self):
         """Test device log string representation"""
@@ -95,7 +95,7 @@ class DeviceLogModelTest(TestCase):
             log_level="ERROR",
             message="Error occurred"
         )
-        expected = f"[{log.timestamp}] {self.kiosk.kiosk_id} ERROR: Error occurred..."  # type: ignore
+        expected = f"[{log.timestamp}] {self.kiosk.kiosk_id} ERROR: Error occurred..."  # type: ignore[attr-defined]
         self.assertEqual(str(log), expected)
 
 
@@ -117,7 +117,7 @@ class KioskSerializerTest(TestCase):
         data = serializer.data
 
         self.assertEqual(data['kiosk_id'], self.kiosk.kiosk_id)
-        self.assertEqual(data['bus'], str(self.bus.bus_id))  # type: ignore[attr-defined] # UUID field
+        self.assertEqual(data['bus'], str(self.bus.bus_id))  # type: ignore[attr-defined]
         self.assertEqual(data['firmware_version'], "1.0.0")
         self.assertEqual(data['battery_level'], 85.5)
         self.assertIn('is_online', data)
@@ -216,7 +216,7 @@ class KioskAPITest(APITestCase):
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse('kiosk-detail', kwargs={'pk': self.kiosk.pk})  # type: ignore
+        url = reverse('kiosk-detail', kwargs={'pk': self.kiosk.pk})  # type: ignore[attr-defined]
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -239,7 +239,7 @@ class KioskAPITest(APITestCase):
         self.assertIn('timestamp', response.data)
 
         # Verify kiosk was updated
-        self.kiosk.refresh_from_db()  # type: ignore
+        self.kiosk.refresh_from_db()  # type: ignore[attr-defined]
         self.assertEqual(self.kiosk.firmware_version, "1.0.1")
         self.assertEqual(self.kiosk.battery_level, 90.0)
 
@@ -345,7 +345,7 @@ class DeviceLogAPITest(APITestCase):
         )
         self.client.force_authenticate(user=user)
 
-        url = reverse('device-log-detail', kwargs={'pk': self.log.pk})  # type: ignore
+        url = reverse('device-log-detail', kwargs={'pk': self.log.pk})  # type: ignore[attr-defined]
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -369,7 +369,7 @@ class DeviceLogAPITest(APITestCase):
         self.client.force_authenticate(user=user)
 
         url = reverse('device-log-list')
-        response = self.client.get(url, {'kiosk': self.kiosk.kiosk_id})  # type: ignore
+        response = self.client.get(url, {'kiosk': self.kiosk.kiosk_id})  # type: ignore[arg-type]
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(len(response.data['results']), 1)

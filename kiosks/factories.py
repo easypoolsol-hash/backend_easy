@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.utils import timezone
 import factory
 from factory.django import DjangoModelFactory
@@ -26,7 +28,7 @@ class KioskFactory(DjangoModelFactory):
         model = Kiosk
 
     kiosk_id = factory.Sequence(lambda n: f"KIOSK-{n:03d}")
-    bus = factory.SubFactory(BusFactory)
+    bus: Any = factory.SubFactory(BusFactory)
     api_key_hash = factory.Sequence(lambda n: f"hash_{n}")
     firmware_version = "1.0.0"
     battery_level = 85.5
@@ -41,7 +43,7 @@ class DeviceLogFactory(DjangoModelFactory):
     class Meta:
         model = DeviceLog
 
-    kiosk = factory.SubFactory(KioskFactory)
+    kiosk: Any = factory.SubFactory(KioskFactory)
     log_level = "INFO"
-    message = factory.Faker('sentence')
+    message: Any = factory.Faker('sentence')
     metadata = factory.LazyFunction(lambda: {'test': True})
