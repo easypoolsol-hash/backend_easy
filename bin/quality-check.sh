@@ -8,15 +8,20 @@ set -e
 echo "🔍 Running code quality checks..."
 echo ""
 
-# Navigate to app directory
-cd "$(dirname "$0")/../app" || exit 1
+# Get project root directory
+PROJECT_ROOT="$(dirname "$0")/.."
+cd "${PROJECT_ROOT}" || exit 1
 
 # Install dependencies if needed
 if [ "${CI}" = "true" ]; then
-    echo "📦 Installing dependencies..."
+    echo "📦 Installing linting dependencies..."
     python -m pip install --upgrade pip
-    pip install -e .[dev,testing]
+    # Just install the linting tools directly, don't need full package install
+    pip install --no-cache-dir ruff>=0.6.0 mypy>=1.8.0 django-stubs>=5.0.0
 fi
+
+# Navigate to app directory for linting
+cd app || exit 1
 
 # Run Ruff linting
 echo "🧹 Running Ruff linting..."
