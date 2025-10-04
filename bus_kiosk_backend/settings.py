@@ -323,37 +323,40 @@ else:
 
 # Cache configuration
 redis_url = os.getenv("REDIS_URL")
-if redis_url:
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": redis_url,
-            "KEY_PREFIX": "bus_kiosk",
-            "TIMEOUT": 300,  # 5 minutes default
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "CONNECTION_POOL_KWARGS": {
-                    "max_connections": 20,
-                    "decode_responses": True,
-                },
+if redis_url and not os.getenv("GITHUB_ACTIONS"):  # Disable Redis in CI for now
+    try:
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": redis_url,
+                "KEY_PREFIX": "bus_kiosk",
+                "TIMEOUT": 300,  # 5 minutes default
             },
-        },
-        "api_cache": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": redis_url,
-            "KEY_PREFIX": "api",
-            "TIMEOUT": 3600,  # 1 hour for API responses
-            "OPTIONS": {
-                "CLIENT_CLASS": "django_redis.client.DefaultClient",
-                "CONNECTION_POOL_KWARGS": {
-                    "max_connections": 20,
-                    "decode_responses": True,
-                },
+            "api_cache": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": redis_url,
+                "KEY_PREFIX": "api",
+                "TIMEOUT": 3600,  # 1 hour for API responses
             },
-        },
-    }
+        }
+    except Exception:
+        # Fallback to memory cache if Redis fails
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "unique-snowflake",
+                "KEY_PREFIX": "bus_kiosk",
+                "TIMEOUT": 300,
+            },
+            "api_cache": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+                "LOCATION": "api-cache",
+                "KEY_PREFIX": "api",
+                "TIMEOUT": 3600,
+            },
+        }
 else:
-    # Fallback to local memory cache for development
+    # Fallback to local memory cache for development and CI
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
