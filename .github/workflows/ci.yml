@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/bus_kiosk_backend
+  IMAGE_NAME: bus_kiosk_backend
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
@@ -142,7 +142,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}
         tags: |
           type=sha,prefix={{branch}}-
 
@@ -151,7 +151,7 @@ jobs:
       with:
         context: .
         push: false
-        tags: ${{ env.IMAGE_NAME }}:test
+        tags: ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
         outputs: type=docker,dest=/tmp/image.tar
@@ -224,7 +224,7 @@ jobs:
     - name: Run Trivy vulnerability scanner on image
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: ${{ env.IMAGE_NAME }}:test
+        image-ref: ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
         format: 'sarif'
         output: 'trivy-results.sarif'
 
@@ -267,7 +267,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=sha,prefix={{branch}}-
@@ -279,28 +279,28 @@ jobs:
     - name: Tag and push Docker image
       run: |
         # Tag the test image with production tags
-        docker tag ${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-        docker tag ${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        docker tag ${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:blue
-        docker tag ${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:green
-        docker tag ${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:blue
+        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:green
+        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:staging
 
         # Push all tags
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:blue
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:green
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:blue
+        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:green
+        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:staging
 
     - name: Output image information
       run: |
         echo "🎉 CI Pipeline Complete!"
         echo "✅ All tests passed (code + Docker image)"
         echo "📦 Image pushed to Docker Hub:"
-        echo "   ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-        echo "   ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-        echo "   ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:blue"
-        echo "   ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:green"
-        echo "   ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:blue"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:green"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:staging"
         echo ""
         echo "🚀 Ready for CD deployment via infrastructure folder"
