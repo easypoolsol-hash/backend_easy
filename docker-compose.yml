@@ -2,8 +2,6 @@
 # This file is used for BOTH local development AND CI pipeline
 # For production deployment, use infrastructure/docker-compose.yml
 
-version: '3.8'
-
 services:
   # Django Web Application
   web:
@@ -270,3 +268,19 @@ services:
       - "9093:9093"
     networks:
       - bus_kiosk_network
+
+# Docker Networks
+networks:
+  bus_kiosk_network:
+    driver: bridge
+
+# Docker Volumes
+volumes:
+  postgres_data:
+  redis_data:
+  staticfiles:
+  media:
+  logs:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:

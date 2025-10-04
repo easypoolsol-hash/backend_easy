@@ -184,7 +184,23 @@ jobs:
     - name: Set IMAGE_NAME environment variable
       run: echo "IMAGE_NAME=${{ env.IMAGE_NAME }}" >> $GITHUB_ENV
 
+    - name: Set environment variables for Docker Compose
+      run: |
+        echo "DB_NAME=test_db" >> $GITHUB_ENV
+        echo "DB_USER=postgres" >> $GITHUB_ENV
+        echo "DB_PASSWORD=postgres" >> $GITHUB_ENV
+        echo "DB_HOST=db" >> $GITHUB_ENV
+        echo "DB_PORT=5432" >> $GITHUB_ENV
+        echo "REDIS_URL=redis://redis:6379/0" >> $GITHUB_ENV
+
     - name: Run tests in Docker container
+      env:
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: db
+        DB_PORT: 5432
+        REDIS_URL: redis://redis:6379/0
       run: |
         docker compose up -d db redis && docker compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && pytest tests/ -k 'TestAPIEndpoints or TestAuthentication or TestDocumentationSecurity' --maxfail=3 --tb=short -vv --cov-report=xml:coverage.xml\"
 
