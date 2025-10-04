@@ -183,7 +183,7 @@ addopts = [
     "--tb=short",
     "--cov=bus_kiosk_backend",
     "--cov=users",
-    "--cov=students", 
+    "--cov=students",
     "--cov=buses",
     "--cov=events",
     "--cov=kiosks",
@@ -197,7 +197,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "unit: Unit tests",
-    "integration: Integration tests", 
+    "integration: Integration tests",
     "api: API endpoint tests",
     "slow: Slow running tests",
 ]
