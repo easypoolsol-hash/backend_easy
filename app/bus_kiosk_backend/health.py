@@ -346,8 +346,20 @@ def detailed_health_check(request):
 
     Includes database, cache, Celery, system resources, and business logic checks.
     Used by monitoring systems and administrators.
+    
+    In test mode, skips optional checks (Celery, business logic) that require
+    external services not running in test environment.
     """
     start_time = time.time()
+    
+    # Detect if we're running in test mode
+    from django.conf import settings
+    is_testing = (
+        'test' in os.getenv('DJANGO_SETTINGS_MODULE', '').lower() or
+        hasattr(settings, 'TESTING') and settings.TESTING or
+        'pytest' in os.getenv('_', '') or
+        'pytest' in os.getenv('PYTEST_CURRENT_TEST', '')
+    )
 
     health_data: dict[str, Any] = {
         "status": "healthy",
@@ -359,16 +371,24 @@ def detailed_health_check(request):
         "python_version": platform.python_version(),
         "django_version": f"{django.VERSION[0]}.{django.VERSION[1]}",
         "checks": {},
+        "test_mode": is_testing,
     }
 
-    # Perform all health checks
-    check_functions = [
+    # Core health checks (always run)
+    core_checks = [
         ("database", check_database),
         ("cache", check_cache),
-        ("celery", check_celery),
         ("system_resources", check_system_resources),
+    ]
+    
+    # Optional checks (skip in test mode)
+    optional_checks = [
+        ("celery", check_celery),
         ("business_logic", check_business_logic),
     ]
+    
+    # Combine checks based on environment
+    check_functions = core_checks + ([] if is_testing else optional_checks)
 
     for check_name, check_func in check_functions:
         try:
