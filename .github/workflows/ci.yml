@@ -113,7 +113,7 @@ jobs:
         ALLOWED_HOSTS: localhost,127.0.0.1,testserver
         GITHUB_ACTIONS: true
       run: |
-        python manage.py migrate --check || (echo "Migrations check failed" && exit 1)
+        python manage.py migrate --noinput || (echo "Migration failed" && exit 1)
         pytest --maxfail=3 --tb=short --cov-report=xml:coverage.xml || (echo "Tests failed - showing full traceback:" && pytest --maxfail=1 --tb=long --lf && exit 1)
 
     - name: Upload coverage reports
