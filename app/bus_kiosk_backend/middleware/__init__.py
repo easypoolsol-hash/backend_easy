@@ -58,9 +58,9 @@ class RequestLoggingMiddleware:
             "method": request.method,
             "path": request.path,
             "query_params": dict(request.GET),
-            "user_id": getattr(request.user, "id", None)
-            if hasattr(request, "user")
-            else None,
+            "user_id": (
+                getattr(request.user, "id", None) if hasattr(request, "user") else None
+            ),
             "user_agent": request.META.get("HTTP_USER_AGENT"),
             "ip_address": self._get_client_ip(request),
             "timestamp": timezone.now().isoformat(),
@@ -82,9 +82,9 @@ class RequestLoggingMiddleware:
             "path": request.path,
             "status_code": response.status_code,
             "duration": f"{duration:.3f}",
-            "user_id": getattr(request.user, "id", None)
-            if hasattr(request, "user")
-            else None,
+            "user_id": (
+                getattr(request.user, "id", None) if hasattr(request, "user") else None
+            ),
             "timestamp": timezone.now().isoformat(),
         }
 

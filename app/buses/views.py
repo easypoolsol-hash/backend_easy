@@ -48,9 +48,9 @@ class RouteViewSet(viewsets.ModelViewSet):
                 "student_id": str(s.student_id),
                 "name": s.name,
                 "grade": s.grade,
-                "bus_license_plate": s.assigned_bus.license_plate
-                if s.assigned_bus
-                else None,  # type: ignore
+                "bus_license_plate": (
+                    s.assigned_bus.license_plate if s.assigned_bus else None
+                ),  # type: ignore
             }
             for s in students
         ]

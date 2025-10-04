@@ -7,10 +7,12 @@ from contextlib import contextmanager
 import logging
 import os
 import platform
+import sys
 import time
 from typing import Any
 
 import django
+from django.conf import settings as django_settings
 from django.db import connection
 from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
@@ -72,10 +74,12 @@ def check_database() -> dict[str, Any]:
                 # Test basic connectivity
                 cursor.execute("SELECT 1")
                 # Test a more complex query to check performance
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COUNT(*) as user_count
                     FROM (SELECT 1 as dummy LIMIT 1) as test_table
-                """)
+                """
+                )
                 cursor.fetchone()  # Execute query to test connectivity
             query_time = time.time() - start_time
 
@@ -165,11 +169,13 @@ def check_celery() -> dict[str, Any]:
                 "broker_url": current_app.conf.broker_url.replace(
                     current_app.conf.broker_url.split("@")[0] + "@", "***@"
                 ),  # Mask credentials
-                "result_backend": current_app.conf.result_backend.replace(
-                    current_app.conf.result_backend.split("@")[0] + "@", "***@"
-                )
-                if current_app.conf.result_backend
-                else None,
+                "result_backend": (
+                    current_app.conf.result_backend.replace(
+                        current_app.conf.result_backend.split("@")[0] + "@", "***@"
+                    )
+                    if current_app.conf.result_backend
+                    else None
+                ),
             }
     except Exception as e:
         return {"status": "unhealthy", "error": str(e), "broker_url": "unknown"}
@@ -355,8 +361,6 @@ def detailed_health_check(request):
 
     # Detect if we're running in test mode
     # Check multiple indicators: pytest environment, Django test command, test database, or sys.argv
-    import sys
-    from django.conf import settings as django_settings
 
     is_testing = (
         "test" in os.getenv("DJANGO_SETTINGS_MODULE", "").lower()
