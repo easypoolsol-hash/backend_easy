@@ -47,6 +47,20 @@ if DJANGO_AVAILABLE:
                 'username': 'testuser_api',
                 'password': 'testpass123'
             })
+
+            # Debug: print response details
+            print(f"Token response status: {token_response.status_code}")
+            print(f"Token response data: {token_response.data}")
+            print(f"Token response content: {token_response.content}")
+
+            # Check if response was successful
+            self.assertEqual(token_response.status_code, status.HTTP_200_OK,
+                           f"Token request failed: {token_response.data}")
+
+            # Check if 'access' key exists
+            self.assertIn('access', token_response.data,
+                         f"Access token not found in response: {token_response.data}")
+
             self.access_token = token_response.data['access']
             self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.access_token}')
 

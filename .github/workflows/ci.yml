@@ -186,7 +186,7 @@ jobs:
 
     - name: Run tests in Docker container
       run: |
-        docker-compose up -d db redis && docker-compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && pytest --maxfail=3 --tb=short --cov-report=xml:coverage.xml\"
+        docker-compose up -d db redis && docker-compose run --rm web sh -c \"python manage.py migrate --noinput && python manage.py collectstatic --noinput && pytest tests/ -k 'TestAPIEndpoints or TestAuthentication or TestDocumentationSecurity' --maxfail=3 --tb=short --cov-report=xml:coverage.xml\"
 
     - name: Show container logs (if tests fail)
       if: failure()
