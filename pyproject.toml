@@ -123,7 +123,7 @@ Issues = "https://github.com/easypoolsol-hash/bus_kiosk_imperial/issues"
 [tool.ruff]
 # Industrial Django configuration - replaces flake8, isort, and more
 target-version = "py310"
-line-length = 88
+line-length = 150
 
 [tool.ruff.lint]
 # Core Python rules (comprehensive but fast)
@@ -166,7 +166,7 @@ force-sort-within-sections = true
 
 [tool.black]
 # Code formatting (complements ruff)
-line-length = 88
+line-length = 100
 target-version = ['py310']
 include = '\.pyi?$'
 extend-exclude = '''
