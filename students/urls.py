@@ -14,4 +14,5 @@ router.register(r'face-embeddings', views.FaceEmbeddingMetadataViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('kiosk/boarding/', views.KioskBoardingView.as_view(), name='kiosk-boarding'),
 ]

@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build dependencies (cached when pyproject.toml doesn't change)
 # =============================================================================
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim-bookworm AS builder
 
 # Set environment variables for better caching and performance
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -21,10 +21,6 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Create virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
 # Upgrade pip first (cached layer)
 RUN pip install --upgrade pip setuptools wheel
 
@@ -32,9 +28,8 @@ RUN pip install --upgrade pip setuptools wheel
 # This layer only changes when dependencies change
 COPY pyproject.toml ./
 
-# Install Python dependencies in virtual environment
-# Use --no-deps to avoid installing dependencies of dependencies twice
-RUN pip install --no-deps -e .
+# Parse pyproject.toml and install dependencies
+RUN python -c "import tomllib; import subprocess; import sys; data = tomllib.load(open('pyproject.toml', 'rb')); deps = data.get('project', {}).get('dependencies', []); subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir'] + deps, check=True) if deps else None"
 
 # Install production runtime dependencies
 RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0
@@ -42,19 +37,19 @@ RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0
 # =============================================================================
 # Stage 2: Runtime image (minimal and secure)
 # =============================================================================
-FROM python:3.11-slim AS runtime
+FROM python:3.11-slim-bookworm AS runtime
 
 # Install only runtime system dependencies
 RUN apt-get update && apt-get install -y \
-    libpq5 \
+    postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && groupadd -r django && useradd -r -g django django
 
-# Copy virtual environment from builder stage
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Copy Python packages from builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Set working directory
 WORKDIR /app

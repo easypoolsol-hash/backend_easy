@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "django_filters",  # Advanced filtering
     "django_celery_beat",  # Periodic tasks
     "django_celery_results",  # Task results storage
+    "django_redis",  # Redis cache backend
     # Local apps
     "users",
     "students",
@@ -121,20 +122,20 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",  # Include user_id in JWT payload
 }
 
-# Celery Configuration (disabled for development without Redis)
-# CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
-# CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
-# CELERY_ACCEPT_CONTENT = ["json"]
-# CELERY_TASK_SERIALIZER = "json"
-# CELERY_RESULT_SERIALIZER = "json"
-# CELERY_TIMEZONE = "UTC"
-# CELERY_TASK_TRACK_STARTED = True
-# CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
-# CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-# CELERY_WORKER_CONCURRENCY = 4
+# Celery Configuration
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+CELERY_WORKER_CONCURRENCY = 4
 
-# Celery Beat Settings (disabled for development)
-# CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+# Celery Beat Settings
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
 # Logging Configuration
 LOGGING = {
@@ -278,46 +279,80 @@ WSGI_APPLICATION = "bus_kiosk_backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Use PostgreSQL if DB_ENGINE is set to PostgreSQL (Docker environment)
+if os.getenv("DB_ENGINE") == "django.db.backends.postgresql":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "bus_kiosk"),
+            "USER": os.getenv("DB_USER", "bus_kiosk_user"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "OPTIONS": {
+                "connect_timeout": 10,
+                "options": "-c timezone=UTC",
+            },
+            "CONN_MAX_AGE": 60,  # Connection pooling
+            "CONN_HEALTH_CHECKS": True,
+        }
     }
-}
-
-# Production PostgreSQL configuration (commented out for development)
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv("DB_NAME", "bus_kiosk"),
-#         "USER": os.getenv("DB_USER", "bus_kiosk_user"),
-#         "PASSWORD": os.getenv("DB_PASSWORD", ""),
-#         "HOST": os.getenv("DB_HOST", "localhost"),
-#         "PORT": os.getenv("DB_PORT", "5432"),
-#         "OPTIONS": {
-#             "connect_timeout": 10,
-#             "options": "-c timezone=UTC",
-#         },
-#         "CONN_MAX_AGE": 60,  # Connection pooling
-#         "CONN_HEALTH_CHECKS": True,
-#     }
-# }
+else:
+    # Default to SQLite for local development
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Cache configuration
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
-        "KEY_PREFIX": "bus_kiosk",
-        "TIMEOUT": 300,  # 5 minutes default
-    },
-    "api_cache": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "api-cache",
-        "KEY_PREFIX": "api",
-        "TIMEOUT": 3600,  # 1 hour for API responses
-    },
-}
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_url,
+            "KEY_PREFIX": "bus_kiosk",
+            "TIMEOUT": 300,  # 5 minutes default
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 20,
+                    "decode_responses": True,
+                },
+            },
+        },
+        "api_cache": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_url,
+            "KEY_PREFIX": "api",
+            "TIMEOUT": 3600,  # 1 hour for API responses
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "CONNECTION_POOL_KWARGS": {
+                    "max_connections": 20,
+                    "decode_responses": True,
+                },
+            },
+        },
+    }
+else:
+    # Fallback to local memory cache for development
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+            "KEY_PREFIX": "bus_kiosk",
+            "TIMEOUT": 300,  # 5 minutes default
+        },
+        "api_cache": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "api-cache",
+            "KEY_PREFIX": "api",
+            "TIMEOUT": 3600,  # 1 hour for API responses
+        },
+    }
 
 
 # Password validation

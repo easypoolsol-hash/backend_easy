@@ -283,7 +283,52 @@ class FaceEmbeddingMetadataViewSet(viewsets.ModelViewSet):
         embedding.is_primary = True
         embedding.save()
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from students.tasks import process_student_attendance
+import time
+
+
+class KioskBoardingView(APIView):
+    """
+    Simulate a bus kiosk boarding endpoint - FAST response needed!
+    """
+
+    def post(self, request):
+        """
+        Student boarding endpoint - must respond in < 0.5 seconds!
+        """
+        student_name = request.data.get('student_name', 'Unknown Student')
+        boarding_time = request.data.get('boarding_time', 'now')
+
+        # 🚨 CRITICAL: Start timing for performance monitoring
+        start_time = time.time()
+
+        # Quick validation (0.01 seconds)
+        if not student_name:
+            return Response(
+                {"error": "Student name required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ⚡ INSTANT RESPONSE - Don't wait for processing!
+        # Send boarding data to background worker for database/storage
+        task = process_student_attendance.delay(
+            student_name,
+            boarding_time,
+            bus_id=request.data.get('bus_id'),
+            face_confidence=request.data.get('face_confidence')
+        )
+
+        response_time = time.time() - start_time
+
+        # ✅ Student can board immediately!
         return Response({
-            'message': 'Face embedding set as primary',
-            'embedding': FaceEmbeddingMetadataSerializer(embedding).data
-        })
+            "status": "boarding_allowed",
+            "message": f"✅ Welcome, {student_name}! Please board the bus.",
+            "boarding_time": boarding_time,
+            "response_time_seconds": round(response_time, 3),
+            "background_task_id": task.id,
+            "note": "Boarding record processing in background"
+        }, status=status.HTTP_200_OK)
