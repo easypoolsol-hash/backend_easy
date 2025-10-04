@@ -3,25 +3,12 @@ Authentication and authorization tests.
 Tests JWT token generation, validation, and protected endpoints.
 """
 
-import requests
-
-# Django imports - only import if Django is available
-try:
-    import os
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bus_kiosk_backend.settings')
-    import django
-    django.setup()
-    from django.contrib.auth import get_user_model
-    from rest_framework import status
-    from rest_framework.test import APITestCase
-    DJANGO_AVAILABLE = True
-except Exception:
-    DJANGO_AVAILABLE = False
+from django.contrib.auth import get_user_model
+from rest_framework import status
+from rest_framework.test import APITestCase
 
 
-# Django test classes - only define if Django is available
-if DJANGO_AVAILABLE:
-    class TestAuthentication(APITestCase):
+class TestAuthentication(APITestCase):
         """Test JWT authentication system."""
 
         def setUp(self):
