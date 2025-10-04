@@ -66,7 +66,14 @@ class StudentViewSet(viewsets.ModelViewSet):
         # Filter by bus
         bus_id = self.request.query_params.get('bus_id')
         if bus_id:
-            queryset = queryset.filter(assigned_bus=bus_id)  # type: ignore
+            try:
+                # Convert string to UUID and filter by bus_id
+                from uuid import UUID
+                bus_uuid = UUID(bus_id)
+                queryset = queryset.filter(assigned_bus__bus_id=bus_uuid)
+            except (ValueError, TypeError):
+                # Invalid UUID, return empty queryset
+                queryset = queryset.none()
 
         # Filter by status
         status_filter = self.request.query_params.get('status')

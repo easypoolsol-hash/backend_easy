@@ -1,5 +1,6 @@
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 from buses.models import Bus
 
@@ -145,7 +146,7 @@ class DeviceLog(models.Model):
         help_text="Additional structured data as JSON"
     )
     timestamp = models.DateTimeField(
-        default=models.functions.Now,
+        default=timezone.now,
         help_text="When this log entry was created"
     )
 

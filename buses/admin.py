@@ -102,7 +102,7 @@ class BusAdmin(admin.ModelAdmin):
     def utilization_percentage(self, obj):
         """Display utilization as percentage"""
         return f"{obj.utilization_percentage:.1f}%"
-    utilization_percentage.short_description = "Utilization"  # type: ignore
+    utilization_percentage.short_description = "Utilization"  # type: ignore[attr-defined]
 
     def get_queryset(self, request):
         """Optimize queryset with annotations"""

@@ -75,7 +75,7 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
         ALLOWED_HOSTS: localhost,127.0.0.1
       run: |
-        python tests/run_tests.py all
+        python manage.py test --verbosity=2
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3

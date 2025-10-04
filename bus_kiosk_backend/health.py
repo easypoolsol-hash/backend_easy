@@ -349,7 +349,7 @@ def detailed_health_check(request):
     """
     start_time = time.time()
 
-    health_data = {
+    health_data: dict[str, Any] = {
         "status": "healthy",
         "timestamp": time.time(),
         "service": "bus-kiosk-backend",
@@ -373,7 +373,7 @@ def detailed_health_check(request):
     for check_name, check_func in check_functions:
         try:
             result = check_func()
-            health_data["checks"][check_name] = result  # type: ignore
+            health_data["checks"][check_name] = result
 
             # If any check is unhealthy, mark overall status as unhealthy
             if result["status"] in ["unhealthy", "critical"]:
@@ -383,7 +383,7 @@ def detailed_health_check(request):
 
         except Exception as e:
             logger.error(f"Health check '{check_name}' failed: {e}")
-            health_data["checks"][check_name] = {  # type: ignore
+            health_data["checks"][check_name] = {
                 "status": "unhealthy",
                 "error": str(e),
                 "response_time_ms": round((time.time() - start_time) * 1000, 2)
