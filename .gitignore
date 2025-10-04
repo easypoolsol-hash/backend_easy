@@ -103,6 +103,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
 .venv
 env/
 venv/
@@ -110,8 +111,13 @@ ENV/
 env.bak/
 venv.bak/
 
-# Exception: CI environment file is committed for local dev and CI testing
-!.env.ci
+# Production environment file (contains real secrets, never commit!)
+.env.prod
+infrastructure/.env.prod
+
+# Exception: Example files should be committed
+!.env.example
+!infrastructure/.env.example
 
 # Spyder project settings
 .spyderproject

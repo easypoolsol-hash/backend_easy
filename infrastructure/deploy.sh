@@ -59,9 +59,10 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check if .env file exists
-    if [ ! -f ".env" ]; then
-        log_error ".env file not found. Please create it from .env.example"
+    # Check if .env.prod file exists
+    if [ ! -f ".env.prod" ]; then
+        log_error ".env.prod file not found. Please create it from .env.example"
+        log_error "This file must be manually placed on the production server"
         exit 1
     fi
 

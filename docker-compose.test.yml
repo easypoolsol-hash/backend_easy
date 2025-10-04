@@ -1,0 +1,110 @@
+# Docker Compose for Testing Infrastructure
+# Complete test environment with database, cache, and test runner
+# All test environment variables defined here (safe since they're for testing only)
+
+# Common test environment variables (YAML anchor)
+x-test-env: &test_env
+  # Test environment variables (safe - not production secrets)
+  DEBUG: true
+  SECRET_KEY: test-secret-key-for-testing-only
+  ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+  DB_ENGINE: django.db.backends.postgresql
+  # Database connection details (must match db service configuration below)
+  DB_NAME: test_db
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: db
+  DB_PORT: "5432"
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/0
+  ALLOWED_HOSTS: localhost,127.0.0.1
+  CI: true
+
+# Image test environment (inherits from test_env, overrides DEBUG)
+x-image-test-env: &image_test_env
+  <<: *test_env
+  DEBUG: false
+
+# Common health check configurations (YAML anchors)
+x-db-healthcheck: &db_healthcheck
+  test: ["CMD-SHELL", "pg_isready -U postgres -d test_db"]
+  interval: 5s
+  timeout: 5s
+  retries: 5
+
+x-redis-healthcheck: &redis_healthcheck
+  test: ["CMD", "redis-cli", "ping"]
+  interval: 5s
+  timeout: 3s
+  retries: 3
+
+# Common service dependencies (YAML anchor)
+x-service-deps: &service_deps
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - test_network
+
+services:
+  # Django Test Runner
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      <<: *test_env
+    volumes:
+      - ./app:/app
+      - ./build:/app/build
+    <<: *service_deps
+    command: >
+      sh -c "
+        cd /app &&
+        echo '📦 Installing testing dependencies...' &&
+        pip install --no-cache-dir --user pytest>=7.0.0 pytest-django>=4.5.0 pytest-cov>=4.0.0 factory-boy>=3.3.0 faker>=24.0.0 pytest-xdist>=3.5.0 pytest-mock>=3.12.0 &&
+        echo '🔄 Running migrations...' &&
+        python manage.py migrate --noinput &&
+        echo '🧪 Running tests...' &&
+        python -m pytest tests/ -v --tb=short --cov-report=xml:/app/../build/coverage.xml
+      "
+
+  # PostgreSQL Test Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      # These values must match DB_NAME, DB_USER, DB_PASSWORD in x-test-env above
+      - POSTGRES_DB=test_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck: *db_healthcheck
+    networks:
+      - test_network
+
+  # Redis Test Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    healthcheck: *redis_healthcheck
+    networks:
+      - test_network
+
+  # Django Image Test Runner (uses built image)
+  image-test:
+    image: ${DOCKER_IMAGE:-testuser/bus_kiosk_backend:test}
+    environment:
+      <<: *image_test_env
+    <<: *service_deps
+    command: python manage.py check
+
+networks:
+  test_network:
+    driver: bridge
+
+volumes:
+  postgres_test_data:

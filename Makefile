@@ -6,11 +6,11 @@
 # Primary linting (fastest - ruff handles most rules)
 lint:
 	@echo "� Running Ruff (comprehensive Django linter)..."
-	ruff check .
+	ruff check app/
 	@echo "🔍 Running Pylint (complex Django analysis)..."
-	pylint users students bus_kiosk_backend --errors-only
+	pylint app/users app/students app/bus_kiosk_backend --errors-only
 	@echo "🔍 Running MyPy (type checking)..."
-	python -m mypy users/ students/ --config-file mypy.ini
+	python -m mypy app/users/ app/students/ --config-file config/mypy.ini
 	@echo "✅ Core linting passed!"
 
 # Run all linting tools (comprehensive)

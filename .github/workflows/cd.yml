@@ -1,10 +1,10 @@
-name: CD Pipeline - Blue-Green Deployment
+﻿name: CD Pipeline - Deploy to Server
 
 on:
   workflow_dispatch:
     inputs:
       deploy_target:
-        description: 'Deployment target (blue/green for blue-green, or specific environment)'
+        description: 'Environment to deploy'
         required: true
         default: 'blue'
         type: choice
@@ -14,69 +14,23 @@ on:
           - staging
           - production
       image_tag:
-        description: 'Docker image tag to deploy (commit SHA, "latest", or specific tag)'
+        description: 'Source image tag'
         required: true
         default: 'latest'
         type: string
-      traffic_percentage:
-        description: 'Percentage of traffic to route to target environment (1-100, leave empty for 100%)'
-        required: false
-        default: '100'
-        type: string
-      force_deploy:
-        description: 'Force deployment even if health checks fail'
-        required: false
-        default: false
-        type: boolean
-  # Removed automatic trigger on CI completion - deployments should be manual
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/bus_kiosk_backend
 
 jobs:
-  deploy:
+  tag-and-deploy:
+    name: Deploy to ${{ inputs.deploy_target }} environment
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ inputs.deploy_target == 'blue' && 'production-blue' || inputs.deploy_target == 'green' && 'production-green' || inputs.deploy_target == 'staging' && 'staging' || 'production' }}
-      url: ${{ vars.DEPLOY_URL }}
 
     steps:
-    - name: Checkout infrastructure code
+    - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        sparse-checkout: |
-          infrastructure/
-
-    - name: Determine deployment target
-      id: target
-      run: |
-        if [ "${{ inputs.deploy_target }}" == "blue" ]; then
-          echo "environment=blue" >> $GITHUB_OUTPUT
-          echo "color=🔵 BLUE" >> $GITHUB_OUTPUT
-          echo "image_tag=blue" >> $GITHUB_OUTPUT
-          echo "opposite_env=green" >> $GITHUB_OUTPUT
-        elif [ "${{ inputs.deploy_target }}" == "green" ]; then
-          echo "environment=green" >> $GITHUB_OUTPUT
-          echo "color=🟢 GREEN" >> $GITHUB_OUTPUT
-          echo "image_tag=green" >> $GITHUB_OUTPUT
-          echo "opposite_env=blue" >> $GITHUB_OUTPUT
-        else
-          echo "environment=${{ inputs.deploy_target }}" >> $GITHUB_OUTPUT
-          echo "color=🚀 ${{ inputs.deploy_target }}" >> $GITHUB_OUTPUT
-          echo "image_tag=${{ inputs.deploy_target }}" >> $GITHUB_OUTPUT
-          echo "opposite_env=production" >> $GITHUB_OUTPUT
-        fi
-
-        # Set traffic percentage (default 100%)
-        TRAFFIC_PCT="${{ inputs.traffic_percentage }}"
-        if [ -z "$TRAFFIC_PCT" ] || [ "$TRAFFIC_PCT" = "100" ]; then
-          echo "traffic_percentage=100" >> $GITHUB_OUTPUT
-          echo "canary_mode=false" >> $GITHUB_OUTPUT
-        else
-          echo "traffic_percentage=$TRAFFIC_PCT" >> $GITHUB_OUTPUT
-          echo "canary_mode=true" >> $GITHUB_OUTPUT
-        fi
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
@@ -84,115 +38,41 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Pull and tag image for deployment
+    - name: Pull and tag image
       run: |
-        echo "📦 Pulling image: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+        echo "Pulling source image: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
         docker pull ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+        echo "Tagging for ${{ inputs.deploy_target }} environment"
+        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} ${{ env.IMAGE_NAME }}:${{ inputs.deploy_target }}
+        echo "Pushing environment tag: ${{ inputs.deploy_target }}"
+        docker push ${{ env.IMAGE_NAME }}:${{ inputs.deploy_target }}
+        echo "Environment tag updated"
 
-        echo "🏷️  Tagging for ${{ steps.target.outputs.environment }} environment"
-        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}
+    - name: Deploy to server via SSH
+      uses: appleboy/ssh-action@v1.0.0
+      env:
+        IMAGE_TAG: ${{ inputs.deploy_target }}
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        envs: IMAGE_TAG,DOCKER_USERNAME
+        script: |
+          echo "Starting deployment on server..."
+          cd ${{ secrets.SERVER_DEPLOY_PATH || '/opt/backend_easy/infrastructure' }}
+          export IMAGE_TAG=${{ inputs.deploy_target }}
+          export DOCKER_USERNAME=${DOCKER_USERNAME}
+          export DOCKER_IMAGE=${DOCKER_USERNAME}/bus_kiosk_backend:${IMAGE_TAG}
+          echo "Image: ${DOCKER_IMAGE}"
+          chmod +x deploy.sh
+          ./deploy.sh
+          echo "Deployment completed!"
 
-        echo "📤 Pushing environment tag: ${{ steps.target.outputs.image_tag }}"
-        docker push ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}
-
-        echo "✅ Environment tag updated: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}"
-
-    - name: Deploy to ${{ steps.target.outputs.color }}
+    - name: Deployment summary
       run: |
-        cd infrastructure
-
-        # Set environment variables
-        export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-        export IMAGE_TAG=${{ steps.target.outputs.image_tag }}
-        export DEPLOY_ENV=${{ steps.target.outputs.environment }}
-        export TRAFFIC_PERCENTAGE=${{ steps.target.outputs.traffic_percentage }}
-        export CANARY_MODE=${{ steps.target.outputs.canary_mode }}
-
-        echo "🚀 Deploying to ${{ steps.target.outputs.color }} environment"
-        echo "📦 Image: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }} (from ${{ inputs.image_tag }})"
-        echo "🌍 Environment: ${{ steps.target.outputs.environment }}"
-        if [ "${{ steps.target.outputs.canary_mode }}" = "true" ]; then
-          echo "🎯 Traffic: ${{ steps.target.outputs.traffic_percentage }}% (Canary Mode)"
-        else
-          echo "🎯 Traffic: 100% (Full Switch)"
-        fi
-
-        # Make deploy script executable
-        chmod +x deploy.sh
-
-        # Run deployment
-        ./deploy.sh
-
-    - name: Health check deployment
-      run: |
-        echo "🔍 Running health checks for ${{ steps.target.outputs.color }}..."
-
-        # Wait for deployment to stabilize
-        sleep 30
-
-        # Check application health
-        max_attempts=10
-        attempt=1
-
-        while [ $attempt -le $max_attempts ]; do
-          echo "Health check attempt $attempt/$max_attempts..."
-
-          if curl -f -s "${{ vars.HEALTH_CHECK_URL }}" > /dev/null 2>&1; then
-            echo "✅ ${{ steps.target.outputs.color }} deployment is healthy!"
-            exit 0
-          fi
-
-          sleep 15
-          ((attempt++))
-        done
-
-        echo "❌ ${{ steps.target.outputs.color }} deployment failed health checks"
-        if [ "${{ inputs.force_deploy }}" != "true" ]; then
-          exit 1
-        fi
-        echo "⚠️  Force deploy enabled, continuing despite health check failure"
-
-    - name: Switch traffic (Blue-Green)
-      if: inputs.deploy_target == 'blue' || inputs.deploy_target == 'green'
-      run: |
-        echo "🔄 Switching traffic to ${{ steps.target.outputs.color }}..."
-
-        # Here you would typically update your load balancer
-        # Examples:
-        # - Update AWS ALB target groups
-        # - Update nginx upstream servers
-        # - Update Kubernetes ingress/service
-        # - Update DNS records
-
-        echo "Traffic switched to ${{ steps.target.outputs.color }} environment"
-        echo "Old environment (${{ inputs.deploy_target == 'blue' && 'green' || 'blue' }}) available for rollback"
-
-    - name: Notify deployment success
-      if: success()
-      run: |
-        echo "🎉 Blue-Green Deployment Successful!"
-        echo "${{ steps.target.outputs.color }} Environment: ${{ vars.DEPLOY_URL }}"
-        echo "Health Check: ${{ vars.HEALTH_CHECK_URL }}"
-        echo ""
-        echo "📊 Deployment Summary:"
-        echo "   Source Image: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
-        echo "   Environment Tag: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}"
-        echo "   Environment: ${{ steps.target.outputs.environment }}"
-        echo "   Active Color: ${{ steps.target.outputs.color }}"
-        echo ""
-        echo "🔄 Rollback Option:"
-        echo "   Switch to opposite environment for instant rollback"
-
-    - name: Notify deployment failure
-      if: failure()
-      run: |
-        echo "❌ Blue-Green Deployment Failed!"
-        echo "Environment: ${{ steps.target.outputs.environment }}"
-        echo "Color: ${{ steps.target.outputs.color }}"
-        echo ""
-        echo "🔧 Troubleshooting:"
-        echo "   Check deployment logs above"
-        echo "   Verify infrastructure configuration"
-        echo "   Check ${{ vars.HEALTH_CHECK_URL }} manually"
-        echo ""
-        echo "🔄 Rollback: Switch traffic back to ${{ inputs.deploy_target == 'blue' && 'green' || 'blue' }} environment"
+        echo "Deployment completed successfully!"
+        echo "Environment: ${{ inputs.deploy_target }}"
+        echo "Image: ${{ env.IMAGE_NAME }}:${{ inputs.deploy_target }}"
+        echo "Server: ${{ secrets.SERVER_HOST }}"

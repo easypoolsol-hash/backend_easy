@@ -26,7 +26,7 @@ RUN pip install --upgrade pip setuptools wheel
 
 # Copy dependency files first (for better caching)
 # This layer only changes when dependencies change
-COPY pyproject.toml ./
+COPY config/pyproject.toml ./
 
 # Parse pyproject.toml and install dependencies
 RUN python -c "import tomllib; import subprocess; import sys; data = tomllib.load(open('pyproject.toml', 'rb')); deps = data.get('project', {}).get('dependencies', []); subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir'] + deps, check=True) if deps else None"
@@ -55,7 +55,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 WORKDIR /app
 
 # Copy application code (changes frequently, so placed after dependencies)
-COPY --chown=django:django . .
+COPY --chown=django:django app/ .
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/staticfiles /app/media /app/logs && \
