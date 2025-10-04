@@ -44,7 +44,7 @@ jobs:
         chmod +x bin/quality-check.sh
         ./bin/quality-check.sh
 
-  # Job 2: Unit & Integration Tests
+  # Job 2: Unit & Integration Tests (host-based)
   test:
     runs-on: ubuntu-latest
     needs: code-quality
@@ -53,19 +53,60 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Run unit tests
+    - name: Set up Docker Compose services (DB + Redis)
       run: |
-        # Start test infrastructure and run tests
-        docker compose -f docker-compose.test.yml up test --abort-on-container-exit
+        docker compose -f docker-compose.test.yml up -d db redis
 
-        # Copy coverage report to expected location
-        docker compose -f docker-compose.test.yml cp test:/app/../build/coverage.xml ./build/coverage.xml || true
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
 
-        # Cleanup
-        docker compose -f docker-compose.test.yml down -v
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/config/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install all dependencies on runner
+      run: |
+        python -m pip install --upgrade pip
+        cp config/pyproject.toml app/pyproject.toml
+        cd app && pip install -e .[dev,testing]
+
+    - name: Run migrations on runner
+      run: |
+        cd app
+        python manage.py migrate --noinput
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+
+    - name: Run tests on runner
+      run: |
+        cd app
+        python -m pytest tests/ -v --tb=short --cov-report=xml:../build/coverage.xml
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        CELERY_BROKER_URL: redis://localhost:6379/0
+        CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
