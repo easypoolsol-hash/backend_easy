@@ -34,23 +34,34 @@ LOGS_DIR.mkdir(exist_ok=True)
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-nt^m$n3edy=!)w9=b0$@)jc3r4$csehg)6a#-q2u1*n01f$zl@"
+# In production, this MUST be set via environment variable
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "django-insecure-nt^m$n3edy=!)w9=b0$@)jc3r4$csehg)6a#-q2u1*n01f$zl@"  # Dev fallback only
+)
 
 # Encryption key for PII data (generate a new one for production)
-ENCRYPTION_KEY = "your-32-byte-encryption-key-here-change-in-production"
+# In production, this MUST be set via environment variable
+ENCRYPTION_KEY = os.getenv(
+    "ENCRYPTION_KEY",
+    "your-32-byte-encryption-key-here-change-in-production"  # Dev fallback only
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Default to False for safety - must explicitly enable for development
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
+# Allowed hosts configuration
+# In production, this MUST be set via environment variable
 ALLOWED_HOSTS: list[str] = []
-
-# GitHub Actions CI environment detection
-if os.getenv("GITHUB_ACTIONS") == "true":
-    DEBUG = True
+if os.getenv("ALLOWED_HOSTS"):
+    ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
+elif os.getenv("GITHUB_ACTIONS") == "true":
+    # GitHub Actions CI environment
     ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
-else:
-    DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-    ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+elif DEBUG:
+    # Development fallback
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
 # Application definition

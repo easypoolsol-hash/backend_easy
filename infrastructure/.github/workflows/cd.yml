@@ -13,6 +13,11 @@ on:
           - green
           - staging
           - production
+      image_tag:
+        description: 'Docker image tag to deploy (commit SHA, "latest", or specific tag)'
+        required: true
+        default: 'latest'
+        type: string
       traffic_percentage:
         description: 'Percentage of traffic to route to target environment (1-100, leave empty for 100%)'
         required: false
@@ -23,10 +28,7 @@ on:
         required: false
         default: false
         type: boolean
-  workflow_run:
-    workflows: ["CI Pipeline"]
-    types:
-      - completed
+  # Removed automatic trigger on CI completion - deployments should be manual
 
 env:
   REGISTRY: docker.io
@@ -34,7 +36,6 @@ env:
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.deploy_target == 'blue' && 'production-blue' || inputs.deploy_target == 'green' && 'production-green' || inputs.deploy_target == 'staging' && 'staging' || 'production' }}
@@ -83,6 +84,19 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
+    - name: Pull and tag image for deployment
+      run: |
+        echo "📦 Pulling image: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+        docker pull ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+
+        echo "🏷️  Tagging for ${{ steps.target.outputs.environment }} environment"
+        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}
+
+        echo "📤 Pushing environment tag: ${{ steps.target.outputs.image_tag }}"
+        docker push ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}
+
+        echo "✅ Environment tag updated: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}"
+
     - name: Deploy to ${{ steps.target.outputs.color }}
       run: |
         cd infrastructure
@@ -95,7 +109,7 @@ jobs:
         export CANARY_MODE=${{ steps.target.outputs.canary_mode }}
 
         echo "🚀 Deploying to ${{ steps.target.outputs.color }} environment"
-        echo "📦 Image: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}"
+        echo "📦 Image: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }} (from ${{ inputs.image_tag }})"
         echo "🌍 Environment: ${{ steps.target.outputs.environment }}"
         if [ "${{ steps.target.outputs.canary_mode }}" = "true" ]; then
           echo "🎯 Traffic: ${{ steps.target.outputs.traffic_percentage }}% (Canary Mode)"
@@ -161,7 +175,8 @@ jobs:
         echo "Health Check: ${{ vars.HEALTH_CHECK_URL }}"
         echo ""
         echo "📊 Deployment Summary:"
-        echo "   Image: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}"
+        echo "   Source Image: ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}"
+        echo "   Environment Tag: ${{ env.IMAGE_NAME }}:${{ steps.target.outputs.image_tag }}"
         echo "   Environment: ${{ steps.target.outputs.environment }}"
         echo "   Active Color: ${{ steps.target.outputs.color }}"
         echo ""

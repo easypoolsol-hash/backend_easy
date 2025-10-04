@@ -128,9 +128,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
 
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -318,9 +315,6 @@ jobs:
         tags: |
           type=ref,event=branch
           type=sha,prefix={{branch}}-
-          type=raw,value=blue,enable={{is_default_branch}}
-          type=raw,value=green,enable={{is_default_branch}}
-          type=raw,value=staging,enable={{is_default_branch}}
           type=raw,value=latest,enable={{is_default_branch}}
 
     - name: Tag and push Docker image
@@ -330,19 +324,13 @@ jobs:
         echo "Available images:"
         docker images
 
-        # Tag the test image with production tags
+        # Tag the test image with CI tags only (no environment tags)
         docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
         docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:blue
-        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:green
-        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:staging
 
-        # Push all tags
+        # Push CI tags only (environment tags updated by CD pipeline)
         docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
         docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:blue
-        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:green
-        docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:staging
 
     - name: Output image information
       run: |
@@ -351,8 +339,6 @@ jobs:
         echo "📦 Image pushed to Docker Hub:"
         echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
         echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:blue"
-        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:green"
-        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:staging"
         echo ""
         echo "🚀 Ready for CD deployment via infrastructure folder"
+        echo "   Use commit SHA above to deploy to specific environments"
