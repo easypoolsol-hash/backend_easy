@@ -1,10 +1,14 @@
 import uuid
+from typing import TYPE_CHECKING
 
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from buses.models import Bus
 
 # Constants for validation error messages
 BUS_CAPACITY_ERROR = "Bus capacity must be greater than 0"
@@ -50,7 +54,7 @@ class Student(models.Model):
     )
     grade: models.CharField = models.CharField(max_length=10)
     section: models.CharField = models.CharField(max_length=10, blank=True)
-    assigned_bus: models.ForeignKey = models.ForeignKey(  # type: ignore[misc]
+    assigned_bus: "models.ForeignKey[Bus]" = models.ForeignKey(  # type: ignore[misc]
         "buses.Bus",
         on_delete=models.SET_NULL,
         null=True,

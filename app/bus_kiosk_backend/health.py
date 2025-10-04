@@ -368,10 +368,7 @@ def detailed_health_check(request):
         or "pytest" in os.getenv("PYTEST_CURRENT_TEST", "")
         or "pytest" in sys.argv[0].lower()
         or "test" in sys.argv
-        or "test_"
-        in django_settings.DATABASES["default"][
-            "NAME"
-        ]  # Django creates test databases with test_ prefix
+        or "test_" in str(django_settings.DATABASES["default"]["NAME"])
     )
 
     health_data: dict[str, Any] = {
@@ -410,9 +407,10 @@ def detailed_health_check(request):
             health_data["checks"][check_name] = result
 
             # If any check is unhealthy, mark overall status as unhealthy
-            if result["status"] in ["unhealthy", "critical"]:
+            status = str(result.get("status", "unknown"))
+            if status in ["unhealthy", "critical"]:
                 health_data["status"] = "unhealthy"
-            elif result["status"] == "warning" and health_data["status"] == "healthy":
+            elif status == "warning" and health_data["status"] == "healthy":
                 health_data["status"] = "warning"
 
         except Exception as e:
