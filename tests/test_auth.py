@@ -26,11 +26,20 @@ if DJANGO_AVAILABLE:
 
         def setUp(self):
             """Create test user for authentication tests."""
+            from users.models import Role
+
+            # Create required role if it doesn't exist
+            role, _ = Role.objects.get_or_create(
+                name="backend_engineer",
+                defaults={"description": "Backend Engineer Role"}
+            )
+
             user_model = get_user_model()
             self.user = user_model.objects.create_user(
                 username='testuser_auth',
                 email='auth@test.com',
-                password='testpass123'
+                password='testpass123',
+                role=role
             )
 
         def test_jwt_token_generation(self):
