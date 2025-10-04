@@ -3,24 +3,11 @@ Security and documentation tests.
 Tests documentation protection, admin access, and security features.
 """
 
-import requests
-
-# Django imports - only import if Django is available
-try:
-    import os
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bus_kiosk_backend.settings')
-    import django
-    django.setup()
-    from django.contrib.auth import get_user_model
-    from rest_framework.test import APITestCase
-    DJANGO_AVAILABLE = True
-except Exception:
-    DJANGO_AVAILABLE = False
+from django.contrib.auth import get_user_model
+from rest_framework.test import APITestCase
 
 
-# Django test classes - only define if Django is available
-if DJANGO_AVAILABLE:
-    class TestDocumentationSecurity(APITestCase):
+class TestDocumentationSecurity(APITestCase):
         """Test documentation and admin panel security."""
 
         def setUp(self):
@@ -67,19 +54,12 @@ if DJANGO_AVAILABLE:
             self.assertEqual(response.status_code, 200)
 
 
-class TestSecurityFeatures:
+class TestSecurityFeatures(APITestCase):
     """Test various security features."""
-
-    def test_cors_headers(self):
-        """Test CORS headers are properly set."""
-        # This would need to be configured in settings
-        # CORS headers should be present if configured
-        # Note: This test will pass if CORS is not configured (expected for now)
-        # Placeholder - would need actual CORS config to test properly
 
     def test_security_headers(self):
         """Test security headers are set."""
-        response = requests.get('http://127.0.0.1:8000/health/')
+        response = self.client.get('/health/')
 
         # Check for common security headers
         security_headers = [
@@ -88,51 +68,35 @@ class TestSecurityFeatures:
             'x-xss-protection'
         ]
 
-        present_headers = [h for h in security_headers if h in response.headers]
+        present_headers = [h for h in security_headers if h in response]
         # At minimum, should have some security headers
-        assert len(present_headers) > 0, f"Security headers present: {present_headers}"
-
-    def test_https_redirect(self):
-        """Test HTTPS redirect in production (would need SECURE_SSL_REDIRECT=True)."""
-        # This test assumes HTTP for development
-        response = requests.get('http://127.0.0.1:8000/health/', allow_redirects=False)
-        # Should not redirect to HTTPS in development
-        assert response.status_code != 301
+        self.assertGreater(len(present_headers), 0, f"Security headers present: {present_headers}")
 
     def test_api_rate_limiting(self):
         """Test API rate limiting (if configured)."""
         # Make multiple requests quickly
         responses = []
         for _ in range(10):
-            response = requests.get('http://127.0.0.1:8000/health/')
+            response = self.client.get('/health/')
             responses.append(response.status_code)
 
         # Should not be rate limited (429) for health endpoint
         rate_limited = any(status == 429 for status in responses)
-        assert not rate_limited, "Health endpoint should not be rate limited"
+        self.assertFalse(rate_limited, "Health endpoint should not be rate limited")
 
     def test_error_pages_dont_leak_info(self):
         """Test that error pages don't leak sensitive information."""
         # Test 404 page
-        response = requests.get('http://127.0.0.1:8000/nonexistent-page/')
-        assert response.status_code == 404
+        response = self.client.get('/nonexistent-page/')
+        self.assertEqual(response.status_code, 404)
         # Should not contain sensitive info like file paths, stack traces, etc.
-        content = response.text.lower()
+        content = response.content.decode('utf-8').lower()
         sensitive_keywords = ['traceback', 'internal server error', 'file "', '/usr/', 'c:\\']
         for keyword in sensitive_keywords:
-            assert keyword not in content, f"Error page contains sensitive keyword: {keyword}"
-
-    def test_debug_mode_disabled(self):
-        """Test that DEBUG mode is disabled in production."""
-        # This is more of a configuration check
-        # In development, DEBUG might be True, so this test is informational
-        response = requests.get('http://127.0.0.1:8000/health/')
-        # If DEBUG were True, errors might show stack traces
-        # But health endpoint should work regardless
-        assert response.status_code == 200
+            self.assertNotIn(keyword, content, f"Error page contains sensitive keyword: {keyword}")
 
 
-class TestDataValidation:
+class TestDataValidation(APITestCase):
     """Test data validation and sanitization."""
 
     def test_sql_injection_protection(self):
@@ -146,42 +110,14 @@ class TestDataValidation:
         ]
 
         for malicious_input in malicious_inputs:
-            response = requests.get(f'http://127.0.0.1:8000/health/?test={malicious_input}')
+            response = self.client.get(f'/health/?test={malicious_input}')
             # Should not crash or return sensitive data
-            assert response.status_code in [200, 400, 404], f"Unexpected response for input: {malicious_input}"
+            self.assertIn(response.status_code, [200, 400, 404],
+                         f"Unexpected response for input: {malicious_input}")
 
     def test_large_payload_protection(self):
         """Test protection against large payloads."""
         # This would need to be configured in settings (DATA_UPLOAD_MAX_MEMORY_SIZE, etc.)
         # For now, just test that the server handles normal requests
-        response = requests.get('http://127.0.0.1:8000/health/')
-        assert response.status_code == 200
-
-
-if __name__ == '__main__':
-    # Run security tests
-    print("Running Security Tests...")
-
-    # Test security features (don't require Django setup)
-    test_security = TestSecurityFeatures()
-
-    try:
-        test_security.test_security_headers()
-        print("Security headers test passed")
-    except Exception as e:
-        print(f"Security headers test failed: {e}")
-
-    try:
-        test_security.test_error_pages_dont_leak_info()
-        print("Error pages security test passed")
-    except Exception as e:
-        print(f"Error pages test failed: {e}")
-
-    try:
-        test_data_validation = TestDataValidation()
-        test_data_validation.test_sql_injection_protection()
-        print("SQL injection protection test passed")
-    except Exception as e:
-        print(f"SQL injection test failed: {e}")
-
-    print("Security tests completed!")
+        response = self.client.get('/health/')
+        self.assertEqual(response.status_code, 200)

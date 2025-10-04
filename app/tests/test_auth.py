@@ -88,7 +88,7 @@ if DJANGO_AVAILABLE:
             self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class TestProtectedEndpoints:
+class TestProtectedEndpoints(APITestCase):
     """Test that protected endpoints require authentication."""
 
     def test_docs_endpoints_protected(self):
@@ -96,16 +96,14 @@ class TestProtectedEndpoints:
         endpoints = ['/docs/', '/docs/schema/', '/docs/redoc/']
 
         for endpoint in endpoints:
-            response = requests.get(f'http://127.0.0.1:8000{endpoint}',
-                                  allow_redirects=False)
-            assert response.status_code == 302  # Redirect to login
-            assert 'login' in response.headers.get('location', '')
+            response = self.client.get(endpoint, follow=False)
+            self.assertEqual(response.status_code, 302)  # Redirect to login
+            self.assertIn('login', response['Location'])
 
     def test_admin_panel_protected(self):
         """Test that admin panel is protected."""
-        response = requests.get('http://127.0.0.1:8000/admin/',
-                              allow_redirects=False)
-        assert response.status_code == 302  # Redirect to login
+        response = self.client.get('/admin/', follow=False)
+        self.assertEqual(response.status_code, 302)  # Redirect to login
 
     def test_api_endpoints_require_auth(self):
         """Test that API endpoints return 401 without authentication."""
@@ -118,35 +116,6 @@ class TestProtectedEndpoints:
         ]
 
         for endpoint in endpoints:
-            response = requests.get(f'http://127.0.0.1:8000{endpoint}',
-                                  allow_redirects=False)
+            response = self.client.get(endpoint)
             # Should return 401 Unauthorized (not redirect for API endpoints)
-            assert response.status_code == 401
-
-
-if __name__ == '__main__':
-    # Run authentication tests
-    print("Running Authentication Tests...")
-
-    # Test protected endpoints (don't require Django setup)
-    test_protected = TestProtectedEndpoints()
-
-    try:
-        test_protected.test_docs_endpoints_protected()
-        print("Documentation endpoints protection test passed")
-    except Exception as e:
-        print(f"Documentation endpoints test failed: {e}")
-
-    try:
-        test_protected.test_admin_panel_protected()
-        print("Admin panel protection test passed")
-    except Exception as e:
-        print(f"Admin panel test failed: {e}")
-
-    try:
-        test_protected.test_api_endpoints_require_auth()
-        print("API endpoints auth requirement test passed")
-    except Exception as e:
-        print(f"API endpoints auth test failed: {e}")
-
-    print("Authentication tests completed!")
+            self.assertEqual(response.status_code, 401)
