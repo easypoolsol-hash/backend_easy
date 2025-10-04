@@ -6,7 +6,10 @@ from .models import APIKey, AuditLog, Role, User
 class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
-        fields = ['role_id', 'name', 'description', 'permissions', 'is_active', 'created_at', 'updated_at']
+        fields = [
+            'role_id', 'name', 'description', 'permissions', 'is_active',
+            'created_at', 'updated_at'
+        ]
         read_only_fields = ['role_id', 'created_at', 'updated_at']
 
 

@@ -7,7 +7,9 @@ class KioskSerializer(serializers.ModelSerializer):
     """Serializer for kiosks"""
 
     bus = serializers.CharField(source='bus.bus_id', read_only=True)
-    bus_license_plate = serializers.CharField(source='bus.license_plate', read_only=True)
+    bus_license_plate = serializers.CharField(
+        source='bus.license_plate', read_only=True
+    )
     status_display = serializers.ReadOnlyField()
     is_online = serializers.ReadOnlyField()
     battery_level = serializers.FloatField(required=False)

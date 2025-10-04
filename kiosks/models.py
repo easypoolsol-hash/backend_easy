@@ -157,11 +157,13 @@ class DeviceLog(models.Model):
             models.Index(fields=['log_level'], name='idx_logs_level'),
             models.Index(fields=['timestamp'], name='idx_logs_timestamp'),
         ]
-        # Note: Monthly partitioning by timestamp would be implemented in PostgreSQL migration
-        # Partitioning is not directly supported in Django ORM, requires raw SQL in migrations
+        # Note: Monthly partitioning by timestamp would be implemented in
+        # PostgreSQL migration. Partitioning is not directly supported in
+        # Django ORM, requires raw SQL in migrations
 
     def __str__(self):
-        return f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: {self.message[:50]}..."
+        return f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: " \
+               f"{self.message[:50]}..."
 
     @classmethod
     def log(cls, kiosk, level, message, metadata=None, timestamp=None):

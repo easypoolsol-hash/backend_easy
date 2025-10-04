@@ -163,7 +163,9 @@ class AttendanceRecord(models.Model):
         ordering = ['-date']
         unique_together = [['student', 'date']]
         indexes = [
-            models.Index(fields=['student', 'date'], name='idx_attendance_student_date'),
+            models.Index(
+                fields=['student', 'date'], name='idx_attendance_student_date'
+            ),
             models.Index(fields=['date'], name='idx_attendance_date'),
         ]
 
