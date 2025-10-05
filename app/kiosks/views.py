@@ -1,3 +1,4 @@
+import hashlib
 from datetime import timedelta
 
 from django.db.models import Count
@@ -5,18 +6,109 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from bus_kiosk_backend.permissions import IsKiosk, IsSchoolAdmin
 
 from .models import DeviceLog, Kiosk
 from .serializers import (
     DeviceLogSerializer,
+    KioskAuthResponseSerializer,
+    KioskAuthSerializer,
     KioskHeartbeatSerializer,
     KioskSerializer,
     KioskStatusSerializer,
 )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def kiosk_auth(request):
+    """
+    Kiosk authentication endpoint (Fortune 500 implementation)
+
+    Authenticates kiosk devices and returns JWT tokens for API access.
+
+    **Request:**
+    ```json
+    POST /api/kiosks/auth/
+    {
+        "kiosk_id": "TEST-KIOSK-001",
+        "api_key": "test-api-key-12345"
+    }
+    ```
+
+    **Success Response (200):**
+    ```json
+    {
+        "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "kiosk_id": "TEST-KIOSK-001",
+        "bus_id": "uuid-of-bus",
+        "expires_in": 86400
+    }
+    ```
+
+    **Error Responses:**
+    - 400: Invalid request format
+    - 401: Invalid credentials or inactive kiosk
+
+    **Security Features:**
+    - API key hashed using SHA-256
+    - Generic error messages (no info leakage)
+    - JWT tokens with configurable expiry
+    - Validates kiosk active status
+    """
+    serializer = KioskAuthSerializer(data=request.data)
+
+    if not serializer.is_valid():
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Get authenticated kiosk from serializer context
+    kiosk = serializer.context['kiosk']
+
+    # Generate JWT tokens (Fortune 500 pattern: separate access + refresh)
+    refresh = RefreshToken()
+    refresh['kiosk_id'] = kiosk.kiosk_id
+    refresh['type'] = 'kiosk'  # Token type for permission checking
+
+    # Log successful authentication
+    DeviceLog.log(
+        kiosk=kiosk,
+        level='INFO',
+        message='Kiosk authenticated successfully',
+        metadata={
+            'ip_address': request.META.get('REMOTE_ADDR'),
+            'user_agent': request.META.get('HTTP_USER_AGENT'),
+        }
+    )
+
+    # Update last heartbeat
+    kiosk.last_heartbeat = timezone.now()
+    kiosk.save(update_fields=['last_heartbeat'])
+
+    # Build response
+    response_data = {
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'kiosk_id': kiosk.kiosk_id,
+        'bus_id': kiosk.bus.bus_id if kiosk.bus else None,
+        'expires_in': 86400  # 24 hours in seconds
+    }
+
+    # Validate response structure
+    response_serializer = KioskAuthResponseSerializer(data=response_data)
+    response_serializer.is_valid(raise_exception=True)
+
+    return Response(
+        response_serializer.data,
+        status=status.HTTP_200_OK
+    )
 
 
 class KioskViewSet(viewsets.ModelViewSet):

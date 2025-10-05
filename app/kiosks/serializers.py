@@ -1,3 +1,5 @@
+import hashlib
+
 from rest_framework import serializers
 
 from .models import DeviceLog, Kiosk
@@ -84,3 +86,83 @@ class KioskStatusSerializer(serializers.Serializer):
     online_kiosks = serializers.IntegerField()
     offline_kiosks = serializers.IntegerField()
     kiosks = KioskSerializer(many=True)
+
+
+class KioskAuthSerializer(serializers.Serializer):
+    """
+    Serializer for kiosk authentication
+
+    Fortune 500 Pattern:
+    - Validate input format
+    - Hash API key before database lookup
+    - Return structured error messages
+    - No sensitive data in responses
+    """
+
+    kiosk_id = serializers.CharField(
+        max_length=100,
+        required=True,
+        error_messages={
+            'required': 'Kiosk ID is required',
+            'blank': 'Kiosk ID cannot be blank',
+            'max_length': 'Kiosk ID too long (max 100 characters)'
+        }
+    )
+    api_key = serializers.CharField(
+        max_length=255,
+        required=True,
+        write_only=True,  # Never return API key in response
+        error_messages={
+            'required': 'API key is required',
+            'blank': 'API key cannot be blank',
+        }
+    )
+
+    def validate(self, attrs):
+        """
+        Validate kiosk credentials (Fortune 500 security pattern)
+
+        Steps:
+        1. Hash the provided API key
+        2. Lookup kiosk by ID and hashed key
+        3. Verify kiosk is active
+        4. Store kiosk object in context for view
+        """
+        kiosk_id = attrs.get('kiosk_id')
+        api_key = attrs.get('api_key')
+
+        # Hash API key (same method as during kiosk creation)
+        api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+        # Attempt to find kiosk with matching credentials
+        try:
+            kiosk = Kiosk.objects.select_related('bus').get(
+                kiosk_id=kiosk_id,
+                api_key_hash=api_key_hash
+            )
+        except Kiosk.DoesNotExist as e:
+            # Security: Use generic error message (don't reveal if kiosk_id exists)
+            raise serializers.ValidationError(
+                {'detail': 'Invalid kiosk credentials'}
+            ) from e
+
+        # Verify kiosk is active
+        if not kiosk.is_active:
+            raise serializers.ValidationError(
+                {'detail': 'Kiosk is inactive. Contact administrator.'}
+            )
+
+        # Store kiosk in context for view to use
+        self.context['kiosk'] = kiosk
+
+        return attrs
+
+
+class KioskAuthResponseSerializer(serializers.Serializer):
+    """Serializer for authentication response"""
+
+    access = serializers.CharField(help_text="JWT access token (expires in 24h)")
+    refresh = serializers.CharField(help_text="JWT refresh token (expires in 7 days)")
+    kiosk_id = serializers.CharField(help_text="Authenticated kiosk ID")
+    bus_id = serializers.UUIDField(help_text="Assigned bus ID", allow_null=True)
+    expires_in = serializers.IntegerField(help_text="Token expiry in seconds")
