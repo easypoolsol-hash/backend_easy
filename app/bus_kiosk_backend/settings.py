@@ -186,14 +186,14 @@ LOGGING = {
         },
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": BASE_DIR / "logs" / "django.log",
+            "filename": str(BASE_DIR / "logs" / "django.log"),
             "maxBytes": 1024 * 1024 * 10,  # 10MB
             "backupCount": 5,
             "formatter": "json",
         },
         "api_file": {
             "class": "logging.handlers.RotatingFileHandler",
-            "filename": BASE_DIR / "logs" / "api.log",
+            "filename": str(BASE_DIR / "logs" / "api.log"),
             "maxBytes": 1024 * 1024 * 10,  # 10MB
             "backupCount": 5,
             "formatter": "json",
