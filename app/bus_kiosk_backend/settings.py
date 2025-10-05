@@ -77,16 +77,22 @@ ENCRYPTION_KEY = os.getenv(
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 # Allowed hosts configuration
-# In production, this MUST be set via environment variable
-ALLOWED_HOSTS: list[str] = []
+# Production domains (hardcoded as they rarely change)
+ALLOWED_HOSTS: list[str] = [
+    "easypool.in",
+    "www.easypool.in",
+    "13.204.150.134",  # Production server IP
+]
+
+# Add environment variable hosts if specified (for flexibility)
 if os.getenv("ALLOWED_HOSTS"):
-    ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
+    ALLOWED_HOSTS.extend([host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")])
 elif os.getenv("GITHUB_ACTIONS") == "true":
     # GitHub Actions CI environment
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+    ALLOWED_HOSTS.extend(["localhost", "127.0.0.1", "testserver"])
 elif DEBUG:
     # Development fallback
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+    ALLOWED_HOSTS.extend(["localhost", "127.0.0.1"])
 
 
 # Application definition
@@ -262,14 +268,14 @@ SECURE_HSTS_PRELOAD = True
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = [
+    "https://easypool.in",
+    "https://www.easypool.in",
+    "http://easypool.in",
+    "http://www.easypool.in",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://your-frontend-domain.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://\w+\.your-domain\.com$",
-]
 
 # DRF Spectacular settings
 SPECTACULAR_SETTINGS = {
