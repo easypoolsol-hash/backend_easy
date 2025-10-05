@@ -113,8 +113,24 @@ jobs:
         DB_PORT: 5432
         REDIS_URL: redis://localhost:6379/0
 
-    - name: Run tests on runner
-      run: cd app && python -m pytest tests/ -v --tb=short --cov-report=xml:../build/coverage.xml
+    - name: Run tests on runner (Fortune 500 test pyramid)
+      run: |
+        cd app
+        echo "🧪 Running Unit Tests (Fast)..."
+        python -m pytest tests/unit/ -v --tb=short || exit 1
+
+        echo "🔗 Running Integration Tests (Medium)..."
+        python -m pytest tests/integration/ -v --tb=short || exit 1
+
+        echo "🌐 Running E2E Tests (Slow)..."
+        python -m pytest tests/e2e/ -v --tb=short || exit 1
+
+        echo "📊 Running All Tests with Coverage..."
+        python -m pytest tests/ -v --tb=short \
+          --cov=kiosks --cov=buses --cov=students --cov=events --cov=users --cov=bus_kiosk_backend \
+          --cov-report=xml:../build/coverage.xml \
+          --cov-report=term-missing \
+          --cov-fail-under=60
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only

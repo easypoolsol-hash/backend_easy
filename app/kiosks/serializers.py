@@ -42,21 +42,31 @@ class KioskSerializer(serializers.ModelSerializer):
 
 
 class KioskHeartbeatSerializer(serializers.Serializer):
-    """Serializer for kiosk heartbeat data"""
+    """
+    Serializer for kiosk heartbeat data (Fortune 500 pattern)
 
-    kiosk_id = serializers.CharField(max_length=100)
+    kiosk_id is optional - kiosk is authenticated via JWT.
+    If provided, it's verified to match the authenticated kiosk (security check).
+    """
+
+    kiosk_id = serializers.CharField(max_length=100, required=False)
     firmware_version = serializers.CharField(max_length=50, required=False)
     battery_level = serializers.IntegerField(required=False, min_value=0, max_value=100)
     storage_used_mb = serializers.IntegerField(required=False, min_value=0)
 
     def validate_kiosk_id(self, value):
-        """Validate kiosk exists"""
-        try:
-            kiosk = Kiosk.objects.get(kiosk_id=value)
-            self.context["kiosk"] = kiosk
-            return value
-        except Kiosk.DoesNotExist as e:
-            raise serializers.ValidationError("Kiosk not found") from e
+        """
+        Optional security check: If kiosk_id provided, verify it matches authenticated kiosk.
+        Prevents token reuse attacks.
+        """
+        # Get authenticated kiosk from context (set by view from request.user)
+        authenticated_kiosk = self.context.get('kiosk')
+
+        if authenticated_kiosk and value and value != authenticated_kiosk.kiosk_id:
+            # Security violation: JWT token doesn't match kiosk_id in request
+            raise serializers.ValidationError("kiosk_id mismatch with authentication")
+
+        return value
 
 
 class DeviceLogSerializer(serializers.ModelSerializer):

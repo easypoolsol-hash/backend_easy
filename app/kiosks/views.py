@@ -5,11 +5,12 @@ from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from bus_kiosk_backend.authentication import KioskJWTAuthentication
 from bus_kiosk_backend.permissions import IsKiosk, IsSchoolAdmin
 
 from .models import DeviceLog, Kiosk
@@ -166,16 +167,31 @@ class KioskViewSet(viewsets.ModelViewSet):
 
 
 @api_view(["POST"])
-@permission_classes([IsKiosk])
+@authentication_classes([KioskJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def kiosk_heartbeat(request):
     """
     Kiosk heartbeat endpoint - called by devices to report status.
     High-throughput endpoint for monitoring device health.
-    """
-    serializer = KioskHeartbeatSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
 
-    kiosk = serializer.context["kiosk"]
+    Fortune 500 pattern:
+    - Authentication: KioskJWTAuthentication (validates JWT contains kiosk)
+    - Permission: IsAuthenticated (standard DRF permission)
+    - request.user contains authenticated Kiosk object
+    """
+    # Get authenticated kiosk from request.user (set by KioskJWTAuthentication)
+    kiosk = request.user
+
+    # Security check: Ensure request.user is actually a Kiosk (not a User)
+    if not isinstance(kiosk, Kiosk):
+        return Response(
+            {'detail': 'Authentication credentials are not valid for kiosk endpoints'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Pass kiosk to serializer for optional security check
+    serializer = KioskHeartbeatSerializer(data=request.data, context={'kiosk': kiosk})
+    serializer.is_valid(raise_exception=True)
 
     # Update kiosk with heartbeat data
     update_data = {"last_heartbeat": timezone.now()}
@@ -207,25 +223,35 @@ def kiosk_heartbeat(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsKiosk])
+@authentication_classes([KioskJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def kiosk_log(request):
     """
     Kiosk logging endpoint - devices can send log messages.
     Supports bulk logging for efficiency.
-    """
-    kiosk_id = request.data.get("kiosk_id")
-    logs_data = request.data.get("logs", [])
 
-    if not kiosk_id or not logs_data:
+    Fortune 500 pattern:
+    - Authentication: KioskJWTAuthentication (validates JWT contains kiosk)
+    - Permission: IsAuthenticated (standard DRF permission)
+    - request.user contains authenticated Kiosk object
+    """
+    # Get authenticated kiosk from request.user (set by KioskJWTAuthentication)
+    kiosk = request.user
+
+    # Security check: Ensure request.user is actually a Kiosk (not a User)
+    if not isinstance(kiosk, Kiosk):
         return Response(
-            {"error": "kiosk_id and logs are required"},
-            status=status.HTTP_400_BAD_REQUEST,
+            {'detail': 'Authentication credentials are not valid for kiosk endpoints'},
+            status=status.HTTP_403_FORBIDDEN
         )
 
-    try:
-        kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
-    except Kiosk.DoesNotExist:
-        return Response({"error": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
+    logs_data = request.data.get("logs", [])
+
+    if not logs_data:
+        return Response(
+            {"error": "logs are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Create log entries
     log_entries = []
@@ -244,7 +270,7 @@ def kiosk_log(request):
     DeviceLog.objects.bulk_create(log_entries)
 
     return Response(
-        {"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk_id}
+        {"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id}
     )
 
 

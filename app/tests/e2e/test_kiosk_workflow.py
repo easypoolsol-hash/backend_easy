@@ -24,7 +24,7 @@ class TestKioskWorkflow:
 
         # Step 1: Authenticate
         auth_response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'api_key': api_key
@@ -38,7 +38,7 @@ class TestKioskWorkflow:
 
         # Step 2: Send heartbeat with token
         heartbeat_response = api_client.post(
-            '/api/kiosks/heartbeat/',
+            '/api/v1/heartbeat/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'battery_level': 90,
@@ -54,7 +54,7 @@ class TestKioskWorkflow:
 
         # Step 3: Send device log with token
         log_response = api_client.post(
-            '/api/kiosks/log/',
+            '/api/v1/log/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'logs': [
@@ -82,7 +82,7 @@ class TestKioskWorkflow:
 
         # Try heartbeat without auth
         response = api_client.post(
-            '/api/kiosks/heartbeat/',
+            '/api/v1/heartbeat/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'battery_level': 90
@@ -90,5 +90,5 @@ class TestKioskWorkflow:
             format='json'
         )
 
-        # Should fail
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        # DRF returns 401 Unauthorized when authentication is missing
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED

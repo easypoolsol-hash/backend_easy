@@ -19,7 +19,7 @@ class TestKioskAuthentication:
         kiosk, api_key = test_kiosk
 
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'api_key': api_key
@@ -39,7 +39,7 @@ class TestKioskAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'api_key': 'wrong-api-key'
@@ -54,7 +54,7 @@ class TestKioskAuthentication:
     def test_kiosk_auth_nonexistent_kiosk(self, api_client):
         """Test authentication with non-existent kiosk ID"""
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {
                 'kiosk_id': 'NONEXISTENT-KIOSK',
                 'api_key': 'any-key'
@@ -72,7 +72,7 @@ class TestKioskAuthentication:
         kiosk.save()
 
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'api_key': api_key
@@ -87,7 +87,7 @@ class TestKioskAuthentication:
         """Test authentication with missing fields"""
         # Missing api_key
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {'kiosk_id': 'TEST-KIOSK-001'},
             format='json'
         )
@@ -95,7 +95,7 @@ class TestKioskAuthentication:
 
         # Missing kiosk_id
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {'api_key': 'test-key'},
             format='json'
         )
@@ -117,7 +117,7 @@ class TestKioskAuthentication:
         kiosk, api_key = test_kiosk
 
         response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'api_key': api_key

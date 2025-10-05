@@ -18,7 +18,7 @@ class TestKioskAPIAuthentication:
 
         # 1. Authenticate and get token
         auth_response = api_client.post(
-            '/api/kiosks/auth/',
+            '/api/v1/auth/',
             {'kiosk_id': kiosk.kiosk_id, 'api_key': api_key},
             format='json'
         )
@@ -26,7 +26,7 @@ class TestKioskAPIAuthentication:
 
         # 2. Use token to send heartbeat
         response = api_client.post(
-            '/api/kiosks/heartbeat/',
+            '/api/v1/heartbeat/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'battery_level': 85,
@@ -45,7 +45,7 @@ class TestKioskAPIAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            '/api/kiosks/heartbeat/',
+            '/api/v1/heartbeat/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'battery_level': 85
@@ -53,8 +53,8 @@ class TestKioskAPIAuthentication:
             format='json'
         )
 
-        # Should be unauthorized
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        # DRF returns 401 Unauthorized when authentication is missing
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_kiosk_heartbeat_with_expired_token(self, api_client, test_kiosk):
         """Test kiosk heartbeat fails with expired token"""
@@ -63,13 +63,14 @@ class TestKioskAPIAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            '/api/kiosks/heartbeat/',
+            '/api/v1/heartbeat/',
             {'kiosk_id': kiosk.kiosk_id},
             HTTP_AUTHORIZATION='Bearer invalid-token-format',
             format='json'
         )
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        # DRF returns 401 Unauthorized for invalid tokens
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_user_token_cannot_access_kiosk_endpoints(self, authenticated_client, test_kiosk):
         """Test that user JWT tokens cannot access kiosk endpoints"""
@@ -77,7 +78,7 @@ class TestKioskAPIAuthentication:
 
         # authenticated_client has a USER token, not kiosk token
         response = authenticated_client.post(
-            '/api/kiosks/heartbeat/',
+            '/api/v1/heartbeat/',
             {
                 'kiosk_id': kiosk.kiosk_id,
                 'battery_level': 85
@@ -85,7 +86,7 @@ class TestKioskAPIAuthentication:
             format='json'
         )
 
-        # Should fail because token type is not 'kiosk'
+        # force_authenticate bypasses auth, but view rejects User objects (403 Forbidden)
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -98,5 +99,7 @@ class TestHealthEndpoint:
         response = api_client.get('/health/')
 
         assert response.status_code == status.HTTP_200_OK
-        assert 'status' in response.data
-        assert response.data['status'] == 'healthy'
+        # Health endpoint returns Django JsonResponse, not DRF Response
+        data = response.json()
+        assert 'status' in data
+        assert data['status'] == 'healthy'

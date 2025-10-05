@@ -87,6 +87,18 @@ class Kiosk(models.Model):
         return self.last_heartbeat > timezone.now() - timedelta(minutes=5)
 
     @property
+    def is_authenticated(self):
+        """
+        DRF compatibility: Always True for kiosk objects.
+
+        This property allows Kiosk to be used as request.user in DRF views.
+        If a Kiosk object exists as request.user, it means authentication succeeded.
+
+        Fortune 500 pattern: Makes Kiosk work with IsAuthenticated permission.
+        """
+        return True
+
+    @property
     def status_display(self):
         """Human-readable status"""
         if not self.is_active:

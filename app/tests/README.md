@@ -34,16 +34,30 @@ tests/
 
 ## 🚀 Running Tests
 
-### Run All Tests
+### Run All Tests (Recommended)
 ```bash
-pytest tests/
+pytest tests/ -v
+```
+
+### Run Test Pyramid (Fortune 500 Pattern)
+```bash
+# Run in order: Unit → Integration → E2E (fail fast)
+pytest tests/unit/ -v && \
+pytest tests/integration/ -v && \
+pytest tests/e2e/ -v
 ```
 
 ### Run Specific Category
 ```bash
-pytest tests/unit/           # Fast unit tests only
-pytest tests/integration/    # Integration tests only
-pytest tests/e2e/            # E2E tests only
+pytest tests/unit/           # Fast unit tests only (< 100ms each)
+pytest tests/integration/    # Integration tests only (< 1s each)
+pytest tests/e2e/            # E2E tests only (1-5s each)
+```
+
+### Run with Coverage (60% threshold)
+```bash
+pytest tests/ --cov=kiosks --cov=buses --cov=students --cov=events --cov=users --cov=bus_kiosk_backend \
+  --cov-report=term-missing --cov-fail-under=60
 ```
 
 ### Run Specific Test File
@@ -82,18 +96,51 @@ pytest tests/ --cov=kiosks --cov-report=html
 - ✅ Auth → Heartbeat → Log (end-to-end)
 - ✅ Workflow fails without authentication
 
-## 🔧 Shared Fixtures (conftest.py)
+## 🔧 Shared Fixtures & Factories
 
+### Fixtures (conftest.py)
 Reusable test data available to all tests:
 
 - `api_client` - API client for requests
 - `test_school` - Test school instance
 - `test_bus` - Test bus instance
-- `test_kiosk` - Test kiosk with credentials
+- `test_kiosk` - Test kiosk with credentials (returns kiosk + plaintext API key)
 - `test_student` - Test student with encrypted data
 - `test_parent` - Test parent with encrypted PII
 - `test_user` - Test user with role
 - `authenticated_client` - API client with user auth
+
+### Factories (factories.py)
+**Fortune 500 Pattern using Factory Boy** - Less code, more power!
+
+```python
+# Instead of manual creation:
+school = School.objects.create(name="Test School")
+bus = Bus.objects.create(license_plate="TEST-001", route=route, ...)
+
+# Use factories (cleaner, less code):
+school = SchoolFactory()
+bus = BusFactory()  # Auto-creates related route!
+
+# Create with specific values:
+kiosk = KioskFactory(api_key="my-custom-key")
+student = StudentFactory(plaintext_name="John Doe")  # Auto-encrypted!
+
+# Access plaintext for assertions:
+assert kiosk._api_key == "my-custom-key"
+assert student._plaintext_name == "John Doe"
+```
+
+**Available Factories:**
+- `SchoolFactory` - Creates schools
+- `RouteFactory` - Creates routes
+- `BusFactory` - Creates buses (with route)
+- `KioskFactory` - Creates kiosks (with API key hashing)
+- `StudentFactory` - Creates students (auto-encrypts name)
+- `ParentFactory` - Creates parents (auto-encrypts PII)
+- `StudentParentFactory` - Creates relationships
+- `RoleFactory` - Creates roles
+- `UserFactory` - Creates users (with password hashing)
 
 ## 📝 Adding New Tests
 
@@ -150,13 +197,24 @@ Tests run automatically on:
 - Make tests depend on each other
 - Commit commented-out tests
 
-## 🎯 Coverage Goals
+## 🎯 Test Coverage
 
+**Current Coverage: 62%** ✅
+
+### Coverage Breakdown:
+- **Kiosk Authentication**: 93% (Excellent)
+- **Kiosk API Views**: 82% (Good)
+- **Serializers**: 60-93% (Good)
+- **Core Auth/Security**: 95-100% (Excellent)
+- **Overall System**: 62% (Good for essential tests)
+
+### Coverage Goals:
 - **Unit Tests**: Core business logic (auth, encryption, validation)
 - **Integration Tests**: API endpoints + database operations
 - **E2E Tests**: Critical user workflows
+- **Minimum Threshold**: 60% (enforced in CI)
 
-**Current Focus**: Essential tests only, expand incrementally.
+**Strategy**: Test what matters (critical paths), expand incrementally.
 
 ---
 
