@@ -19,6 +19,78 @@ env:
   IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/bus_kiosk_backend
 
 jobs:
+  validate-secrets:
+    name: Validate Secrets and SSH access
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate presence of required secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for s in SERVER_HOST SERVER_USER SERVER_SSH_KEY DOCKER_USERNAME DOCKER_PASSWORD; do
+            if [ -z "${{ secrets[$s] || '' }}" ]; then
+              echo "Missing secret: $s"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "One or more required secrets are missing. Please set them in repository Secrets." >&2
+            exit 1
+          fi
+          echo "All required secrets appear present (masked)."
+
+      - name: Prepare SSH key for test
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          KEY_FILE=~/.ssh/deploy_key_temp
+          printf '%s\n' "${{ secrets.SERVER_SSH_KEY }}" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          echo "KEY_FILE=$KEY_FILE" >> $GITHUB_ENV
+
+      - name: Sanitize and inspect host/user
+        env:
+          SERVER_HOST_RAW: ${{ secrets.SERVER_HOST }}
+          SERVER_USER_RAW: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          HOST=$(printf '%s' "$SERVER_HOST_RAW" | tr -d '\r' | xargs || true)
+          USER=$(printf '%s' "$SERVER_USER_RAW" | tr -d '\r' | xargs || true)
+          echo "SANITIZED_HOST=$HOST" >> $GITHUB_ENV
+          echo "SANITIZED_USER=$USER" >> $GITHUB_ENV
+          echo "HOST_LEN=$(printf '%s' \"$HOST\" | wc -c)"
+          echo "USER_LEN=$(printf '%s' \"$USER\" | wc -c)"
+          echo "HOST (hex):"; printf '%s' "$HOST" | od -An -t x1 | sed -n '1,1p' || true
+
+      - name: DNS resolution check
+        run: |
+          set -euo pipefail
+          HOST=${{ env.SANITIZED_HOST }}
+          echo "getent hosts $HOST" || true
+          getent hosts "$HOST" || { echo "getent failed for $HOST"; true; }
+          if command -v nslookup >/dev/null 2>&1; then
+            nslookup "$HOST" || true
+          fi
+
+      - name: Test SSH authentication (key)
+        env:
+          PORT: ${{ secrets.SERVER_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          KEY_FILE=${KEY_FILE:-}
+          HOST=${{ env.SANITIZED_HOST }}
+          USER=${{ env.SANITIZED_USER }}
+          echo "Attempting SSH to ${USER}@${HOST}:${PORT}"
+          if ssh -i "$KEY_FILE" -o BatchMode=yes -o StrictHostKeyChecking=no -p ${PORT} ${USER}@${HOST} "echo SSH_AUTH_OK"; then
+            echo "SSH authentication succeeded"
+          else
+            echo "SSH authentication failed (check authorized_keys & key format)." >&2
+            exit 1
+          fi
+
   prepare-deployment:
     name: Prepare deployment
     runs-on: ubuntu-latest
@@ -84,7 +156,16 @@ jobs:
           SERVER_PORT: ${{ secrets.SERVER_PORT || '22' }}
         run: |
           set -euo pipefail
-          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${SERVER_PORT} ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "echo 'SSH OK'"
+          # sanitize secrets to remove CR/LF and surrounding whitespace which can break DNS/ssh
+          HOST_RAW="${{ secrets.SERVER_HOST }}"
+          USER_RAW="${{ secrets.SERVER_USER }}"
+          HOST=$(printf '%s' "$HOST_RAW" | tr -d '\r' | xargs || true)
+          USER=$(printf '%s' "$USER_RAW" | tr -d '\r' | xargs || true)
+          echo "HOST_LEN=$(printf '%s' \"$HOST\" | wc -c)"
+          echo "USER_LEN=$(printf '%s' \"$USER\" | wc -c)"
+          echo "HOST hex:"; printf '%s' "$HOST" | od -An -t x1 | sed -n '1,1p' || true
+          echo "Using SSH target: ${USER}@${HOST}"
+          ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p ${SERVER_PORT} ${USER}@${HOST} "echo 'SSH OK'"
 
       - name: Rsync infrastructure to server
         env:
@@ -92,8 +173,13 @@ jobs:
           SERVER_DEPLOY_PATH: ${{ secrets.SERVER_DEPLOY_PATH || '/opt/backend_easy/infrastructure' }}
         run: |
           set -euo pipefail
-          echo "Syncing ./infrastructure -> ${SERVER_DEPLOY_PATH} (excluding .env.prod)"
-          rsync -avz --delete --exclude='.env.prod' -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no -p ${SERVER_PORT}" ./infrastructure/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${SERVER_DEPLOY_PATH}/
+          # sanitize host/user again for rsync
+          HOST_RAW="${{ secrets.SERVER_HOST }}"
+          USER_RAW="${{ secrets.SERVER_USER }}"
+          HOST=$(printf '%s' "$HOST_RAW" | tr -d '\r' | xargs || true)
+          USER=$(printf '%s' "$USER_RAW" | tr -d '\r' | xargs || true)
+          echo "Syncing ./infrastructure -> ${SERVER_DEPLOY_PATH} (excluding .env.prod) to ${USER}@${HOST}"
+          rsync -avz --delete --exclude='.env.prod' -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no -p ${SERVER_PORT}" ./infrastructure/ ${USER}@${HOST}:${SERVER_DEPLOY_PATH}/
           shred -u "$KEY_FILE" 2>/dev/null || rm -f "$KEY_FILE"
           echo "Infrastructure synced successfully"
 
