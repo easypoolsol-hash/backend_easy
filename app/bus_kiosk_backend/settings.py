@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "drf_spectacular",  # OpenAPI schema generation
+    "drf_spectacular_sidecar",  # Self-hosted Swagger UI assets
     "corsheaders",  # CORS handling
     "django_prometheus",  # Metrics collection
     "drf_api_logger",  # API request logging
