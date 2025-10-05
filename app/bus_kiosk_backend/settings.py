@@ -308,6 +308,10 @@ SPECTACULAR_SETTINGS = {
             ),
         }
     },
+    # Self-hosted Swagger UI (no CDN)
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
 }
 
 MIDDLEWARE = [
