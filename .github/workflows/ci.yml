@@ -50,7 +50,8 @@ jobs:
   # Job 2: Unit & Integration Tests (host-based)
   test:
     runs-on: ubuntu-latest
-    needs: code-quality
+    # Make code-quality non-blocking: tests should run regardless of style/type checks
+    # (keeps CI feedback flowing even if ruff/mypy fail)
 
     steps:
     - name: Checkout code
