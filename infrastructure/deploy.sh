@@ -69,13 +69,15 @@ check_prerequisites() {
     log_success "Prerequisites check passed"
 }
 
-# Pull latest images
-pull_images() {
-    log_info "Pulling latest Docker images..."
+IMAGE_TAG=${IMAGE_TAG:-"latest"}
 
-    # Pull the application image
-    if ! docker pull "${IMAGE_NAME}:latest"; then
-        log_error "Failed to pull application image"
+# Pull images (including selected tag)
+pull_images() {
+    log_info "Pulling Docker images (tag=${IMAGE_TAG})..."
+
+    # Pull the application image with the selected tag
+    if ! docker pull "${IMAGE_NAME}:${IMAGE_TAG}"; then
+        log_error "Failed to pull application image: ${IMAGE_NAME}:${IMAGE_TAG}"
         exit 1
     fi
 
@@ -122,6 +124,10 @@ stop_services() {
 # Start new services
 start_services() {
     log_info "Starting new services..."
+
+    # Ensure docker-compose uses the selected image tag. We export DOCKER_IMAGE
+    # which docker-compose.prod.yml reads for the web/celery images.
+    export DOCKER_IMAGE="${DOCKER_USERNAME:-your-dockerhub-username}/bus_kiosk_backend:${IMAGE_TAG}"
 
     # Start services
     if ! docker-compose -f docker-compose.prod.yml up -d; then
