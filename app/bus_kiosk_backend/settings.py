@@ -81,6 +81,8 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS: list[str] = [
     "easypool.in",
     "www.easypool.in",
+    "localhost",  # For health checks and internal Docker networking
+    "127.0.0.1",
 ]
 
 # Add environment variable hosts if specified (for flexibility)
