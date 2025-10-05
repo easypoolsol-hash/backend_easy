@@ -27,7 +27,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / "logs"
-LOGS_DIR.mkdir(exist_ok=True)
+# Try to create the directory (including parents) and make a best-effort to
+# ensure the running process can write into it. In some container setups the
+# directory may be owned by a different user; we attempt a permissive chmod as
+# a last resort to reduce permission errors when logging handlers open files.
+try:
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    # If this fails, we continue — dictConfig will raise later if unwritable.
+    pass
+
+# Quick test: try to create and remove a temporary placeholder file. If that
+# fails, attempt to relax permissions on the directory (best-effort, may be
+# blocked by the container permissions). These are defensive measures to avoid
+# PermissionError when logging.FileHandler opens files like '/app/logs/api.log'.
+try:
+    _test_file = LOGS_DIR / ".write_test"
+    _test_file.open("a").close()
+    _test_file.unlink()
+except Exception:
+    try:
+        # Try to make the directory writable by everyone (best-effort).
+        os.chmod(LOGS_DIR, 0o777)
+    except Exception:
+        # Ignore failures — we'll still try to start and let the logging
+        # configuration either succeed or raise a clear error.
+        pass
 
 
 # Quick-start development settings - unsuitable for production
