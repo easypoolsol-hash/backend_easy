@@ -81,7 +81,6 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS: list[str] = [
     "easypool.in",
     "www.easypool.in",
-    "13.204.150.134",  # Production server IP
 ]
 
 # Add environment variable hosts if specified (for flexibility)
