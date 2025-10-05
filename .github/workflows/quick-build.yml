@@ -1,0 +1,69 @@
+name: Quick Build (Skip Tests)
+
+# Use this for emergency config changes, typos, or settings updates
+# that don't require full test suite
+# Trigger manually from GitHub Actions UI
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for skipping tests'
+        required: true
+        default: 'Config-only change'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: bus_kiosk_backend
+
+jobs:
+  quick-build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log reason
+      run: |
+        echo "⚡ Quick Build triggered"
+        echo "Reason: ${{ github.event.inputs.reason }}"
+        echo "⚠️  WARNING: Skipping tests!"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and push Docker image
+      run: |
+        export DOCKER_BUILDKIT=1
+
+        # Build image
+        docker build \
+          --target runtime \
+          --tag ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest \
+          --tag ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --progress=plain \
+          --push \
+          .
+
+    - name: Output image information
+      run: |
+        echo "⚡ Quick Build Complete!"
+        echo "⚠️  Tests were SKIPPED"
+        echo "📦 Images pushed:"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+        echo ""
+        echo "🚀 Ready for CD deployment"
+        echo "Reason: ${{ github.event.inputs.reason }}"
