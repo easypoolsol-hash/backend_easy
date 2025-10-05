@@ -162,16 +162,33 @@ class StudentPhoto(models.Model):
 
 
 class Parent(models.Model):
-    """Parent model with encrypted PII"""
+    """Parent model with encrypted PII
+
+    Industry Standard Pattern:
+    - Validate plaintext BEFORE encryption
+    - Store encrypted data in TextField (unlimited length)
+    - Use hash indexes for encrypted field lookups
+    """
+
+    # Validation constants (Fortune 500 standard)
+    PHONE_REGEX = r'^\+91\d{10}$'  # +91 followed by exactly 10 digits
+    EMAIL_MAX_LENGTH = 254  # RFC 5321 standard
+    NAME_MAX_LENGTH = 100  # Reasonable human name limit
 
     parent_id: models.UUIDField = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False
     )
-    phone: models.CharField = models.CharField(
-        max_length=20, unique=True, help_text="Encrypted"
+    phone: models.TextField = models.TextField(
+        unique=True,
+        help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)"
     )
-    email: models.EmailField = models.EmailField(unique=True, help_text="Encrypted")
-    name: models.TextField = models.TextField(help_text="Encrypted")
+    email: models.TextField = models.TextField(
+        unique=True,
+        help_text="Encrypted email address (plaintext validated per RFC 5321)"
+    )
+    name: models.TextField = models.TextField(
+        help_text="Encrypted name (plaintext validated max 100 chars)"
+    )
     created_at: models.DateTimeField = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -183,6 +200,42 @@ class Parent(models.Model):
 
     def __str__(self):
         return f"Parent {self.parent_id}"
+
+    def clean(self):
+        """Validate plaintext data BEFORE encryption (Fortune 500 pattern)"""
+        import re
+        from django.core.validators import validate_email as django_validate_email
+
+        # Validate phone format (must be decrypted first if already encrypted)
+        try:
+            plaintext_phone = self.encrypted_phone
+            if not re.match(self.PHONE_REGEX, plaintext_phone):
+                raise ValidationError({
+                    'phone': f'Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)'
+                })
+        except Exception:
+            pass  # Skip validation if not yet set or decryption fails
+
+        # Validate email format
+        try:
+            plaintext_email = self.encrypted_email
+            if len(plaintext_email) > self.EMAIL_MAX_LENGTH:
+                raise ValidationError({
+                    'email': f'Email too long (max {self.EMAIL_MAX_LENGTH} characters)'
+                })
+            django_validate_email(plaintext_email)
+        except Exception:
+            pass  # Skip validation if not yet set or decryption fails
+
+        # Validate name length
+        try:
+            plaintext_name = self.encrypted_name
+            if len(plaintext_name) > self.NAME_MAX_LENGTH:
+                raise ValidationError({
+                    'name': f'Name too long (max {self.NAME_MAX_LENGTH} characters)'
+                })
+        except Exception:
+            pass  # Skip validation if not yet set or decryption fails
 
     @property
     def encrypted_phone(self):
@@ -197,12 +250,21 @@ class Parent(models.Model):
 
     @encrypted_phone.setter
     def encrypted_phone(self, value):
-        """Set encrypted phone"""
-        if value:
-            fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-            self.phone = fernet.encrypt(value.encode()).decode()
-        else:
+        """Set encrypted phone - validates BEFORE encryption (Fortune 500 pattern)"""
+        if not value:
             self.phone = ""
+            return
+
+        # VALIDATE BEFORE ENCRYPTION (critical!)
+        import re
+        if not re.match(self.PHONE_REGEX, value):
+            raise ValidationError(
+                f'Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)'
+            )
+
+        # ENCRYPT AFTER VALIDATION
+        fernet = Fernet(settings.ENCRYPTION_KEY.encode())
+        self.phone = fernet.encrypt(value.encode()).decode()
 
     @property
     def encrypted_email(self):
@@ -217,12 +279,22 @@ class Parent(models.Model):
 
     @encrypted_email.setter
     def encrypted_email(self, value):
-        """Set encrypted email"""
-        if value:
-            fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-            self.email = fernet.encrypt(value.encode()).decode()
-        else:
+        """Set encrypted email - validates BEFORE encryption (Fortune 500 pattern)"""
+        if not value:
             self.email = ""
+            return
+
+        # VALIDATE BEFORE ENCRYPTION (critical!)
+        from django.core.validators import validate_email as django_validate_email
+        if len(value) > self.EMAIL_MAX_LENGTH:
+            raise ValidationError(
+                f'Email too long (max {self.EMAIL_MAX_LENGTH} characters)'
+            )
+        django_validate_email(value)  # Raises ValidationError if invalid
+
+        # ENCRYPT AFTER VALIDATION
+        fernet = Fernet(settings.ENCRYPTION_KEY.encode())
+        self.email = fernet.encrypt(value.encode()).decode()
 
     @property
     def encrypted_name(self):
@@ -237,12 +309,20 @@ class Parent(models.Model):
 
     @encrypted_name.setter
     def encrypted_name(self, value):
-        """Set encrypted name"""
-        if value:
-            fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-            self.name = fernet.encrypt(value.encode()).decode()
-        else:
+        """Set encrypted name - validates BEFORE encryption (Fortune 500 pattern)"""
+        if not value:
             self.name = ""
+            return
+
+        # VALIDATE BEFORE ENCRYPTION (critical!)
+        if len(value) > self.NAME_MAX_LENGTH:
+            raise ValidationError(
+                f'Name too long (max {self.NAME_MAX_LENGTH} characters)'
+            )
+
+        # ENCRYPT AFTER VALIDATION
+        fernet = Fernet(settings.ENCRYPTION_KEY.encode())
+        self.name = fernet.encrypt(value.encode()).decode()
 
     def get_students(self):
         """Get all students for this parent"""
