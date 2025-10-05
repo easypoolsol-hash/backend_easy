@@ -331,8 +331,7 @@ class FaceEmbeddingMetadata(models.Model):
 
     def __str__(self):
         return (
-            f"Face embedding for {self.student_photo} "
-            f"(quality: {self.quality_score})"
+            f"Face embedding for {self.student_photo} (quality: {self.quality_score})"
         )
 
     def clean(self):
