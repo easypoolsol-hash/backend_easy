@@ -48,6 +48,33 @@ jobs:
         docker push ${{ env.IMAGE_NAME }}:${{ inputs.deploy_target }}
         echo "Environment tag updated"
 
+    - name: Sync infrastructure to server (exclude .env.prod)
+      if: always()
+      env:
+        SERVER_PORT: ${{ secrets.SERVER_PORT || '22' }}
+        SERVER_DEPLOY_PATH: ${{ secrets.SERVER_DEPLOY_PATH || '/opt/backend_easy/infrastructure' }}
+      run: |
+        echo "Preparing to sync infrastructure to server..."
+        # Write SSH key to a temp file
+        mkdir -p /tmp/deploy_ssh
+        KEY_FILE=/tmp/deploy_ssh/deploy_key
+        echo "${{ secrets.SERVER_SSH_KEY }}" > "$KEY_FILE"
+        chmod 600 "$KEY_FILE"
+
+        # Ensure rsync is available
+        if ! command -v rsync >/dev/null 2>&1; then
+          echo "rsync not found, installing..."
+          sudo apt-get update && sudo apt-get install -y rsync
+        fi
+
+        RSYNC_SSH="ssh -i $KEY_FILE -o StrictHostKeyChecking=no -p ${SERVER_PORT}"
+
+        echo "Syncing ./infrastructure -> ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${SERVER_DEPLOY_PATH} (excluding .env.prod)"
+        rsync -avz --delete --exclude='.env.prod' -e "$RSYNC_SSH" ./infrastructure/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${SERVER_DEPLOY_PATH}
+
+        # Clean up key
+        shred -u "$KEY_FILE" || rm -f "$KEY_FILE"
+
     - name: Deploy to server via SSH
       uses: appleboy/ssh-action@v1.0.0
       env:
