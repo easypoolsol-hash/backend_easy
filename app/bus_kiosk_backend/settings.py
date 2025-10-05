@@ -276,6 +276,12 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# CSRF trusted origins for HTTPS
+CSRF_TRUSTED_ORIGINS = [
+    "https://easypool.in",
+    "https://www.easypool.in",
+]
+
 # DRF Spectacular settings
 SPECTACULAR_SETTINGS = {
     "TITLE": "Bus Kiosk Backend API",
