@@ -24,7 +24,7 @@ from factory.django import DjangoModelFactory
 
 from buses.models import Bus, Route
 from kiosks.models import Kiosk
-from students.models import Parent, School, Student, StudentParent
+from students.models import Parent, School, Student, StudentParent, FaceEmbeddingMetadata, StudentPhoto
 from users.models import Role, User
 
 
@@ -252,3 +252,45 @@ class UserFactory(DjangoModelFactory):
         password = extracted if extracted else "testpass123"
         self.set_password(password)
         self.save()
+
+
+class StudentPhotoFactory(DjangoModelFactory):
+    """Factory for creating test student photos"""
+
+    class Meta:
+        model = StudentPhoto
+
+    student = factory.SubFactory(StudentFactory)
+    photo = "photos/test_student.jpg"
+    is_primary = True
+    quality_score = 0.95
+
+
+class FaceEmbeddingFactory(DjangoModelFactory):
+    """
+    Factory for creating test face embeddings
+
+    Usage:
+        embedding = FaceEmbeddingFactory()
+        embedding = FaceEmbeddingFactory(student=student)
+    """
+
+    class Meta:
+        model = FaceEmbeddingMetadata
+
+    student_photo = factory.SubFactory(StudentPhotoFactory)
+    model_name = "MobileFaceNet"
+    model_version = "1.0"
+    qdrant_point_id = factory.Sequence(lambda n: f"point_{n}")
+    is_primary = True
+    quality_score = 0.90
+
+    @factory.post_generation
+    def student(self, create, extracted, **kwargs):
+        """Allow passing student directly"""
+        if not create:
+            return
+        if extracted:
+            photo = StudentPhotoFactory(student=extracted)
+            self.student_photo = photo
+            self.save()
