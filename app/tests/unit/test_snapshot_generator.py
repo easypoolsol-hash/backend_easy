@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from app.kiosks.services.snapshot_generator import SnapshotGenerator
-from app.tests.factories import BusFactory, StudentFactory
+from kiosks.services.snapshot_generator import SnapshotGenerator
+from tests.factories import BusFactory, StudentFactory
 
 
 @pytest.mark.django_db
@@ -30,7 +30,7 @@ class TestSnapshotGenerator:
         snapshot_bytes, metadata = generator.generate()
 
         # Write to temp file and verify
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             f.write(snapshot_bytes)
             db_path = f.name
 
@@ -60,17 +60,17 @@ class TestSnapshotGenerator:
         snapshot_bytes, metadata = generator.generate()
 
         # Verify metadata dict
-        assert 'sync_timestamp' in metadata
-        assert 'bus_id' in metadata
-        assert 'student_count' in metadata
-        assert 'embedding_count' in metadata
-        assert 'content_hash' in metadata
+        assert "sync_timestamp" in metadata
+        assert "bus_id" in metadata
+        assert "student_count" in metadata
+        assert "embedding_count" in metadata
+        assert "content_hash" in metadata
 
-        assert metadata['bus_id'] == str(bus.bus_id)
-        assert metadata['student_count'] == 1
+        assert metadata["bus_id"] == str(bus.bus_id)
+        assert metadata["student_count"] == 1
 
         # Verify metadata in SQLite
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             f.write(snapshot_bytes)
             db_path = f.name
 
@@ -81,9 +81,9 @@ class TestSnapshotGenerator:
             cursor.execute("SELECT key, value FROM sync_metadata")
             db_metadata = dict(cursor.fetchall())
 
-            assert 'sync_timestamp' in db_metadata
-            assert 'bus_id' in db_metadata
-            assert db_metadata['bus_id'] == str(bus.bus_id)
+            assert "sync_timestamp" in db_metadata
+            assert "bus_id" in db_metadata
+            assert db_metadata["bus_id"] == str(bus.bus_id)
 
             conn.close()
         finally:
@@ -97,7 +97,7 @@ class TestSnapshotGenerator:
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
         snapshot_bytes, _ = generator.generate()
 
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             f.write(snapshot_bytes)
             db_path = f.name
 
@@ -109,7 +109,7 @@ class TestSnapshotGenerator:
             cursor.execute("PRAGMA integrity_check")
             result = cursor.fetchone()[0]
 
-            assert result == 'ok', f"SQLite integrity check failed: {result}"
+            assert result == "ok", f"SQLite integrity check failed: {result}"
 
             conn.close()
         finally:
@@ -123,7 +123,7 @@ class TestSnapshotGenerator:
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
         snapshot_bytes, _ = generator.generate()
 
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             f.write(snapshot_bytes)
             db_path = f.name
 
@@ -135,17 +135,17 @@ class TestSnapshotGenerator:
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = [row[0] for row in cursor.fetchall()]
 
-            assert 'students' in tables
-            assert 'face_embeddings' in tables
-            assert 'sync_metadata' in tables
+            assert "students" in tables
+            assert "face_embeddings" in tables
+            assert "sync_metadata" in tables
 
             # Verify students table schema
             cursor.execute("PRAGMA table_info(students)")
             columns = {row[1]: row[2] for row in cursor.fetchall()}  # name: type
 
-            assert 'student_id' in columns
-            assert 'name' in columns
-            assert 'status' in columns
+            assert "student_id" in columns
+            assert "name" in columns
+            assert "status" in columns
 
             conn.close()
         finally:

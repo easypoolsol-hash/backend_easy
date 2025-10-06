@@ -18,13 +18,19 @@ import hashlib
 from datetime import date
 
 import factory
+from buses.models import Bus, Route
 from cryptography.fernet import Fernet
 from django.conf import settings
 from factory.django import DjangoModelFactory
-
-from buses.models import Bus, Route
 from kiosks.models import Kiosk
-from students.models import Parent, School, Student, StudentParent, FaceEmbeddingMetadata, StudentPhoto
+from students.models import (
+    FaceEmbeddingMetadata,
+    Parent,
+    School,
+    Student,
+    StudentParent,
+    StudentPhoto,
+)
 from users.models import Role, User
 
 
@@ -33,7 +39,7 @@ class SchoolFactory(DjangoModelFactory):
 
     class Meta:
         model = School
-        django_get_or_create = ('name',)
+        django_get_or_create = ("name",)
 
     name = factory.Sequence(lambda n: f"Test School {n}")
 
@@ -91,7 +97,7 @@ class KioskFactory(DjangoModelFactory):
     @factory.lazy_attribute
     def api_key_hash(self):
         """Hash the API key using SHA-256"""
-        api_key = self.api_key if hasattr(self, 'api_key') else "test-api-key-12345"
+        api_key = self.api_key if hasattr(self, "api_key") else "test-api-key-12345"
         return hashlib.sha256(api_key.encode()).hexdigest()
 
     @factory.post_generation
@@ -99,7 +105,7 @@ class KioskFactory(DjangoModelFactory):
         """Store plaintext API key for test access after creation"""
         if not create:
             return
-        api_key = self.api_key if hasattr(self, 'api_key') else "test-api-key-12345"
+        api_key = self.api_key if hasattr(self, "api_key") else "test-api-key-12345"
         self._api_key = api_key
 
 
@@ -138,7 +144,7 @@ class StudentFactory(DjangoModelFactory):
     def name(self):
         """Encrypt the student name"""
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-        plaintext = self.plaintext_name if hasattr(self, 'plaintext_name') else "Test Student"
+        plaintext = self.plaintext_name if hasattr(self, "plaintext_name") else "Test Student"
         return fernet.encrypt(plaintext.encode()).decode()
 
     @factory.post_generation
@@ -146,7 +152,9 @@ class StudentFactory(DjangoModelFactory):
         """Store plaintext name for test access after creation"""
         if not create:
             return
-        self._plaintext_name = self.plaintext_name if hasattr(self, 'plaintext_name') else "Test Student"
+        self._plaintext_name = (
+            self.plaintext_name if hasattr(self, "plaintext_name") else "Test Student"
+        )
 
 
 class ParentFactory(DjangoModelFactory):
@@ -182,21 +190,21 @@ class ParentFactory(DjangoModelFactory):
     def name(self):
         """Encrypt parent name"""
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-        plaintext = self.plaintext_name if hasattr(self, 'plaintext_name') else "Test Parent"
+        plaintext = self.plaintext_name if hasattr(self, "plaintext_name") else "Test Parent"
         return fernet.encrypt(plaintext.encode()).decode()
 
     @factory.lazy_attribute
     def email(self):
         """Encrypt parent email"""
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-        plaintext = self.plaintext_email if hasattr(self, 'plaintext_email') else "test@example.com"
+        plaintext = self.plaintext_email if hasattr(self, "plaintext_email") else "test@example.com"
         return fernet.encrypt(plaintext.encode()).decode()
 
     @factory.lazy_attribute
     def phone(self):
         """Encrypt parent phone"""
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
-        plaintext = self.plaintext_phone if hasattr(self, 'plaintext_phone') else "+919876543210"
+        plaintext = self.plaintext_phone if hasattr(self, "plaintext_phone") else "+919876543210"
         return fernet.encrypt(plaintext.encode()).decode()
 
     @factory.post_generation
@@ -204,9 +212,15 @@ class ParentFactory(DjangoModelFactory):
         """Store plaintext PII for test access after creation"""
         if not create:
             return
-        self._plaintext_name = self.plaintext_name if hasattr(self, 'plaintext_name') else "Test Parent"
-        self._plaintext_email = self.plaintext_email if hasattr(self, 'plaintext_email') else "test@example.com"
-        self._plaintext_phone = self.plaintext_phone if hasattr(self, 'plaintext_phone') else "+919876543210"
+        self._plaintext_name = (
+            self.plaintext_name if hasattr(self, "plaintext_name") else "Test Parent"
+        )
+        self._plaintext_email = (
+            self.plaintext_email if hasattr(self, "plaintext_email") else "test@example.com"
+        )
+        self._plaintext_phone = (
+            self.plaintext_phone if hasattr(self, "plaintext_phone") else "+919876543210"
+        )
 
 
 class StudentParentFactory(DjangoModelFactory):
@@ -226,7 +240,7 @@ class RoleFactory(DjangoModelFactory):
 
     class Meta:
         model = Role
-        django_get_or_create = ('name',)
+        django_get_or_create = ("name",)
 
     name = "backend_engineer"
     permissions = {}
@@ -261,9 +275,8 @@ class StudentPhotoFactory(DjangoModelFactory):
         model = StudentPhoto
 
     student = factory.SubFactory(StudentFactory)
-    photo = "photos/test_student.jpg"
+    photo_url = "s3://bucket/photos/test_student.jpg"
     is_primary = True
-    quality_score = 0.95
 
 
 class FaceEmbeddingFactory(DjangoModelFactory):

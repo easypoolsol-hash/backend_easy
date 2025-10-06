@@ -1,5 +1,6 @@
 import time
 
+from buses.models import Bus
 from django.db.models import Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -7,19 +8,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from buses.models import Bus
-
-from .models import (
-    FaceEmbeddingMetadata,
+from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
     Parent,
     School,
     Student,
     StudentParent,
     StudentPhoto,
 )
-from .serializers import (
+from .serializers import (  # FaceEmbeddingMetadataSerializer removed - no API endpoint needed
     BusSerializer,
-    FaceEmbeddingMetadataSerializer,
     ParentSerializer,
     SchoolSerializer,
     StudentParentSerializer,
@@ -92,9 +89,7 @@ class StudentViewSet(viewsets.ModelViewSet):
         if search:
             # Note: This is a basic search - in production you'd want
             # full-text search
-            queryset = queryset.filter(
-                Q(name__icontains=search) | Q(grade__icontains=search)
-            )
+            queryset = queryset.filter(Q(name__icontains=search) | Q(grade__icontains=search))
 
         return queryset
 
@@ -104,16 +99,12 @@ class StudentViewSet(viewsets.ModelViewSet):
         bus_id = request.data.get("bus_id")
 
         if not bus_id:
-            return Response(
-                {"error": "bus_id is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "bus_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             bus = Bus.objects.get(bus_id=bus_id, status="active")
         except Bus.DoesNotExist:
-            return Response(
-                {"error": "Active bus not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Active bus not found"}, status=status.HTTP_404_NOT_FOUND)
 
         student.assigned_bus = bus
         student.save()
@@ -144,9 +135,7 @@ class ParentViewSet(viewsets.ModelViewSet):
         # Search by phone or email (encrypted fields - limited search)
         search = self.request.query_params.get("search")
         if search:
-            queryset = queryset.filter(
-                Q(phone__icontains=search) | Q(email__icontains=search)
-            )
+            queryset = queryset.filter(Q(phone__icontains=search) | Q(email__icontains=search))
 
         return queryset
 
@@ -239,59 +228,11 @@ class StudentPhotoViewSet(viewsets.ModelViewSet):
         )
 
 
-class FaceEmbeddingMetadataViewSet(viewsets.ModelViewSet):
-    queryset = FaceEmbeddingMetadata.objects.all()
-    serializer_class = FaceEmbeddingMetadataSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        queryset = FaceEmbeddingMetadata.objects.select_related(
-            "student_photo__student"
-        )
-
-        # Filter by student
-        student_id = self.request.query_params.get("student_id")
-        if student_id:
-            queryset = queryset.filter(student_photo__student_id=student_id)
-
-        # Filter by photo
-        photo_id = self.request.query_params.get("photo_id")
-        if photo_id:
-            queryset = queryset.filter(student_photo_id=photo_id)
-
-        # Filter by model name/version
-        model_name = self.request.query_params.get("model_name")
-        if model_name:
-            queryset = queryset.filter(model_name=model_name)
-
-        model_version = self.request.query_params.get("model_version")
-        if model_version:
-            queryset = queryset.filter(model_version=model_version)
-
-        # Filter by quality score
-        min_quality = self.request.query_params.get("min_quality")
-        if min_quality:
-            queryset = queryset.filter(quality_score__gte=float(min_quality))
-
-        # Get only primary embeddings
-        primary_only = self.request.query_params.get("primary_only")
-        if primary_only and primary_only.lower() == "true":
-            queryset = queryset.filter(is_primary=True)
-
-        return queryset
-
-    @action(detail=True, methods=["post"])
-    def set_primary(self, request, pk=None):
-        embedding = self.get_object()
-
-        # Set all other embeddings for this photo to non-primary
-        FaceEmbeddingMetadata.objects.filter(
-            student_photo=embedding.student_photo
-        ).exclude(pk=embedding.pk).update(is_primary=False)
-
-        # Set this embedding as primary
-        embedding.is_primary = True
-        embedding.save()
+# FaceEmbeddingMetadataViewSet REMOVED
+# Embeddings are generated SERVER-SIDE and packaged into kiosk snapshots.
+# No API endpoint needed - embeddings accessed via:
+# 1. Server-side: Direct database/Qdrant queries
+# 2. Kiosks: Local SQLite snapshot (offline-first)
 
 
 class KioskBoardingView(APIView):
@@ -311,9 +252,7 @@ class KioskBoardingView(APIView):
 
         # Quick validation (0.01 seconds)
         if not student_name:
-            return Response(
-                {"error": "Student name required"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": "Student name required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # ⚡ INSTANT RESPONSE - Don't wait for processing!
         # Send boarding data to background worker for database/storage
