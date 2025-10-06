@@ -14,15 +14,21 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from bus_kiosk_backend.authentication import KioskJWTAuthentication
 from bus_kiosk_backend.permissions import IsKiosk, IsSchoolAdmin
 
-from .models import DeviceLog, Kiosk
+from .models import DeviceLog, Kiosk, KioskStatus
 from .serializers import (
+    CheckUpdatesResponseSerializer,
+    CheckUpdatesSerializer,
     DeviceLogSerializer,
+    HeartbeatSerializer,
     KioskAuthResponseSerializer,
     KioskAuthSerializer,
     KioskHeartbeatSerializer,
     KioskSerializer,
-    KioskStatusSerializer,
+    KioskStatusSerializer as KioskStatusModelSerializer,
+    SnapshotResponseSerializer,
 )
+from .services import SnapshotGenerator
+from .utils import calculate_checksum
 
 
 @extend_schema(
@@ -321,3 +327,211 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         return Response({"period": "last 24 hours", "summary": list(summary)})
+
+
+# Sync Endpoints
+
+@extend_schema(
+    parameters=[CheckUpdatesSerializer],
+    responses={200: CheckUpdatesResponseSerializer},
+    description='Check if kiosk needs database update'
+)
+@api_view(['GET'])
+@authentication_classes([KioskJWTAuthentication])
+@permission_classes([IsKiosk])
+def check_updates(request, kiosk_id):
+    """
+    Check if kiosk database needs updating.
+
+    Compares kiosk's last_sync timestamp with bus's last_student_update.
+    Returns metadata about current database version.
+    """
+    try:
+        kiosk = Kiosk.objects.select_related('bus').get(kiosk_id=kiosk_id)
+    except Kiosk.DoesNotExist:
+        return Response(
+            {"detail": "Kiosk not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Verify authenticated kiosk matches requested kiosk_id
+    if request.user.kiosk_id != kiosk_id:
+        return Response(
+            {"detail": "Not authorized for this kiosk"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if not kiosk.bus:
+        return Response(
+            {"detail": "Kiosk not assigned to a bus"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Validate query params
+    serializer = CheckUpdatesSerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+
+    last_sync = serializer.validated_data['last_sync']
+    bus = kiosk.bus
+
+    # Check if update needed
+    needs_update = bus.last_student_update > last_sync
+
+    # Generate metadata (even if no update needed, for verification)
+    generator = SnapshotGenerator(bus.bus_id)
+    _, metadata = generator.generate()
+
+    response_data = {
+        "needs_update": needs_update,
+        "current_version": bus.last_student_update.isoformat(),
+        "student_count": metadata["student_count"],
+        "embedding_count": metadata["embedding_count"],
+        "content_hash": metadata["content_hash"],
+    }
+
+    return Response(response_data)
+
+
+@extend_schema(
+    responses={200: SnapshotResponseSerializer},
+    description='Get download URL for kiosk database snapshot'
+)
+@api_view(['GET'])
+@authentication_classes([KioskJWTAuthentication])
+@permission_classes([IsKiosk])
+def download_snapshot(request, kiosk_id):
+    """
+    Generate and return download URL for kiosk database snapshot.
+
+    Creates SQLite database with students/embeddings for this kiosk's bus.
+    Returns signed URL for download with checksum for verification.
+    """
+    try:
+        kiosk = Kiosk.objects.select_related('bus').get(kiosk_id=kiosk_id)
+    except Kiosk.DoesNotExist:
+        return Response(
+            {"detail": "Kiosk not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Verify authenticated kiosk matches requested kiosk_id
+    if request.user.kiosk_id != kiosk_id:
+        return Response(
+            {"detail": "Not authorized for this kiosk"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if not kiosk.bus:
+        return Response(
+            {"detail": "Kiosk not assigned to a bus"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Generate snapshot
+    generator = SnapshotGenerator(kiosk.bus.bus_id)
+    snapshot_bytes, metadata = generator.generate()
+
+    # Calculate checksum
+    checksum = calculate_checksum(snapshot_bytes)
+
+    # TODO: Upload to S3 and generate signed URL
+    # For now, return placeholder
+    # In production: upload snapshot_bytes to S3, get signed URL
+    download_url = f"https://example.com/snapshots/{kiosk.bus.bus_id}.db"
+    expires_at = timezone.now() + timedelta(minutes=30)
+
+    response_data = {
+        "download_url": download_url,
+        "checksum": checksum,
+        "size_bytes": len(snapshot_bytes),
+        "expires_at": expires_at.isoformat(),
+    }
+
+    return Response(response_data)
+
+
+@extend_schema(
+    request=HeartbeatSerializer,
+    responses={204: None},
+    description='Report kiosk health and sync status'
+)
+@api_view(['POST'])
+@authentication_classes([KioskJWTAuthentication])
+@permission_classes([IsKiosk])
+def heartbeat(request, kiosk_id):
+    """
+    Receive heartbeat from kiosk with health metrics and sync status.
+
+    Updates KioskStatus model with current state.
+    Determines overall status (ok/warning/critical) based on metrics.
+    """
+    try:
+        kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
+    except Kiosk.DoesNotExist:
+        return Response(
+            {"detail": "Kiosk not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Verify authenticated kiosk matches requested kiosk_id
+    if request.user.kiosk_id != kiosk_id:
+        return Response(
+            {"detail": "Not authorized for this kiosk"},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    # Validate request
+    serializer = HeartbeatSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    data = serializer.validated_data
+    health = data.get('health', {})
+
+    # Determine status based on health metrics
+    kiosk_status = "ok"
+
+    battery_level = health.get('battery_level')
+    is_charging = health.get('is_charging', False)
+
+    if battery_level is not None:
+        if battery_level < 10 and not is_charging:
+            kiosk_status = "critical"
+        elif battery_level < 20 and not is_charging:
+            kiosk_status = "warning"
+
+    # Check if offline (heartbeat old)
+    if kiosk.status:
+        if kiosk.status.is_offline:
+            kiosk_status = "critical"
+
+    # Update or create KioskStatus
+    KioskStatus.objects.update_or_create(
+        kiosk=kiosk,
+        defaults={
+            "last_heartbeat": data['timestamp'],
+            "database_version": data['database_version'],
+            "database_hash": data.get('database_hash', ''),
+            "student_count": data['student_count'],
+            "embedding_count": data['embedding_count'],
+            "battery_level": battery_level,
+            "is_charging": is_charging,
+            "storage_available_mb": health.get('storage_available_mb'),
+            "camera_active": health.get('camera_active', False),
+            "network_type": health.get('network_type'),
+            "app_version": health.get('app_version'),
+            "last_face_detected": (
+                timezone.now() - timedelta(minutes=health['last_face_detected_ago_min'])
+                if health.get('last_face_detected_ago_min') is not None
+                else None
+            ),
+            "faces_detected_today": health.get('faces_detected_today', 0),
+            "students_identified_today": health.get('students_identified_today', 0),
+            "status": kiosk_status,
+        }
+    )
+
+    # Also update Kiosk model heartbeat
+    kiosk.last_heartbeat = data['timestamp']
+    kiosk.save(update_fields=['last_heartbeat'])
+
+    return Response(status=status.HTTP_204_NO_CONTENT)

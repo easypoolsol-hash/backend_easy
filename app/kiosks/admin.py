@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import DeviceLog, Kiosk
+from .models import DeviceLog, Kiosk, KioskStatus
 
 
 @admin.register(Kiosk)
@@ -109,6 +109,115 @@ class DeviceLogAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related("kiosk")
 
     # Prevent adding/editing logs manually - they should come from devices
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(KioskStatus)
+class KioskStatusAdmin(admin.ModelAdmin):
+    """Admin interface for kiosk sync status"""
+
+    list_display = [
+        "kiosk_id_display",
+        "status_badge",
+        "database_version",
+        "student_count",
+        "embedding_count",
+        "battery_display",
+        "last_heartbeat",
+        "is_outdated_display",
+    ]
+    list_filter = ["status", "is_charging", "network_type"]
+    search_fields = ["kiosk__kiosk_id"]
+    readonly_fields = ["kiosk", "updated_at"]
+    ordering = ["-last_heartbeat"]
+
+    fieldsets = (
+        ("Kiosk", {"fields": ("kiosk",)}),
+        (
+            "Database Sync",
+            {
+                "fields": (
+                    "database_version",
+                    "database_hash",
+                    "student_count",
+                    "embedding_count",
+                )
+            },
+        ),
+        (
+            "Health Metrics",
+            {
+                "fields": (
+                    "battery_level",
+                    "is_charging",
+                    "storage_available_mb",
+                    "camera_active",
+                    "network_type",
+                    "app_version",
+                )
+            },
+        ),
+        (
+            "Activity",
+            {
+                "fields": (
+                    "last_face_detected",
+                    "faces_detected_today",
+                    "students_identified_today",
+                )
+            },
+        ),
+        ("Status", {"fields": ("status", "last_error", "last_heartbeat", "updated_at")}),
+    )
+
+    def kiosk_id_display(self, obj):
+        """Display kiosk ID"""
+        return obj.kiosk.kiosk_id
+
+    kiosk_id_display.short_description = "Kiosk ID"  # type: ignore[attr-defined]
+
+    def status_badge(self, obj):
+        """Display status with color badge"""
+        colors = {
+            "ok": "green",
+            "warning": "orange",
+            "critical": "red",
+        }
+        color = colors.get(obj.status, "gray")
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">● {}</span>',
+            color,
+            obj.get_status_display(),
+        )
+
+    status_badge.short_description = "Status"  # type: ignore[attr-defined]
+
+    def battery_display(self, obj):
+        """Display battery level with charging indicator"""
+        if obj.battery_level is None:
+            return "—"
+        icon = "🔌" if obj.is_charging else "⚡"
+        return f"{obj.battery_level}% {icon}"
+
+    battery_display.short_description = "Battery"  # type: ignore[attr-defined]
+
+    def is_outdated_display(self, obj):
+        """Display if database is outdated"""
+        if obj.is_outdated:
+            return format_html('<span style="color: red;">● Outdated</span>')
+        return format_html('<span style="color: green;">● Current</span>')
+
+    is_outdated_display.short_description = "DB Status"  # type: ignore[attr-defined]
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        return super().get_queryset(request).select_related("kiosk__bus")
+
+    # Prevent manual editing - should be updated via heartbeat API
     def has_add_permission(self, request):
         return False
 

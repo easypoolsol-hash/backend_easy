@@ -124,6 +124,10 @@ class Bus(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True, help_text="When this bus record was last updated"
     )
+    last_student_update = models.DateTimeField(
+        auto_now=True,
+        help_text="Last time students/embeddings changed for this bus",
+    )
 
     class Meta:
         db_table = "buses"

@@ -4,6 +4,84 @@ info:
   version: 1.0.0
   description: Industrial REST API for Bus Kiosk face recognition system
 paths:
+  /api/v1/{kiosk_id}/check-updates/:
+    get:
+      operationId: api_v1_check_updates_retrieve
+      description: Check if kiosk needs database update
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: last_sync
+        schema:
+          type: string
+          format: date-time
+        description: Last sync timestamp from kiosk
+        required: true
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckUpdatesResponse'
+          description: ''
+  /api/v1/{kiosk_id}/heartbeat/:
+    post:
+      operationId: api_v1_heartbeat_create_2
+      description: Report kiosk health and sync status
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/{kiosk_id}/snapshot/:
+    get:
+      operationId: api_v1_snapshot_retrieve
+      description: Get download URL for kiosk database snapshot
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SnapshotResponse'
+          description: ''
   /api/v1/api-keys/:
     get:
       operationId: api_v1_api_keys_list
@@ -3358,6 +3436,31 @@ components:
         * `active` - Active
         * `maintenance` - Under Maintenance
         * `retired` - Retired
+    CheckUpdatesResponse:
+      type: object
+      description: Serializer for check updates response
+      properties:
+        needs_update:
+          type: boolean
+          description: Whether kiosk needs to download new snapshot
+        current_version:
+          type: string
+          description: Current database version timestamp
+        student_count:
+          type: integer
+          description: Number of students for this bus
+        embedding_count:
+          type: integer
+          description: Number of embeddings for this bus
+        content_hash:
+          type: string
+          description: Content hash for integrity verification
+      required:
+      - content_hash
+      - current_version
+      - embedding_count
+      - needs_update
+      - student_count
     DeviceLog:
       type: object
       description: Serializer for device logs
@@ -3454,6 +3557,76 @@ components:
       - quality_score
       - student_details
       - student_photo
+    HealthData:
+      type: object
+      description: Serializer for health metrics
+      properties:
+        battery_level:
+          type: integer
+          maximum: 100
+          minimum: 0
+          nullable: true
+        is_charging:
+          type: boolean
+          default: false
+        storage_available_mb:
+          type: integer
+          minimum: 0
+          nullable: true
+        camera_active:
+          type: boolean
+          default: false
+        network_type:
+          type: string
+          nullable: true
+          maxLength: 20
+        app_version:
+          type: string
+          nullable: true
+          maxLength: 20
+        last_face_detected_ago_min:
+          type: integer
+          minimum: 0
+          nullable: true
+        faces_detected_today:
+          type: integer
+          minimum: 0
+          default: 0
+        students_identified_today:
+          type: integer
+          minimum: 0
+          default: 0
+    Heartbeat:
+      type: object
+      description: Serializer for kiosk heartbeat
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Heartbeat timestamp
+        database_version:
+          type: string
+          description: Current database version on kiosk
+          maxLength: 50
+        database_hash:
+          type: string
+          description: Database content hash
+          maxLength: 32
+        student_count:
+          type: integer
+          minimum: 0
+          description: Students in DB
+        embedding_count:
+          type: integer
+          minimum: 0
+          description: Embeddings in DB
+        health:
+          $ref: '#/components/schemas/HealthData'
+      required:
+      - database_version
+      - embedding_count
+      - student_count
+      - timestamp
     Kiosk:
       type: object
       description: Serializer for kiosks
@@ -4554,6 +4727,29 @@ components:
       - created_at
       - name
       - school_id
+    SnapshotResponse:
+      type: object
+      description: Serializer for snapshot download response
+      properties:
+        download_url:
+          type: string
+          format: uri
+          description: Signed URL to download snapshot
+        checksum:
+          type: string
+          description: SHA-256 checksum of snapshot
+        size_bytes:
+          type: integer
+          description: Size of snapshot in bytes
+        expires_at:
+          type: string
+          format: date-time
+          description: URL expiration time
+      required:
+      - checksum
+      - download_url
+      - expires_at
+      - size_bytes
     Student:
       type: object
       properties:

@@ -116,6 +116,127 @@ class Kiosk(models.Model):
         self.save(update_fields=["last_heartbeat", "updated_at"])
 
 
+class KioskStatus(models.Model):
+    """
+    Sync and health status for each kiosk.
+    Updated via heartbeat API.
+    """
+
+    STATUS_CHOICES = [
+        ("ok", "OK"),
+        ("warning", "Warning"),
+        ("critical", "Critical"),
+    ]
+
+    kiosk = models.OneToOneField(
+        Kiosk,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="status",
+        help_text="Kiosk this status belongs to",
+    )
+    last_heartbeat = models.DateTimeField(
+        help_text="Last heartbeat received from kiosk"
+    )
+    database_version = models.CharField(
+        max_length=50, help_text="Timestamp of current database version"
+    )
+    database_hash = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="Content hash of kiosk database (for integrity)",
+    )
+    student_count = models.IntegerField(
+        default=0, help_text="Number of students in kiosk database"
+    )
+    embedding_count = models.IntegerField(
+        default=0, help_text="Number of embeddings in kiosk database"
+    )
+
+    # Health metrics
+    battery_level = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Battery level percentage (0-100)",
+    )
+    is_charging = models.BooleanField(default=False, help_text="Is device charging")
+    storage_available_mb = models.IntegerField(
+        null=True, blank=True, help_text="Available storage in MB"
+    )
+    camera_active = models.BooleanField(
+        default=False, help_text="Is camera currently active"
+    )
+    network_type = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        help_text="Network type (wifi, 4g, none)",
+    )
+    app_version = models.CharField(
+        max_length=20, null=True, blank=True, help_text="Kiosk app version"
+    )
+
+    # Activity stats
+    last_face_detected = models.DateTimeField(
+        null=True, blank=True, help_text="Last time a face was detected"
+    )
+    faces_detected_today = models.IntegerField(
+        default=0, help_text="Faces detected today"
+    )
+    students_identified_today = models.IntegerField(
+        default=0, help_text="Students identified today"
+    )
+
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="ok",
+        help_text="Overall kiosk status",
+    )
+    last_error = models.TextField(
+        null=True, blank=True, help_text="Last error message if any"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="When this status was last updated"
+    )
+
+    class Meta:
+        db_table = "kiosk_status"
+        verbose_name = "Kiosk Status"
+        verbose_name_plural = "Kiosk Statuses"
+        indexes = [
+            models.Index(fields=["status"], name="idx_kiosk_status_status"),
+            models.Index(
+                fields=["last_heartbeat"], name="idx_kiosk_status_heartbeat"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.kiosk.kiosk_id} - {self.get_status_display()}"
+
+    @property
+    def is_outdated(self):
+        """Check if kiosk database is outdated compared to bus"""
+        if not self.kiosk.bus:
+            return False
+
+        return (
+            self.kiosk.bus.last_student_update.isoformat()
+            > self.database_version
+        )
+
+    @property
+    def is_offline(self):
+        """Check if kiosk is offline (no heartbeat in 24 hours)"""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        return self.last_heartbeat < timezone.now() - timedelta(hours=24)
+
+
 class DeviceLog(models.Model):
     """
     Device log entries from kiosks.
