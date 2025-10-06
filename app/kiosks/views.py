@@ -4,6 +4,7 @@ from datetime import timedelta
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -24,6 +25,14 @@ from .serializers import (
 )
 
 
+@extend_schema(
+    request=KioskAuthSerializer,
+    responses={
+        200: KioskAuthResponseSerializer,
+        400: OpenApiResponse(description='Invalid request'),
+    },
+    description='Authenticate kiosk device and receive JWT tokens'
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def kiosk_auth(request):
