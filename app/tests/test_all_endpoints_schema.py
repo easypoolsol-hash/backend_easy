@@ -53,13 +53,15 @@ class TestAuthenticationEndpoints:
         assert "refresh" in data
 
     def test_kiosk_can_get_jwt_token(self, api_client):
-        """Kiosk authentication returns valid JWT tokens"""
+        """Kiosk activation returns valid JWT tokens"""
         bus = BusFactory()
         kiosk = KioskFactory(bus=bus)
 
+        # Use activation token instead of api_key
+        activation_token = kiosk._activation_token  # From factory
         response = api_client.post(
-            "/api/v1/auth/",
-            {"kiosk_id": str(kiosk.kiosk_id), "api_key": kiosk._api_key},
+            "/api/v1/kiosks/activate/",
+            {"kiosk_id": str(kiosk.kiosk_id), "activation_token": activation_token},
             format="json",
         )
 
@@ -78,8 +80,8 @@ class TestProtectedEndpoints:
         protected_endpoints = [
             "/api/v1/students/",
             "/api/v1/buses/",
-            "/api/v1/kiosks/",
             "/api/v1/parents/",
+            "/api/v1/schools/",
         ]
 
         for endpoint in protected_endpoints:
@@ -91,14 +93,21 @@ class TestProtectedEndpoints:
 
     def test_kiosk_endpoints_require_kiosk_token(self, api_client):
         """Kiosk sync endpoints require kiosk-type JWT tokens"""
-        kiosk = KioskFactory(bus=BusFactory())
+        bus = BusFactory()
+        kiosk = KioskFactory(bus=bus)
 
         # Without token - should fail
         response = api_client.get(f"/api/v1/{kiosk.kiosk_id}/check-updates/")
         assert response.status_code == 401
 
-        # With kiosk token - should work
-        token = get_kiosk_token(kiosk)
+        # With kiosk token from activation - should work
+        activation_token = kiosk._activation_token
+        activate_response = api_client.post(
+            "/api/v1/kiosks/activate/",
+            {"kiosk_id": str(kiosk.kiosk_id), "activation_token": activation_token},
+            format="json",
+        )
+        token = activate_response.json()["access"]
         api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
         from django.utils import timezone
@@ -128,7 +137,7 @@ class TestSchemaValidation:
             "/api/v1/auth/token/",
             "/api/v1/students/",
             "/api/v1/buses/",
-            "/api/v1/kiosks/",
+            "/api/v1/kiosks/activate/",
             "/api/v1/{kiosk_id}/check-updates/",
             "/api/v1/{kiosk_id}/snapshot/",
             "/api/v1/{kiosk_id}/heartbeat/",
@@ -215,7 +224,14 @@ class TestKioskSyncWorkflow:
         kiosk = KioskFactory(bus=bus)
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
-        token = get_kiosk_token(kiosk)
+        # Activate kiosk to get proper token
+        activation_token = kiosk._activation_token
+        activate_response = api_client.post(
+            "/api/v1/kiosks/activate/",
+            {"kiosk_id": str(kiosk.kiosk_id), "activation_token": activation_token},
+            format="json",
+        )
+        token = activate_response.json()["access"]
         api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
         # Step 1: Check updates

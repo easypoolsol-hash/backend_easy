@@ -96,7 +96,7 @@ def activate_kiosk_view(request):
     try:
         result = activate_kiosk(kiosk_id, activation_token)
     except ValueError as e:
-        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     # Prepare response data (Fortune 500 standard structure)
     response_data = {

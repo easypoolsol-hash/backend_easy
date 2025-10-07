@@ -124,6 +124,7 @@ INSTALLED_APPS = [
     "buses",
     "events",
     "kiosks",
+    "tests",  # Test app for comprehensive testing
 ]
 
 # Custom user model

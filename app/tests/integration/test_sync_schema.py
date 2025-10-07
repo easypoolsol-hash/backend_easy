@@ -8,34 +8,30 @@ This is the industry standard for contract testing and preventing API drift.
 
 import pytest
 import schemathesis
-from rest_framework_simplejwt.tokens import RefreshToken
-from tests.factories import BusFactory, KioskFactory
 
 # Load schema from file (generated via: python manage.py spectacular --file schema.yaml)
 schema = schemathesis.from_path("schema.yaml")
 
 
-def get_kiosk_token(kiosk):
-    """Generate JWT token for kiosk (matches view implementation)"""
-    refresh = RefreshToken()
-    refresh["kiosk_id"] = kiosk.kiosk_id
-    refresh["type"] = "kiosk"
-    return str(refresh.access_token)
-
-
 @pytest.mark.django_db
-def test_check_updates_matches_schema(api_client):
+def test_check_updates_matches_schema(api_client, test_kiosk):
     """
     CRITICAL: Check-updates endpoint response must match OpenAPI schema
 
     Uses schemathesis to validate response format against schema contract.
     """
-    # Setup
-    bus = BusFactory()
-    kiosk = KioskFactory(bus=bus)
+    # Setup - test_kiosk fixture provides activated kiosk
+    kiosk, _ = test_kiosk
 
-    # Authenticate kiosk with JWT token
-    token = get_kiosk_token(kiosk)
+    # Get token from activation (kiosk is already activated by fixture)
+    # Activate the kiosk to get a proper token
+    activation_token = kiosk._activation_token  # From factory
+    response = api_client.post(
+        "/api/v1/kiosks/activate/",
+        {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
+        format="json",
+    )
+    token = response.json()["access"]
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     # Make request with required last_sync parameter
@@ -52,14 +48,19 @@ def test_check_updates_matches_schema(api_client):
 
 
 @pytest.mark.django_db
-def test_snapshot_matches_schema(api_client):
+def test_snapshot_matches_schema(api_client, test_kiosk):
     """
     CRITICAL: Snapshot endpoint response must match OpenAPI schema
     """
-    bus = BusFactory()
-    kiosk = KioskFactory(bus=bus)
+    kiosk, activation_token = test_kiosk
 
-    token = get_kiosk_token(kiosk)
+    # Activate kiosk to get proper token
+    response = api_client.post(
+        "/api/v1/kiosks/activate/",
+        {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
+        format="json",
+    )
+    token = response.json()["access"]
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     response = api_client.get(f"/api/v1/{kiosk.kiosk_id}/snapshot/")
@@ -74,21 +75,26 @@ def test_snapshot_matches_schema(api_client):
 
 
 @pytest.mark.django_db
-def test_heartbeat_matches_schema(api_client):
+def test_heartbeat_matches_schema(api_client, test_kiosk):
     """
     CRITICAL: Heartbeat endpoint request/response must match OpenAPI schema
     """
     from django.utils import timezone
     from kiosks.models import KioskStatus
 
-    bus = BusFactory()
-    kiosk = KioskFactory(bus=bus)
+    kiosk, activation_token = test_kiosk
+
+    # Activate kiosk and create KioskStatus
+    response = api_client.post(
+        "/api/v1/kiosks/activate/",
+        {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
+        format="json",
+    )
+    token = response.json()["access"]
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     # Create KioskStatus (required relationship)
     KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
-
-    token = get_kiosk_token(kiosk)
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     # Valid heartbeat data matching schema
     heartbeat_data = {
@@ -135,7 +141,7 @@ def test_all_sync_endpoints_have_schema():
 
 
 @pytest.mark.django_db
-def test_complete_sync_workflow(api_client):
+def test_complete_sync_workflow(api_client, test_kiosk):
     """
     CRITICAL: Test complete sync workflow sequence
 
@@ -145,12 +151,18 @@ def test_complete_sync_workflow(api_client):
     from django.utils import timezone
     from kiosks.models import KioskStatus
 
-    bus = BusFactory()
-    kiosk = KioskFactory(bus=bus)
-    KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
+    kiosk, activation_token = test_kiosk
 
-    token = get_kiosk_token(kiosk)
+    # Activate kiosk and create KioskStatus
+    response = api_client.post(
+        "/api/v1/kiosks/activate/",
+        {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
+        format="json",
+    )
+    token = response.json()["access"]
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+    KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
     # Step 1: Check for updates
     check_response = api_client.get(
