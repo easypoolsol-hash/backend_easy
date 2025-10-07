@@ -35,7 +35,7 @@ paths:
           description: ''
   /api/v1/{kiosk_id}/heartbeat/:
     post:
-      operationId: api_v1_heartbeat_create_2
+      operationId: api_v1_heartbeat_create
       description: Report kiosk health and sync status
       parameters:
       - in: path
@@ -1029,33 +1029,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bus'
           description: ''
-  /api/v1/heartbeat/:
-    post:
-      operationId: api_v1_heartbeat_create
-      description: Kiosk heartbeat endpoint for device status reporting
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/KioskHeartbeat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/KioskHeartbeat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/KioskHeartbeat'
-      security:
-      - KioskJWTAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kiosk'
-          description: ''
   /api/v1/kiosk/boarding/:
     post:
       operationId: api_v1_kiosk_boarding_create
@@ -1111,9 +1084,9 @@ paths:
               schema:
                 description: Invalid activation token or kiosk not found
           description: ''
-  /api/v1/log/:
+  /api/v1/logs/:
     post:
-      operationId: api_v1_log_create
+      operationId: api_v1_logs_create
       description: Kiosk logging endpoint for device log submission
       tags:
       - api
@@ -3245,66 +3218,6 @@ components:
       - embedding_count
       - student_count
       - timestamp
-    Kiosk:
-      type: object
-      description: Serializer for kiosks
-      properties:
-        kiosk_id:
-          type: string
-          readOnly: true
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
-        bus:
-          type: string
-          readOnly: true
-        bus_license_plate:
-          type: string
-          readOnly: true
-        firmware_version:
-          type: string
-          description: Current firmware version installed on device
-          maxLength: 50
-        last_heartbeat:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp of last heartbeat received from device
-        is_active:
-          type: boolean
-          description: Whether this kiosk is active and accepting requests
-        battery_level:
-          type: number
-          format: double
-        storage_used_mb:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
-          nullable: true
-          description: Storage used in MB on the device
-        status_display:
-          type: string
-          readOnly: true
-        is_online:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: When this kiosk was registered
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: When this kiosk record was last updated
-      required:
-      - bus
-      - bus_license_plate
-      - created_at
-      - is_online
-      - kiosk_id
-      - status_display
-      - updated_at
     KioskActivation:
       type: object
       description: |-
@@ -3358,27 +3271,6 @@ components:
       - kiosk_id
       - message
       - refresh
-    KioskHeartbeat:
-      type: object
-      description: |-
-        Serializer for kiosk heartbeat data (Fortune 500 pattern)
-
-        kiosk_id is optional - kiosk is authenticated via JWT.
-        If provided, it's verified to match the authenticated kiosk (security check).
-      properties:
-        kiosk_id:
-          type: string
-          maxLength: 100
-        firmware_version:
-          type: string
-          maxLength: 50
-        battery_level:
-          type: integer
-          maximum: 100
-          minimum: 0
-        storage_used_mb:
-          type: integer
-          minimum: 0
     LogLevelEnum:
       enum:
       - DEBUG

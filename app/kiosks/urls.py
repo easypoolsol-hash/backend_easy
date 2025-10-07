@@ -8,7 +8,6 @@ from .views import (
     check_updates,
     download_snapshot,
     heartbeat,
-    kiosk_heartbeat,
     kiosk_log,
 )
 
@@ -22,8 +21,7 @@ urlpatterns = [
     # Specific endpoints before router
     path("kiosks/activate/", activate_kiosk_view, name="kiosk-activate"),
     # Protected endpoints for authenticated kiosk devices
-    path("heartbeat/", kiosk_heartbeat, name="kiosk-heartbeat"),
-    path("log/", kiosk_log, name="kiosk-log"),
+    path("logs/", kiosk_log, name="kiosk-logs"),
     # Sync endpoints (per-kiosk)
     path("<str:kiosk_id>/check-updates/", check_updates, name="kiosk-check-updates"),
     path("<str:kiosk_id>/snapshot/", download_snapshot, name="kiosk-snapshot"),

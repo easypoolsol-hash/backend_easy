@@ -29,7 +29,6 @@ class KioskAdmin(admin.ModelAdmin):
             "Technical Details",
             {"fields": ("firmware_version", "battery_level", "storage_used_mb")},
         ),
-        ("Authentication", {"fields": ("api_key_hash",), "classes": ("collapse",)}),
         (
             "Status",
             {
