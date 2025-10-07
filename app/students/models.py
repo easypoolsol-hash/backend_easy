@@ -1,3 +1,4 @@
+import os
 import uuid
 from typing import TYPE_CHECKING
 
@@ -19,6 +20,13 @@ ENCRYPTED_PLACEHOLDER = "[ENCRYPTED]"
 
 # Validation error format strings
 INVALID_STATUS_FORMAT = "{}: {}"
+
+
+def student_photo_path(instance, filename):
+    """Generate random unique filename for student photos"""
+    ext = os.path.splitext(filename)[1]
+    random_name = f"{uuid.uuid4().hex}{ext}"
+    return f"student_photos/{random_name}"
 
 
 class School(models.Model):
@@ -49,9 +57,7 @@ class Student(models.Model):
     school: models.ForeignKey = models.ForeignKey(
         School, on_delete=models.CASCADE, related_name="students"
     )
-    name: models.TextField = models.TextField(
-        help_text="Encrypted at application layer"
-    )
+    name: models.TextField = models.TextField(help_text="Encrypted at application layer")
     grade: models.CharField = models.CharField(max_length=10)
     section: models.CharField = models.CharField(max_length=10, blank=True)
     assigned_bus: "models.ForeignKey[Bus]" = models.ForeignKey(  # type: ignore[misc]
@@ -71,9 +77,7 @@ class Student(models.Model):
     class Meta:
         db_table = "students"
         indexes = [
-            models.Index(
-                fields=["school", "status"], name="idx_students_school_status"
-            ),
+            models.Index(fields=["school", "status"], name="idx_students_school_status"),
             models.Index(
                 fields=["assigned_bus"],
                 condition=models.Q(status="active"),
@@ -86,9 +90,7 @@ class Student(models.Model):
 
     def clean(self):
         if self.status not in dict(self.STATUS_CHOICES):
-            raise ValidationError(
-                INVALID_STATUS_FORMAT.format(INVALID_STATUS_ERROR, self.status)
-            )
+            raise ValidationError(INVALID_STATUS_FORMAT.format(INVALID_STATUS_ERROR, self.status))
 
     @property
     def encrypted_name(self):
@@ -133,7 +135,9 @@ class StudentPhoto(models.Model):
     student: models.ForeignKey = models.ForeignKey(
         Student, on_delete=models.CASCADE, related_name="photos"
     )
-    photo_url: models.TextField = models.TextField(help_text="S3 path to student photo")
+    photo: models.ImageField = models.ImageField(
+        upload_to=student_photo_path, blank=True, null=True, help_text="Student photo file"
+    )
     is_primary: models.BooleanField = models.BooleanField(
         default=False, help_text="Primary photo for student"
     )
@@ -150,7 +154,7 @@ class StudentPhoto(models.Model):
 
     def __str__(self):
         photo_type = "primary" if self.is_primary else "secondary"
-        return f"Photo for {self.student} ({photo_type})"
+        return f"Photo for {self.student} ({photo_type}) - {self.photo.name if self.photo else 'No file'}"
 
     def save(self, *args, **kwargs):
         # Ensure only one primary photo per student
@@ -171,7 +175,7 @@ class Parent(models.Model):
     """
 
     # Validation constants (Fortune 500 standard)
-    PHONE_REGEX = r'^\+91\d{10}$'  # +91 followed by exactly 10 digits
+    PHONE_REGEX = r"^\+91\d{10}$"  # +91 followed by exactly 10 digits
     EMAIL_MAX_LENGTH = 254  # RFC 5321 standard
     NAME_MAX_LENGTH = 100  # Reasonable human name limit
 
@@ -179,12 +183,10 @@ class Parent(models.Model):
         primary_key=True, default=uuid.uuid4, editable=False
     )
     phone: models.TextField = models.TextField(
-        unique=True,
-        help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)"
+        unique=True, help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)"
     )
     email: models.TextField = models.TextField(
-        unique=True,
-        help_text="Encrypted email address (plaintext validated per RFC 5321)"
+        unique=True, help_text="Encrypted email address (plaintext validated per RFC 5321)"
     )
     name: models.TextField = models.TextField(
         help_text="Encrypted name (plaintext validated max 100 chars)"
@@ -210,9 +212,9 @@ class Parent(models.Model):
         try:
             plaintext_phone = self.encrypted_phone
             if not re.match(self.PHONE_REGEX, plaintext_phone):
-                raise ValidationError({
-                    'phone': f'Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)'
-                })
+                raise ValidationError(
+                    {"phone": f"Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)"}
+                )
         except Exception:
             pass  # Skip validation if not yet set or decryption fails
 
@@ -220,9 +222,9 @@ class Parent(models.Model):
         try:
             plaintext_email = self.encrypted_email
             if len(plaintext_email) > self.EMAIL_MAX_LENGTH:
-                raise ValidationError({
-                    'email': f'Email too long (max {self.EMAIL_MAX_LENGTH} characters)'
-                })
+                raise ValidationError(
+                    {"email": f"Email too long (max {self.EMAIL_MAX_LENGTH} characters)"}
+                )
             django_validate_email(plaintext_email)
         except Exception:
             pass  # Skip validation if not yet set or decryption fails
@@ -231,9 +233,9 @@ class Parent(models.Model):
         try:
             plaintext_name = self.encrypted_name
             if len(plaintext_name) > self.NAME_MAX_LENGTH:
-                raise ValidationError({
-                    'name': f'Name too long (max {self.NAME_MAX_LENGTH} characters)'
-                })
+                raise ValidationError(
+                    {"name": f"Name too long (max {self.NAME_MAX_LENGTH} characters)"}
+                )
         except Exception:
             pass  # Skip validation if not yet set or decryption fails
 
@@ -257,9 +259,10 @@ class Parent(models.Model):
 
         # VALIDATE BEFORE ENCRYPTION (critical!)
         import re
+
         if not re.match(self.PHONE_REGEX, value):
             raise ValidationError(
-                f'Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)'
+                f"Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)"
             )
 
         # ENCRYPT AFTER VALIDATION
@@ -286,10 +289,9 @@ class Parent(models.Model):
 
         # VALIDATE BEFORE ENCRYPTION (critical!)
         from django.core.validators import validate_email as django_validate_email
+
         if len(value) > self.EMAIL_MAX_LENGTH:
-            raise ValidationError(
-                f'Email too long (max {self.EMAIL_MAX_LENGTH} characters)'
-            )
+            raise ValidationError(f"Email too long (max {self.EMAIL_MAX_LENGTH} characters)")
         django_validate_email(value)  # Raises ValidationError if invalid
 
         # ENCRYPT AFTER VALIDATION
@@ -316,9 +318,7 @@ class Parent(models.Model):
 
         # VALIDATE BEFORE ENCRYPTION (critical!)
         if len(value) > self.NAME_MAX_LENGTH:
-            raise ValidationError(
-                f'Name too long (max {self.NAME_MAX_LENGTH} characters)'
-            )
+            raise ValidationError(f"Name too long (max {self.NAME_MAX_LENGTH} characters)")
 
         # ENCRYPT AFTER VALIDATION
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
@@ -346,9 +346,7 @@ class StudentParent(models.Model):
     parent: models.ForeignKey = models.ForeignKey(
         Parent, on_delete=models.CASCADE, related_name="student_parents"
     )
-    relationship: models.CharField = models.CharField(
-        max_length=50, choices=RELATIONSHIP_CHOICES
-    )
+    relationship: models.CharField = models.CharField(max_length=50, choices=RELATIONSHIP_CHOICES)
     is_primary: models.BooleanField = models.BooleanField(default=False)
 
     class Meta:
@@ -395,9 +393,7 @@ class FaceEmbeddingMetadata(models.Model):
     is_primary: models.BooleanField = models.BooleanField(
         default=False, help_text="Primary embedding for this photo"
     )
-    captured_at: models.DateTimeField = models.DateTimeField(
-        help_text="When the face was captured"
-    )
+    captured_at: models.DateTimeField = models.DateTimeField(help_text="When the face was captured")
     created_at: models.DateTimeField = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -410,9 +406,7 @@ class FaceEmbeddingMetadata(models.Model):
         ]
 
     def __str__(self):
-        return (
-            f"Face embedding for {self.student_photo} (quality: {self.quality_score})"
-        )
+        return f"Face embedding for {self.student_photo} (quality: {self.quality_score})"
 
     def clean(self):
         if not (0 <= self.quality_score <= 1):

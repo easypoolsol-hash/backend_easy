@@ -28,6 +28,7 @@ services:
       - ALLOWED_HOSTS=localhost,127.0.0.1,testserver
     volumes:
       - ./app:/app  # Mount Django source code for live reloading
+      - ../seed_data:/app/seed_data  # Mount seed data for seeding
       - staticfiles:/app/staticfiles
       - media:/app/media
       - logs:/app/logs

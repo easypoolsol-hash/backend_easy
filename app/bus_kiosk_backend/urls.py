@@ -16,6 +16,8 @@ Including another URLconf
 """
 
 from django.apps import apps
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -175,3 +177,7 @@ urlpatterns.extend(
         path("api/auth/status/", auth_status, name="auth_status"),  # type: ignore[list-item]
     ]
 )
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
