@@ -136,7 +136,10 @@ class StudentPhoto(models.Model):
         Student, on_delete=models.CASCADE, related_name="photos"
     )
     photo: models.ImageField = models.ImageField(
-        upload_to=student_photo_path, blank=True, null=True, help_text="Student photo file"
+        upload_to=student_photo_path,
+        blank=True,
+        null=True,
+        help_text="Student photo file",
     )
     is_primary: models.BooleanField = models.BooleanField(
         default=False, help_text="Primary photo for student"
@@ -183,10 +186,12 @@ class Parent(models.Model):
         primary_key=True, default=uuid.uuid4, editable=False
     )
     phone: models.TextField = models.TextField(
-        unique=True, help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)"
+        unique=True,
+        help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)",
     )
     email: models.TextField = models.TextField(
-        unique=True, help_text="Encrypted email address (plaintext validated per RFC 5321)"
+        unique=True,
+        help_text="Encrypted email address (plaintext validated per RFC 5321)",
     )
     name: models.TextField = models.TextField(
         help_text="Encrypted name (plaintext validated max 100 chars)"
@@ -206,6 +211,7 @@ class Parent(models.Model):
     def clean(self):
         """Validate plaintext data BEFORE encryption (Fortune 500 pattern)"""
         import re
+
         from django.core.validators import validate_email as django_validate_email
 
         # Validate phone format (must be decrypted first if already encrypted)

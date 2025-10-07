@@ -1,12 +1,10 @@
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from students.models import Student
 
 from .models import Bus, Route
@@ -18,14 +16,11 @@ class RouteViewSet(viewsets.ModelViewSet):
 
     queryset = Route.objects.prefetch_related("buses").order_by("name")
     serializer_class = RouteSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["is_active"]
 
-    def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsSchoolAdmin()]
-        return [IsAuthenticated()]
+    # Removed get_permissions() - all actions require IsSchoolAdmin
 
     @action(detail=True, methods=["get"], url_path="buses")
     def route_buses(self, request, pk=None):
@@ -66,14 +61,11 @@ class BusViewSet(viewsets.ModelViewSet):
         .order_by("license_plate")
     )
     serializer_class = BusSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["route", "status", "device_id"]
 
-    def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsSchoolAdmin()]
-        return [IsAuthenticated()]
+    # Removed get_permissions() - all actions require IsSchoolAdmin
 
     @action(detail=True, methods=["get"], url_path="students")
     def bus_students(self, request, pk=None):
@@ -148,9 +140,7 @@ class BusViewSet(viewsets.ModelViewSet):
         # Summary stats
         total_capacity = sum(b["capacity"] for b in data)
         total_assigned = sum(b["assigned_students"] for b in data)
-        overall_utilization = (
-            (total_assigned / total_capacity * 100) if total_capacity > 0 else 0
-        )
+        overall_utilization = (total_assigned / total_capacity * 100) if total_capacity > 0 else 0
 
         return Response(
             {

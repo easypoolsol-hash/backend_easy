@@ -12,9 +12,8 @@ Uses OpenAPI schema to automatically validate ALL endpoints.
 
 import pytest
 import schemathesis
-from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from tests.factories import BusFactory, KioskFactory, StudentFactory, UserFactory
+from tests.factories import BusFactory, KioskFactory, UserFactory
 
 # Load OpenAPI schema (single source of truth)
 schema = schemathesis.from_path("schema.yaml")
@@ -214,7 +213,6 @@ class TestKioskSyncWorkflow:
         # Setup
         bus = BusFactory()
         kiosk = KioskFactory(bus=bus)
-        student = StudentFactory(assigned_bus=bus)
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
         token = get_kiosk_token(kiosk)

@@ -14,43 +14,40 @@ class TestKioskAPIAuthentication:
 
     def test_kiosk_heartbeat_with_valid_token(self, api_client, test_kiosk):
         """Test kiosk heartbeat with valid JWT token"""
-        kiosk, api_key = test_kiosk
+        kiosk, activation_token = test_kiosk
 
-        # 1. Authenticate and get token
+        # 1. Activate kiosk and get token
         auth_response = api_client.post(
-            '/api/v1/auth/',
-            {'kiosk_id': kiosk.kiosk_id, 'api_key': api_key},
-            format='json'
+            "/api/v1/kiosks/activate/",
+            {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
+            format="json",
         )
-        token = auth_response.data['access']
+        token = auth_response.json()["access"]
 
         # 2. Use token to send heartbeat
         response = api_client.post(
-            '/api/v1/heartbeat/',
+            "/api/v1/heartbeat/",
             {
-                'kiosk_id': kiosk.kiosk_id,
-                'battery_level': 85,
-                'firmware_version': '1.0.0'
+                "kiosk_id": kiosk.kiosk_id,
+                "battery_level": 85,
+                "firmware_version": "1.0.0",
             },
-            HTTP_AUTHORIZATION=f'Bearer {token}',
-            format='json'
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            format="json",
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data['status'] == 'ok'
-        assert response.data['kiosk_id'] == kiosk.kiosk_id
+        assert response.data["status"] == "ok"
+        assert response.data["kiosk_id"] == kiosk.kiosk_id
 
     def test_kiosk_heartbeat_without_token(self, api_client, test_kiosk):
         """Test kiosk heartbeat fails without token"""
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            '/api/v1/heartbeat/',
-            {
-                'kiosk_id': kiosk.kiosk_id,
-                'battery_level': 85
-            },
-            format='json'
+            "/api/v1/heartbeat/",
+            {"kiosk_id": kiosk.kiosk_id, "battery_level": 85},
+            format="json",
         )
 
         # DRF returns 401 Unauthorized when authentication is missing
@@ -63,10 +60,10 @@ class TestKioskAPIAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            '/api/v1/heartbeat/',
-            {'kiosk_id': kiosk.kiosk_id},
-            HTTP_AUTHORIZATION='Bearer invalid-token-format',
-            format='json'
+            "/api/v1/heartbeat/",
+            {"kiosk_id": kiosk.kiosk_id},
+            HTTP_AUTHORIZATION="Bearer invalid-token-format",
+            format="json",
         )
 
         # DRF returns 401 Unauthorized for invalid tokens
@@ -78,15 +75,12 @@ class TestKioskAPIAuthentication:
 
         # authenticated_client has a USER token, not kiosk token
         response = authenticated_client.post(
-            '/api/v1/heartbeat/',
-            {
-                'kiosk_id': kiosk.kiosk_id,
-                'battery_level': 85
-            },
-            format='json'
+            "/api/v1/heartbeat/",
+            {"kiosk_id": kiosk.kiosk_id, "battery_level": 85},
+            format="json",
         )
 
-        # force_authenticate bypasses auth, but view rejects User objects (403 Forbidden)
+        # force_authenticate bypasses auth, but view rejects User objects
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -96,10 +90,10 @@ class TestHealthEndpoint:
 
     def test_health_endpoint_accessible(self, api_client):
         """Test health endpoint is accessible without auth"""
-        response = api_client.get('/health/')
+        response = api_client.get("/health/")
 
         assert response.status_code == status.HTTP_200_OK
         # Health endpoint returns Django JsonResponse, not DRF Response
         data = response.json()
-        assert 'status' in data
-        assert data['status'] == 'healthy'
+        assert "status" in data
+        assert data["status"] == "healthy"

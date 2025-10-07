@@ -9,9 +9,7 @@ class KioskSerializer(serializers.ModelSerializer):
     """Serializer for kiosks"""
 
     bus = serializers.CharField(source="bus.bus_id", read_only=True)
-    bus_license_plate = serializers.CharField(
-        source="bus.license_plate", read_only=True
-    )
+    bus_license_plate = serializers.CharField(source="bus.license_plate", read_only=True)
     status_display = serializers.ReadOnlyField()
     is_online = serializers.ReadOnlyField()
     battery_level = serializers.FloatField(required=False)
@@ -60,7 +58,7 @@ class KioskHeartbeatSerializer(serializers.Serializer):
         Prevents token reuse attacks.
         """
         # Get authenticated kiosk from context (set by view from request.user)
-        authenticated_kiosk = self.context.get('kiosk')
+        authenticated_kiosk = self.context.get("kiosk")
 
         if authenticated_kiosk and value and value != authenticated_kiosk.kiosk_id:
             # Security violation: JWT token doesn't match kiosk_id in request
@@ -88,16 +86,6 @@ class DeviceLogSerializer(serializers.ModelSerializer):
         read_only_fields = ["log_id", "timestamp"]
 
 
-class KioskStatusSerializer(serializers.Serializer):
-    """Serializer for kiosk status summary"""
-
-    total_kiosks = serializers.IntegerField()
-    active_kiosks = serializers.IntegerField()
-    online_kiosks = serializers.IntegerField()
-    offline_kiosks = serializers.IntegerField()
-    kiosks = KioskSerializer(many=True)
-
-
 class KioskAuthSerializer(serializers.Serializer):
     """
     Serializer for kiosk authentication
@@ -113,19 +101,19 @@ class KioskAuthSerializer(serializers.Serializer):
         max_length=100,
         required=True,
         error_messages={
-            'required': 'Kiosk ID is required',
-            'blank': 'Kiosk ID cannot be blank',
-            'max_length': 'Kiosk ID too long (max 100 characters)'
-        }
+            "required": "Kiosk ID is required",
+            "blank": "Kiosk ID cannot be blank",
+            "max_length": "Kiosk ID too long (max 100 characters)",
+        },
     )
     api_key = serializers.CharField(
         max_length=255,
         required=True,
         write_only=True,  # Never return API key in response
         error_messages={
-            'required': 'API key is required',
-            'blank': 'API key cannot be blank',
-        }
+            "required": "API key is required",
+            "blank": "API key cannot be blank",
+        },
     )
 
     def validate(self, attrs):
@@ -138,32 +126,29 @@ class KioskAuthSerializer(serializers.Serializer):
         3. Verify kiosk is active
         4. Store kiosk object in context for view
         """
-        kiosk_id = attrs.get('kiosk_id')
-        api_key = attrs.get('api_key')
+        kiosk_id = attrs.get("kiosk_id")
+        api_key = attrs.get("api_key")
 
         # Hash API key (same method as during kiosk creation)
         api_key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
         # Attempt to find kiosk with matching credentials
         try:
-            kiosk = Kiosk.objects.select_related('bus').get(
-                kiosk_id=kiosk_id,
-                api_key_hash=api_key_hash
+            kiosk = Kiosk.objects.select_related("bus").get(
+                kiosk_id=kiosk_id, api_key_hash=api_key_hash
             )
         except Kiosk.DoesNotExist as e:
             # Security: Use generic error message (don't reveal if kiosk_id exists)
-            raise serializers.ValidationError(
-                {'detail': 'Invalid kiosk credentials'}
-            ) from e
+            raise serializers.ValidationError({"detail": "Invalid kiosk credentials"}) from e
 
         # Verify kiosk is active
         if not kiosk.is_active:
             raise serializers.ValidationError(
-                {'detail': 'Kiosk is inactive. Contact administrator.'}
+                {"detail": "Kiosk is inactive. Contact administrator."}
             )
 
         # Store kiosk in context for view to use
-        self.context['kiosk'] = kiosk
+        self.context["kiosk"] = kiosk
 
         return attrs
 
@@ -181,9 +166,7 @@ class KioskAuthResponseSerializer(serializers.Serializer):
 class CheckUpdatesSerializer(serializers.Serializer):
     """Serializer for check updates request"""
 
-    last_sync = serializers.DateTimeField(
-        required=True, help_text="Last sync timestamp from kiosk"
-    )
+    last_sync = serializers.DateTimeField(required=True, help_text="Last sync timestamp from kiosk")
 
 
 class CheckUpdatesResponseSerializer(serializers.Serializer):
@@ -192,16 +175,10 @@ class CheckUpdatesResponseSerializer(serializers.Serializer):
     needs_update = serializers.BooleanField(
         help_text="Whether kiosk needs to download new snapshot"
     )
-    current_version = serializers.CharField(
-        help_text="Current database version timestamp"
-    )
+    current_version = serializers.CharField(help_text="Current database version timestamp")
     student_count = serializers.IntegerField(help_text="Number of students for this bus")
-    embedding_count = serializers.IntegerField(
-        help_text="Number of embeddings for this bus"
-    )
-    content_hash = serializers.CharField(
-        help_text="Content hash for integrity verification"
-    )
+    embedding_count = serializers.IntegerField(help_text="Number of embeddings for this bus")
+    content_hash = serializers.CharField(help_text="Content hash for integrity verification")
 
 
 class SnapshotResponseSerializer(serializers.Serializer):
@@ -220,13 +197,9 @@ class HealthDataSerializer(serializers.Serializer):
         required=False, min_value=0, max_value=100, allow_null=True
     )
     is_charging = serializers.BooleanField(default=False)
-    storage_available_mb = serializers.IntegerField(
-        required=False, min_value=0, allow_null=True
-    )
+    storage_available_mb = serializers.IntegerField(required=False, min_value=0, allow_null=True)
     camera_active = serializers.BooleanField(default=False)
-    network_type = serializers.CharField(
-        required=False, max_length=20, allow_null=True
-    )
+    network_type = serializers.CharField(required=False, max_length=20, allow_null=True)
     app_version = serializers.CharField(required=False, max_length=20, allow_null=True)
     last_face_detected_ago_min = serializers.IntegerField(
         required=False, min_value=0, allow_null=True
@@ -243,12 +216,13 @@ class HeartbeatSerializer(serializers.Serializer):
         max_length=50, help_text="Current database version on kiosk"
     )
     database_hash = serializers.CharField(
-        max_length=32, required=False, allow_blank=True, help_text="Database content hash"
+        max_length=32,
+        required=False,
+        allow_blank=True,
+        help_text="Database content hash",
     )
     student_count = serializers.IntegerField(min_value=0, help_text="Students in DB")
-    embedding_count = serializers.IntegerField(
-        min_value=0, help_text="Embeddings in DB"
-    )
+    embedding_count = serializers.IntegerField(min_value=0, help_text="Embeddings in DB")
     health = HealthDataSerializer(required=False)
 
 

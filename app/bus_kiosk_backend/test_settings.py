@@ -5,6 +5,8 @@ Uses SQLite for faster testing instead of PostgreSQL.
 
 from pathlib import Path
 
+import django
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -41,14 +43,16 @@ DATABASES = {
     }
 }
 
-# Basic middleware for tests
+# Allowed hosts for testing
+ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
+
+# Basic middleware for tests - minimal set (NO CSRF for API testing)
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Removed CSRF middleware - APIs use token auth, not session + CSRF
+    # Removed AuthenticationMiddleware for tests
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -75,8 +79,28 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
 
-# Valid Fernet key for encryption tests (32 url-safe base64 bytes)
-ENCRYPTION_KEY = "ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg="
+# REST Framework settings for tests - OVERRIDE global authentication
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": [],  # No global authentication for tests
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
+}
+
+# Encryption key for PII data (test key)
+ENCRYPTION_KEY = "NktQAERTtbDEW5ZiIWXy8BEpOVzUWhrTc7elWaaYIY0="
+
+# Debug print to verify settings are loaded
+print("TEST SETTINGS LOADED - REST_FRAMEWORK:", REST_FRAMEWORK)
+if django.apps.apps.ready:
+    from django.conf import settings
+
+    print("RUNTIME REST_FRAMEWORK:", settings.REST_FRAMEWORK)
 
 # Disable Celery during tests
 CELERY_TASK_ALWAYS_EAGER = True
@@ -106,3 +130,6 @@ LOGGING = {
         "level": "WARNING",
     },
 }
+
+# Fix media URL for tests (don't serve all URLs as media files!)
+MEDIA_URL = "/media/"

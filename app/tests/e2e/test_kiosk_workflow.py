@@ -24,54 +24,51 @@ class TestKioskWorkflow:
 
         # Step 1: Authenticate
         auth_response = api_client.post(
-            '/api/v1/auth/',
-            {
-                'kiosk_id': kiosk.kiosk_id,
-                'api_key': api_key
-            },
-            format='json'
+            "/api/v1/auth/",
+            {"kiosk_id": kiosk.kiosk_id, "api_key": api_key},
+            format="json",
         )
 
         assert auth_response.status_code == status.HTTP_200_OK
-        assert 'access' in auth_response.data
-        token = auth_response.data['access']
+        assert "access" in auth_response.data
+        token = auth_response.data["access"]
 
         # Step 2: Send heartbeat with token
         heartbeat_response = api_client.post(
-            '/api/v1/heartbeat/',
+            "/api/v1/heartbeat/",
             {
-                'kiosk_id': kiosk.kiosk_id,
-                'battery_level': 90,
-                'firmware_version': '1.0.0',
-                'storage_used_mb': 512
+                "kiosk_id": kiosk.kiosk_id,
+                "battery_level": 90,
+                "firmware_version": "1.0.0",
+                "storage_used_mb": 512,
             },
-            HTTP_AUTHORIZATION=f'Bearer {token}',
-            format='json'
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            format="json",
         )
 
         assert heartbeat_response.status_code == status.HTTP_200_OK
-        assert heartbeat_response.data['status'] == 'ok'
+        assert heartbeat_response.data["status"] == "ok"
 
         # Step 3: Send device log with token
         log_response = api_client.post(
-            '/api/v1/log/',
+            "/api/v1/log/",
             {
-                'kiosk_id': kiosk.kiosk_id,
-                'logs': [
+                "kiosk_id": kiosk.kiosk_id,
+                "logs": [
                     {
-                        'level': 'INFO',
-                        'message': 'Kiosk started successfully',
-                        'metadata': {'version': '1.0.0'}
+                        "level": "INFO",
+                        "message": "Kiosk started successfully",
+                        "metadata": {"version": "1.0.0"},
                     }
-                ]
+                ],
             },
-            HTTP_AUTHORIZATION=f'Bearer {token}',
-            format='json'
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+            format="json",
         )
 
         assert log_response.status_code == status.HTTP_200_OK
-        assert log_response.data['status'] == 'ok'
-        assert log_response.data['logged_count'] == 1
+        assert log_response.data["status"] == "ok"
+        assert log_response.data["logged_count"] == 1
 
         # Verify workflow completed successfully
         assert True  # All steps passed
@@ -82,12 +79,9 @@ class TestKioskWorkflow:
 
         # Try heartbeat without auth
         response = api_client.post(
-            '/api/v1/heartbeat/',
-            {
-                'kiosk_id': kiosk.kiosk_id,
-                'battery_level': 90
-            },
-            format='json'
+            "/api/v1/heartbeat/",
+            {"kiosk_id": kiosk.kiosk_id, "battery_level": 90},
+            format="json",
         )
 
         # DRF returns 401 Unauthorized when authentication is missing

@@ -8,7 +8,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from kiosks.services.snapshot_generator import SnapshotGenerator
 from tests.factories import BusFactory, StudentFactory
 
@@ -54,7 +53,7 @@ class TestSnapshotGenerator:
     def test_snapshot_has_valid_metadata(self):
         """CRITICAL: Snapshot must include sync metadata"""
         bus = BusFactory()
-        student = StudentFactory(assigned_bus=bus)
+        StudentFactory(assigned_bus=bus)
 
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
         snapshot_bytes, metadata = generator.generate()
@@ -92,7 +91,6 @@ class TestSnapshotGenerator:
     def test_snapshot_sqlite_integrity(self):
         """CRITICAL: Generated SQLite must pass integrity check"""
         bus = BusFactory()
-        student = StudentFactory(assigned_bus=bus)
 
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
         snapshot_bytes, _ = generator.generate()

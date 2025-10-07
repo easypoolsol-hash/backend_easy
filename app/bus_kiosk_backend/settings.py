@@ -18,8 +18,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-from datetime import timedelta
 import os
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -108,6 +108,7 @@ INSTALLED_APPS = [
     # Third-party apps
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # For token rotation security
     "drf_spectacular",  # OpenAPI schema generation
     "drf_spectacular_sidecar",  # Self-hosted Swagger UI assets
     "corsheaders",  # CORS handling
@@ -132,10 +133,11 @@ AUTH_USER_MODEL = "users.User"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "kiosks.authentication.KioskJWTAuthentication",  # Custom kiosk authentication
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "bus_kiosk_backend.permissions.DenyByDefault",  # AWS-style: Deny unless explicitly allowed
     ],
     "DEFAULT_PAGINATION_CLASS": ("rest_framework.pagination.PageNumberPagination"),
     "PAGE_SIZE": 20,
@@ -168,14 +170,24 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "bus_kiosk_backend.exceptions.custom_exception_handler",
 }
 
-# JWT settings
+# JWT settings for Secure Kiosk Authentication
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    # Access Token (Short-lived for security - if stolen, only works 15 min)
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    # Refresh Token (60 days for 2-month holidays - kiosk autonomy)
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
+    # Token Rotation (Security - old tokens become garbage every 14 min)
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    # Algorithm and signing
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    # Token claims
+    "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "user_id",  # Custom User model uses user_id instead of id
     "USER_ID_CLAIM": "user_id",  # Include user_id in JWT payload
+    # Blacklist checks (detects token reuse attacks)
+    "BLACKLIST_TOKEN_CHECKS": ["refresh"],
 }
 
 # Celery Configuration
@@ -443,6 +455,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": ("django.contrib.auth.password_validation.NumericPasswordValidator"),
     },
+]
+
+# Password Hashing (Argon2 Only - No Fallbacks for Maximum Security)
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",  # Only hasher
 ]
 
 

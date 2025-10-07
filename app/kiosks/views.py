@@ -1,145 +1,134 @@
 import hashlib
 from datetime import timedelta
 
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+
+# type: ignore[import-not-found]
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
-from rest_framework.decorators import action, api_view, authentication_classes, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import (
+    action,
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
 
-from bus_kiosk_backend.authentication import KioskJWTAuthentication
-from bus_kiosk_backend.permissions import IsKiosk, IsSchoolAdmin
-
+from .authentication import KioskJWTAuthentication, activate_kiosk
 from .models import DeviceLog, Kiosk, KioskStatus
+from .permissions import IsKiosk
 from .serializers import (
     CheckUpdatesResponseSerializer,
     CheckUpdatesSerializer,
     DeviceLogSerializer,
     HeartbeatSerializer,
-    KioskAuthResponseSerializer,
-    KioskAuthSerializer,
     KioskHeartbeatSerializer,
     KioskSerializer,
-    KioskStatusSerializer as KioskStatusModelSerializer,
+    KioskStatusSerializer,
     SnapshotResponseSerializer,
 )
 from .services import SnapshotGenerator
-from .utils import calculate_checksum
 
 
-@extend_schema(
-    request=KioskAuthSerializer,
-    responses={
-        200: KioskAuthResponseSerializer,
-        400: OpenApiResponse(description='Invalid request'),
-    },
-    description='Authenticate kiosk device and receive JWT tokens'
-)
-@api_view(['POST'])
-@permission_classes([AllowAny])
-def kiosk_auth(request):
+def calculate_checksum(data: bytes) -> str:
+    """Calculate SHA-256 checksum of data."""
+    return hashlib.sha256(data).hexdigest()
+
+
+# Plain Django view that bypasses DRF permission system entirely
+def activate_kiosk_view(request):
     """
-    Kiosk authentication endpoint (Fortune 500 implementation)
+    One-time kiosk activation endpoint.
 
-    Authenticates kiosk devices and returns JWT tokens for API access.
+    Activates a kiosk using a disposable activation token.
+    After activation, the token becomes garbage and cannot be reused.
 
     **Request:**
     ```json
-    POST /api/kiosks/auth/
+    POST /api/v1/kiosks/activate/
     {
-        "kiosk_id": "TEST-KIOSK-001",
-        "api_key": "test-api-key-12345"
+        "kiosk_id": "KIOSK-SCHOOL-001",
+        "activation_token": "8Jz4Y-x9K2mQ_r5WvLp3NcTg7HfB6DsA1eU0oI9j8Xw"
     }
     ```
 
     **Success Response (200):**
     ```json
     {
-        "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "message": "Kiosk activated successfully",
         "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "kiosk_id": "TEST-KIOSK-001",
-        "bus_id": "uuid-of-bus",
-        "expires_in": 86400
+        "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "kiosk_id": "KIOSK-SCHOOL-001",
+        "activation_token_destroyed": true
     }
     ```
 
-    **Error Responses:**
-    - 400: Invalid request format
-    - 401: Invalid credentials or inactive kiosk
-
     **Security Features:**
-    - API key hashed using SHA-256
-    - Generic error messages (no info leakage)
-    - JWT tokens with configurable expiry
-    - Validates kiosk active status
+    - One-time use activation tokens
+    - Tokens become garbage after first use
+    - Prevents WhatsApp leak exploitation
+    - 60-day rotating refresh tokens
+    - 15-minute access tokens
     """
-    serializer = KioskAuthSerializer(data=request.data)
+    import json
 
-    if not serializer.is_valid():
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+    from django.http import JsonResponse
 
-    # Get authenticated kiosk from serializer context
-    kiosk = serializer.context['kiosk']
+    if request.method != "POST":
+        return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    # Generate JWT tokens (Fortune 500 pattern: separate access + refresh)
-    refresh = RefreshToken()
-    refresh['kiosk_id'] = kiosk.kiosk_id
-    refresh['type'] = 'kiosk'  # Token type for permission checking
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    # Log successful authentication
-    DeviceLog.log(
-        kiosk=kiosk,
-        level='INFO',
-        message='Kiosk authenticated successfully',
-        metadata={
-            'ip_address': request.META.get('REMOTE_ADDR'),
-            'user_agent': request.META.get('HTTP_USER_AGENT'),
-        }
-    )
+    kiosk_id = data.get("kiosk_id")
+    activation_token = data.get("activation_token")
 
-    # Update last heartbeat
-    kiosk.last_heartbeat = timezone.now()
-    kiosk.save(update_fields=['last_heartbeat'])
+    if not kiosk_id or not activation_token:
+        return JsonResponse({"error": "kiosk_id and activation_token are required"}, status=400)
 
-    # Build response
+    try:
+        result = activate_kiosk(kiosk_id, activation_token)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+    # Prepare response data
     response_data = {
-        'access': str(refresh.access_token),
-        'refresh': str(refresh),
-        'kiosk_id': kiosk.kiosk_id,
-        'bus_id': kiosk.bus.bus_id if kiosk.bus else None,
-        'expires_in': 86400  # 24 hours in seconds
+        "message": result["message"],
+        "refresh": result["refresh_token"],
+        "access": result["access_token"],
+        "kiosk_id": result["kiosk"].kiosk_id,
+        "activation_token_destroyed": True,
     }
 
-    # Validate response structure
-    response_serializer = KioskAuthResponseSerializer(data=response_data)
-    response_serializer.is_valid(raise_exception=True)
-
-    return Response(
-        response_serializer.data,
-        status=status.HTTP_200_OK
+    # Log successful activation
+    DeviceLog.log(
+        kiosk=result["kiosk"],
+        level="INFO",
+        message="Kiosk activated successfully",
+        metadata={
+            "ip_address": request.META.get("REMOTE_ADDR"),
+            "user_agent": request.META.get("HTTP_USER_AGENT"),
+        },
     )
+
+    return JsonResponse(response_data, status=200)
 
 
 class KioskViewSet(viewsets.ModelViewSet):
-    """ViewSet for kiosk management"""
+    """ViewSet for kiosk management (admin only)"""
 
     queryset = Kiosk.objects.select_related("bus").order_by("kiosk_id")
     serializer_class = KioskSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["is_active", "bus"]
 
-    def get_permissions(self):
-        if self.action in ["create", "update", "partial_update", "destroy"]:
-            return [IsSchoolAdmin()]
-        return [IsAuthenticated()]
+    # All kiosk management requires school admin - no public access
 
     @action(detail=True, methods=["get"], url_path="logs")
     def kiosk_logs(self, request, pk=None):
@@ -160,9 +149,7 @@ class KioskViewSet(viewsets.ModelViewSet):
 
         # Online = active kiosks with recent heartbeat (last 5 minutes)
         five_minutes_ago = timezone.now() - timedelta(minutes=5)
-        online = kiosks.filter(
-            is_active=True, last_heartbeat__gte=five_minutes_ago
-        ).count()
+        online = kiosks.filter(is_active=True, last_heartbeat__gte=five_minutes_ago).count()
 
         offline = active - online
 
@@ -181,9 +168,14 @@ class KioskViewSet(viewsets.ModelViewSet):
         return Response(summary_serializer.data)
 
 
+@extend_schema(
+    request=KioskHeartbeatSerializer,
+    responses={200: KioskSerializer},
+    description="Kiosk heartbeat endpoint for device status reporting",
+)
 @api_view(["POST"])
 @authentication_classes([KioskJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsKiosk])
 def kiosk_heartbeat(request):
     """
     Kiosk heartbeat endpoint - called by devices to report status.
@@ -200,12 +192,12 @@ def kiosk_heartbeat(request):
     # Security check: Ensure request.user is actually a Kiosk (not a User)
     if not isinstance(kiosk, Kiosk):
         return Response(
-            {'detail': 'Authentication credentials are not valid for kiosk endpoints'},
-            status=status.HTTP_403_FORBIDDEN
+            {"detail": "Authentication credentials are not valid for kiosk endpoints"},
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     # Pass kiosk to serializer for optional security check
-    serializer = KioskHeartbeatSerializer(data=request.data, context={'kiosk': kiosk})
+    serializer = KioskHeartbeatSerializer(data=request.data, context={"kiosk": kiosk})
     serializer.is_valid(raise_exception=True)
 
     # Update kiosk with heartbeat data
@@ -232,14 +224,17 @@ def kiosk_heartbeat(request):
         },
     )
 
-    return Response(
-        {"status": "ok", "kiosk_id": kiosk.kiosk_id, "timestamp": timezone.now()}
-    )
+    return Response({"status": "ok", "kiosk_id": kiosk.kiosk_id, "timestamp": timezone.now()})
 
 
+@extend_schema(
+    request=DeviceLogSerializer,
+    responses={200: {"type": "object", "properties": {"status": {"type": "string"}}}},
+    description="Kiosk logging endpoint for device log submission",
+)
 @api_view(["POST"])
 @authentication_classes([KioskJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsKiosk])
 def kiosk_log(request):
     """
     Kiosk logging endpoint - devices can send log messages.
@@ -256,8 +251,8 @@ def kiosk_log(request):
     # Security check: Ensure request.user is actually a Kiosk (not a User)
     if not isinstance(kiosk, Kiosk):
         return Response(
-            {'detail': 'Authentication credentials are not valid for kiosk endpoints'},
-            status=status.HTTP_403_FORBIDDEN
+            {"detail": "Authentication credentials are not valid for kiosk endpoints"},
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     logs_data = request.data.get("logs", [])
@@ -277,41 +272,25 @@ def kiosk_log(request):
                 log_level=log_data.get("level", "INFO"),
                 message=log_data.get("message", ""),
                 metadata=log_data.get("metadata", {}),
-                timestamp=log_data.get("timestamp")
-                or timezone.now(),  # Explicitly set timestamp
+                timestamp=log_data.get("timestamp") or timezone.now(),  # Explicitly set timestamp
             )
         )
 
     DeviceLog.objects.bulk_create(log_entries)
 
-    return Response(
-        {"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id}
-    )
+    return Response({"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id})
 
 
 class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only ViewSet for device logs"""
+    """Read-only ViewSet for device logs (admin only)"""
 
     queryset = DeviceLog.objects.select_related("kiosk").order_by("-timestamp")
     serializer_class = DeviceLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk", "log_level", "timestamp"]
 
-    def get_queryset(self):
-        """Filter logs based on user permissions"""
-        queryset = super().get_queryset()
-
-        if hasattr(self.request.user, "role"):
-            if self.request.user.role == "school_admin":
-                # School admins can see all logs
-                pass
-            else:
-                # Other users can only see logs from kiosks they have access to
-                # This would need more complex permission logic
-                pass
-
-        return queryset
+    # Only school admins can view device logs
 
     @action(detail=False, methods=["get"], url_path="summary")
     def logs_summary(self, request):
@@ -331,12 +310,13 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 # Sync Endpoints
 
+
 @extend_schema(
     parameters=[CheckUpdatesSerializer],
     responses={200: CheckUpdatesResponseSerializer},
-    description='Check if kiosk needs database update'
+    description="Check if kiosk needs database update",
 )
-@api_view(['GET'])
+@api_view(["GET"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
 def check_updates(request, kiosk_id):
@@ -347,31 +327,28 @@ def check_updates(request, kiosk_id):
     Returns metadata about current database version.
     """
     try:
-        kiosk = Kiosk.objects.select_related('bus').get(kiosk_id=kiosk_id)
+        kiosk = Kiosk.objects.select_related("bus").get(kiosk_id=kiosk_id)
     except Kiosk.DoesNotExist:
-        return Response(
-            {"detail": "Kiosk not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
     # Verify authenticated kiosk matches requested kiosk_id
     if request.user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     if not kiosk.bus:
         return Response(
             {"detail": "Kiosk not assigned to a bus"},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Validate query params
     serializer = CheckUpdatesSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
 
-    last_sync = serializer.validated_data['last_sync']
+    last_sync = serializer.validated_data["last_sync"]
     bus = kiosk.bus
 
     # Check if update needed
@@ -394,9 +371,9 @@ def check_updates(request, kiosk_id):
 
 @extend_schema(
     responses={200: SnapshotResponseSerializer},
-    description='Get download URL for kiosk database snapshot'
+    description="Get download URL for kiosk database snapshot",
 )
-@api_view(['GET'])
+@api_view(["GET"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
 def download_snapshot(request, kiosk_id):
@@ -407,24 +384,21 @@ def download_snapshot(request, kiosk_id):
     Returns signed URL for download with checksum for verification.
     """
     try:
-        kiosk = Kiosk.objects.select_related('bus').get(kiosk_id=kiosk_id)
+        kiosk = Kiosk.objects.select_related("bus").get(kiosk_id=kiosk_id)
     except Kiosk.DoesNotExist:
-        return Response(
-            {"detail": "Kiosk not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
     # Verify authenticated kiosk matches requested kiosk_id
     if request.user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     if not kiosk.bus:
         return Response(
             {"detail": "Kiosk not assigned to a bus"},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     # Generate snapshot
@@ -453,9 +427,9 @@ def download_snapshot(request, kiosk_id):
 @extend_schema(
     request=HeartbeatSerializer,
     responses={204: None},
-    description='Report kiosk health and sync status'
+    description="Report kiosk health and sync status",
 )
-@api_view(['POST'])
+@api_view(["POST"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
 def heartbeat(request, kiosk_id):
@@ -468,16 +442,13 @@ def heartbeat(request, kiosk_id):
     try:
         kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
     except Kiosk.DoesNotExist:
-        return Response(
-            {"detail": "Kiosk not found"},
-            status=status.HTTP_404_NOT_FOUND
-        )
+        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
     # Verify authenticated kiosk matches requested kiosk_id
     if request.user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
-            status=status.HTTP_403_FORBIDDEN
+            status=status.HTTP_403_FORBIDDEN,
         )
 
     # Validate request
@@ -485,13 +456,13 @@ def heartbeat(request, kiosk_id):
     serializer.is_valid(raise_exception=True)
 
     data = serializer.validated_data
-    health = data.get('health', {})
+    health = data.get("health", {})
 
     # Determine status based on health metrics
     kiosk_status = "ok"
 
-    battery_level = health.get('battery_level')
-    is_charging = health.get('is_charging', False)
+    battery_level = health.get("battery_level")
+    is_charging = health.get("is_charging", False)
 
     if battery_level is not None:
         if battery_level < 10 and not is_charging:
@@ -508,30 +479,30 @@ def heartbeat(request, kiosk_id):
     KioskStatus.objects.update_or_create(
         kiosk=kiosk,
         defaults={
-            "last_heartbeat": data['timestamp'],
-            "database_version": data['database_version'],
-            "database_hash": data.get('database_hash', ''),
-            "student_count": data['student_count'],
-            "embedding_count": data['embedding_count'],
+            "last_heartbeat": data["timestamp"],
+            "database_version": data["database_version"],
+            "database_hash": data.get("database_hash", ""),
+            "student_count": data["student_count"],
+            "embedding_count": data["embedding_count"],
             "battery_level": battery_level,
             "is_charging": is_charging,
-            "storage_available_mb": health.get('storage_available_mb'),
-            "camera_active": health.get('camera_active', False),
-            "network_type": health.get('network_type'),
-            "app_version": health.get('app_version'),
+            "storage_available_mb": health.get("storage_available_mb"),
+            "camera_active": health.get("camera_active", False),
+            "network_type": health.get("network_type"),
+            "app_version": health.get("app_version"),
             "last_face_detected": (
-                timezone.now() - timedelta(minutes=health['last_face_detected_ago_min'])
-                if health.get('last_face_detected_ago_min') is not None
+                timezone.now() - timedelta(minutes=health["last_face_detected_ago_min"])
+                if health.get("last_face_detected_ago_min") is not None
                 else None
             ),
-            "faces_detected_today": health.get('faces_detected_today', 0),
-            "students_identified_today": health.get('students_identified_today', 0),
+            "faces_detected_today": health.get("faces_detected_today", 0),
+            "students_identified_today": health.get("students_identified_today", 0),
             "status": kiosk_status,
-        }
+        },
     )
 
     # Also update Kiosk model heartbeat
-    kiosk.last_heartbeat = data['timestamp']
-    kiosk.save(update_fields=['last_heartbeat'])
+    kiosk.last_heartbeat = data["timestamp"]
+    kiosk.save(update_fields=["last_heartbeat"])
 
     return Response(status=status.HTTP_204_NO_CONTENT)

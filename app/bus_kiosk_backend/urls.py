@@ -15,6 +15,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from typing import List
+
+from bus_kiosk_backend.health import (
+    detailed_health_check,
+    health_check,
+    prometheus_metrics,
+)
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls.static import static
@@ -33,8 +40,6 @@ from drf_spectacular.views import (
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .health import detailed_health_check, health_check, prometheus_metrics
-
 
 @csrf_exempt
 def auth_status(request):
@@ -45,9 +50,9 @@ def auth_status(request):
 
 
 class NoThrottleSpectacularSwaggerView(SpectacularSwaggerView):
-    """SpectacularSwaggerView that doesn't use throttling and requires admin session."""
+    """SpectacularSwaggerView without throttling, requires admin session."""
 
-    throttle_classes = []
+    throttle_classes: List = []
 
     @method_decorator(login_required(login_url="/admin/login/"))
     def dispatch(self, *args, **kwargs):
@@ -55,9 +60,9 @@ class NoThrottleSpectacularSwaggerView(SpectacularSwaggerView):
 
 
 class NoThrottleSpectacularAPIView(SpectacularAPIView):
-    """SpectacularAPIView that doesn't use throttling and requires admin session."""
+    """SpectacularAPIView without throttling, requires admin session."""
 
-    throttle_classes = []
+    throttle_classes: List = []
 
     @method_decorator(login_required(login_url="/admin/login/"))
     def dispatch(self, *args, **kwargs):
@@ -65,9 +70,9 @@ class NoThrottleSpectacularAPIView(SpectacularAPIView):
 
 
 class NoThrottleSpectacularRedocView(SpectacularRedocView):
-    """SpectacularRedocView that doesn't use throttling and requires admin session."""
+    """SpectacularRedocView without throttling, requires admin session."""
 
-    throttle_classes = []
+    throttle_classes: List = []
 
     @method_decorator(login_required(login_url="/admin/login/"))
     def dispatch(self, *args, **kwargs):
@@ -97,13 +102,13 @@ def home(request):
     return render(request, "home.html", context)
 
 
-def api_root(request):
+def api_root(_request):
     """Root API endpoint with basic information."""
     return JsonResponse(
         {
             "name": "Bus Kiosk Backend API",
             "version": "1.0.0",
-            "description": "Industrial REST API for Bus Kiosk face recognition system",
+            "description": ("Industrial REST API for Bus Kiosk face recognition system"),
             "status": "operational",
             "timestamp": timezone.now().isoformat(),
             "docs": {
@@ -135,9 +140,13 @@ urlpatterns.extend(
         path("api/", api_root, name="api_root"),  # type: ignore[list-item]
         # Authentication status check (for client-side polling)
         path("auth-status/", auth_status, name="auth_status"),  # type: ignore[list-item]
-        # Health checks and monitoring (no auth required)
+        # Health checks (no auth required)
         path("health/", health_check, name="health_check"),  # type: ignore[list-item]
-        path("health/detailed/", detailed_health_check, name="detailed_health_check"),  # type: ignore[list-item]
+        path(
+            "health/detailed/",
+            detailed_health_check,
+            name="detailed_health_check",
+        ),  # type: ignore[list-item]
         path("metrics/", prometheus_metrics, name="prometheus_metrics"),  # type: ignore[list-item]
         # API documentation - drf-spectacular with no throttling
         path(  # type: ignore[list-item]
@@ -145,7 +154,11 @@ urlpatterns.extend(
             NoThrottleSpectacularSwaggerView.as_view(url_name="schema"),
             name="swagger-ui",
         ),
-        path("docs/schema/", NoThrottleSpectacularAPIView.as_view(), name="schema"),  # type: ignore[list-item]
+        path(
+            "docs/schema/",
+            NoThrottleSpectacularAPIView.as_view(),
+            name="schema",
+        ),  # type: ignore[list-item]
         path(  # type: ignore[list-item]
             "docs/redoc/",
             NoThrottleSpectacularRedocView.as_view(url_name="schema"),

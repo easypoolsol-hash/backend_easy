@@ -3,12 +3,11 @@ from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from kiosks.permissions import IsKiosk
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
-from bus_kiosk_backend.permissions import IsKiosk
 from students.models import Student
 
 from .models import AttendanceRecord, BoardingEvent
@@ -145,9 +144,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
         try:
             student = Student.objects.get(student_id=student_id)
         except Student.DoesNotExist:
-            return Response(
-                {"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check permissions
         if (
@@ -155,9 +152,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
             and request.user.role == "parent"
             and not student.student_parents.filter(parent__user=request.user).exists()
         ):
-            return Response(
-                {"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         records = self.get_queryset().filter(student=student)
         serializer = self.get_serializer(records, many=True)

@@ -48,12 +48,12 @@ def test_bus(db):
 @pytest.fixture
 def test_kiosk(db):
     """
-    Create test kiosk with known credentials using factory
-    Returns: (kiosk, plaintext_api_key)
+    Create test kiosk with activation token
+    Returns: (kiosk, activation_token)
     """
-    kiosk = KioskFactory(api_key="test-api-key-12345")
-    # Factory stores plaintext as _api_key attribute
-    return kiosk, kiosk._api_key
+    kiosk = KioskFactory()
+    # Factory creates activation token and stores as _activation_token attribute
+    return kiosk, kiosk._activation_token
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def test_parent(db):
     parent = ParentFactory(
         plaintext_name="Test Parent",
         plaintext_email="test@example.com",
-        plaintext_phone="+919876543210"
+        plaintext_phone="+919876543210",
     )
     # Factory stores plaintext as _plaintext_* attributes
     return parent

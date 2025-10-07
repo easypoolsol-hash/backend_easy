@@ -34,7 +34,14 @@ class StudentPhotoInline(admin.TabularInline):
 
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
-    list_display = ["student_id", "get_name", "grade", "section", "assigned_bus", "status"]
+    list_display = [
+        "student_id",
+        "get_name",
+        "grade",
+        "section",
+        "assigned_bus",
+        "status",
+    ]
     list_filter = ["status", "grade", "school"]
     search_fields = ["student_id", "name"]
     readonly_fields = ["student_id", "created_at", "updated_at"]

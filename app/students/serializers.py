@@ -1,6 +1,5 @@
-from rest_framework import serializers
-
 from buses.models import Bus
+from rest_framework import serializers
 
 from .models import (
     FaceEmbeddingMetadata,
@@ -19,7 +18,9 @@ class SchoolSerializer(serializers.ModelSerializer):
         read_only_fields = ["school_id", "created_at"]
 
 
-class BusSerializer(serializers.ModelSerializer):
+class BusBasicSerializer(serializers.ModelSerializer):
+    """Basic bus serializer for nested use in student views"""
+
     class Meta:
         model = Bus
         fields = [
@@ -33,6 +34,29 @@ class BusSerializer(serializers.ModelSerializer):
         read_only_fields = ["bus_id", "created_at", "updated_at"]
 
 
+class BusSerializer(serializers.ModelSerializer):
+    """Full bus serializer for BusViewSet"""
+
+    class Meta:
+        model = Bus
+        fields = [
+            "bus_id",
+            "license_plate",
+            "route",
+            "capacity",
+            "device_id",
+            "status",
+            "manufacturer",
+            "model",
+            "year",
+            "last_maintenance",
+            "created_at",
+            "updated_at",
+            "last_student_update",
+        ]
+        read_only_fields = ["bus_id", "created_at", "updated_at", "last_student_update"]
+
+
 class StudentPhotoSerializer(serializers.ModelSerializer):
     student_details = serializers.SerializerMethodField()
 
@@ -41,7 +65,7 @@ class StudentPhotoSerializer(serializers.ModelSerializer):
         fields = [
             "photo_id",
             "student",
-            "photo_url",
+            "photo",
             "is_primary",
             "captured_at",
             "student_details",
@@ -135,7 +159,7 @@ class StudentSerializer(serializers.ModelSerializer):
     # Decrypted name for API responses
     decrypted_name = serializers.SerializerMethodField()
     school_details = SchoolSerializer(source="school", read_only=True)
-    bus_details = BusSerializer(source="assigned_bus", read_only=True)
+    bus_details = BusBasicSerializer(source="assigned_bus", read_only=True)
     parents = serializers.SerializerMethodField()
     photos = serializers.SerializerMethodField()
 
@@ -234,7 +258,7 @@ class FaceEmbeddingMetadataSerializer(serializers.ModelSerializer):
     def get_photo_details(self, obj):
         return {
             "photo_id": obj.student_photo.photo_id,
-            "photo_url": obj.student_photo.photo_url,
+            "photo": obj.student_photo.photo.url if obj.student_photo.photo else None,
             "is_primary": obj.student_photo.is_primary,
             "captured_at": obj.student_photo.captured_at,
         }

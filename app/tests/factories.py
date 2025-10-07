@@ -14,7 +14,6 @@ Example:
     bus = BusFactory()
 """
 
-import hashlib
 from datetime import date
 
 import factory
@@ -73,14 +72,14 @@ class KioskFactory(DjangoModelFactory):
     Factory for creating test kiosks
 
     Usage:
-        # Create kiosk with default test API key
+        # Create kiosk with default settings (inactive)
         kiosk = KioskFactory()
 
-        # Create with custom API key
-        kiosk = KioskFactory(api_key="my-custom-key")
+        # Create active kiosk
+        kiosk = KioskFactory(is_active=True)
 
-        # Access the plaintext API key (stored as trait)
-        api_key = kiosk._api_key
+        # Access activation token (generated automatically)
+        token = kiosk._activation_token
     """
 
     class Meta:
@@ -88,25 +87,19 @@ class KioskFactory(DjangoModelFactory):
 
     kiosk_id = factory.Sequence(lambda n: f"TEST-KIOSK-{n:03d}")
     bus = factory.SubFactory(BusFactory)
-    is_active = True
-
-    # Store plaintext API key as a trait (accessible via kiosk._api_key)
-    class Params:
-        api_key = "test-api-key-12345"
-
-    @factory.lazy_attribute
-    def api_key_hash(self):
-        """Hash the API key using SHA-256"""
-        api_key = self.api_key if hasattr(self, "api_key") else "test-api-key-12345"
-        return hashlib.sha256(api_key.encode()).hexdigest()
+    is_active = False  # Kiosks start inactive now
 
     @factory.post_generation
-    def store_plaintext_api_key(self, create, extracted, **kwargs):
-        """Store plaintext API key for test access after creation"""
+    def create_activation_token(self, create, extracted, **kwargs):
+        """Create activation token for the kiosk after creation"""
         if not create:
             return
-        api_key = self.api_key if hasattr(self, "api_key") else "test-api-key-12345"
-        self._api_key = api_key
+
+        from kiosks.models import KioskActivationToken
+
+        raw_token, _ = KioskActivationToken.generate_for_kiosk(self)
+        # Store the raw token for test access
+        self._activation_token = raw_token
 
 
 class StudentFactory(DjangoModelFactory):

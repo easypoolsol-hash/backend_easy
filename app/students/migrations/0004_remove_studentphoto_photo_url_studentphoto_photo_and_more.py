@@ -6,32 +6,45 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('students', '0003_alter_student_assigned_bus_delete_bus'),
+        ("students", "0003_alter_student_assigned_bus_delete_bus"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='studentphoto',
-            name='photo_url',
+            model_name="studentphoto",
+            name="photo_url",
         ),
         migrations.AddField(
-            model_name='studentphoto',
-            name='photo',
-            field=models.ImageField(blank=True, help_text='Student photo file', null=True, upload_to='student_photos/%Y/%m/'),
+            model_name="studentphoto",
+            name="photo",
+            field=models.ImageField(
+                blank=True,
+                help_text="Student photo file",
+                null=True,
+                upload_to="student_photos/%Y/%m/",
+            ),
         ),
         migrations.AlterField(
-            model_name='parent',
-            name='email',
-            field=models.TextField(help_text='Encrypted email address (plaintext validated per RFC 5321)', unique=True),
+            model_name="parent",
+            name="email",
+            field=models.TextField(
+                help_text="Encrypted email address (plaintext validated per RFC 5321)",
+                unique=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='parent',
-            name='name',
-            field=models.TextField(help_text='Encrypted name (plaintext validated max 100 chars)'),
+            model_name="parent",
+            name="name",
+            field=models.TextField(
+                help_text="Encrypted name (plaintext validated max 100 chars)"
+            ),
         ),
         migrations.AlterField(
-            model_name='parent',
-            name='phone',
-            field=models.TextField(help_text='Encrypted phone number (plaintext validated as +91XXXXXXXXXX)', unique=True),
+            model_name="parent",
+            name="phone",
+            field=models.TextField(
+                help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)",
+                unique=True,
+            ),
         ),
     ]

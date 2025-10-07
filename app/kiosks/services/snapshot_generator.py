@@ -8,13 +8,10 @@ import os
 import sqlite3
 import struct
 import tempfile
-from datetime import datetime
 from typing import Dict, List, Tuple
 
 from django.utils import timezone
-
-from buses.models import Bus
-from students.models import FaceEmbeddingMetadata, Student, StudentPhoto
+from students.models import FaceEmbeddingMetadata, Student
 
 from ..utils import calculate_content_hash
 
@@ -198,9 +195,9 @@ class SnapshotGenerator:
 
         # Get student and embedding IDs for hash
         student_ids = list(
-            Student.objects.filter(
-                assigned_bus__bus_id=self._bus_id, status="active"
-            ).values_list("student_id", flat=True)
+            Student.objects.filter(assigned_bus__bus_id=self._bus_id, status="active").values_list(
+                "student_id", flat=True
+            )
         )
 
         embedding_ids = list(
@@ -210,9 +207,7 @@ class SnapshotGenerator:
             ).values_list("embedding_id", flat=True)
         )
 
-        content_hash = calculate_content_hash(
-            [str(sid) for sid in student_ids], embedding_ids
-        )
+        content_hash = calculate_content_hash([str(sid) for sid in student_ids], embedding_ids)
 
         # Insert metadata
         sync_timestamp = timezone.now().isoformat()
@@ -225,9 +220,7 @@ class SnapshotGenerator:
             ("content_hash", content_hash),
         ]
 
-        cursor.executemany(
-            "INSERT INTO sync_metadata (key, value) VALUES (?, ?)", metadata
-        )
+        cursor.executemany("INSERT INTO sync_metadata (key, value) VALUES (?, ?)", metadata)
 
     def _read_database(self) -> bytes:
         """Read database file as bytes."""

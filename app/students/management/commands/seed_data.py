@@ -14,11 +14,10 @@ Dataset structure:
 import json
 from pathlib import Path
 
+from buses.models import Bus, Route
 from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-
-from buses.models import Bus, Route
 from kiosks.models import Kiosk
 from students.models import Parent, School, Student, StudentPhoto
 
@@ -45,7 +44,8 @@ class Command(BaseCommand):
 
             if model_name == "students.school":
                 obj, created = School.objects.get_or_create(
-                    name=fields.get("name"), defaults={"address": fields.get("address", "")}
+                    name=fields.get("name"),
+                    defaults={"address": fields.get("address", "")},
                 )
                 created_objects["school"] = obj
                 self.stdout.write(f"[OK] School: {obj.name} ({'created' if created else 'exists'})")
@@ -138,7 +138,7 @@ class Command(BaseCommand):
 
                 if not student_folder_name:
                     self.stdout.write(
-                        self.style.WARNING(f"[SKIP] No student_folder specified for photos")
+                        self.style.WARNING("[SKIP] No student_folder specified for photos")
                     )
                     continue
 
@@ -170,7 +170,9 @@ class Command(BaseCommand):
                     is_primary = idx == 0  # First photo is primary
 
                     obj = StudentPhoto(
-                        student=student, is_primary=is_primary, captured_at=timezone.now()
+                        student=student,
+                        is_primary=is_primary,
+                        captured_at=timezone.now(),
                     )
                     with open(photo_file, "rb") as f:
                         obj.photo.save(photo_file.name, File(f), save=True)

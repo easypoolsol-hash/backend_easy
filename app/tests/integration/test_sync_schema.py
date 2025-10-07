@@ -8,9 +8,8 @@ This is the industry standard for contract testing and preventing API drift.
 
 import pytest
 import schemathesis
-from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-from tests.factories import BusFactory, KioskFactory, StudentFactory
+from tests.factories import BusFactory, KioskFactory
 
 # Load schema from file (generated via: python manage.py spectacular --file schema.yaml)
 schema = schemathesis.from_path("schema.yaml")
@@ -34,7 +33,6 @@ def test_check_updates_matches_schema(api_client):
     # Setup
     bus = BusFactory()
     kiosk = KioskFactory(bus=bus)
-    student = StudentFactory(assigned_bus=bus)
 
     # Authenticate kiosk with JWT token
     token = get_kiosk_token(kiosk)
@@ -60,7 +58,6 @@ def test_snapshot_matches_schema(api_client):
     """
     bus = BusFactory()
     kiosk = KioskFactory(bus=bus)
-    student = StudentFactory(assigned_bus=bus)
 
     token = get_kiosk_token(kiosk)
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
@@ -150,7 +147,6 @@ def test_complete_sync_workflow(api_client):
 
     bus = BusFactory()
     kiosk = KioskFactory(bus=bus)
-    student = StudentFactory(assigned_bus=bus)
     KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
     token = get_kiosk_token(kiosk)

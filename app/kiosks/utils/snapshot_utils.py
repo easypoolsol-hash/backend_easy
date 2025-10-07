@@ -5,7 +5,7 @@ SINGLE RESPONSIBILITY: Hash and compression operations.
 
 import gzip
 import hashlib
-from typing import List, Tuple
+from typing import List
 
 
 def calculate_checksum(data: bytes) -> str:
@@ -34,9 +34,7 @@ def compress_snapshot(data: bytes) -> bytes:
     return gzip.compress(data, compresslevel=9)
 
 
-def calculate_content_hash(
-    student_ids: List[str], embedding_ids: List[int]
-) -> str:
+def calculate_content_hash(student_ids: List[str], embedding_ids: List[int]) -> str:
     """
     Calculate content hash for students and embeddings.
 
@@ -48,8 +46,7 @@ def calculate_content_hash(
         First 16 characters of SHA-256 hash
     """
     content = (
-        f"{len(student_ids)}-{len(embedding_ids)}-"
-        f"{sorted(student_ids)}-{sorted(embedding_ids)}"
+        f"{len(student_ids)}-{len(embedding_ids)}-" f"{sorted(student_ids)}-{sorted(embedding_ids)}"
     )
     full_hash = hashlib.sha256(content.encode()).hexdigest()
     return full_hash[:16]

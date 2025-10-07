@@ -1,14 +1,14 @@
+from buses.models import Bus
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
-
-from buses.models import Bus
 
 
 class Kiosk(models.Model):
     """
     Kiosk device model for bus-mounted face recognition devices.
-    Each kiosk has a unique API key for authentication.
+
+    Security: No stored credentials - uses one-time activation tokens only.
     """
 
     kiosk_id = models.CharField(
@@ -24,11 +24,7 @@ class Kiosk(models.Model):
         related_name="kiosk",
         help_text="Bus this kiosk is installed on",
     )
-    api_key_hash = models.CharField(
-        max_length=255,
-        unique=True,
-        help_text="Hashed API key for device authentication",
-    )
+    # REMOVED: api_key_hash - we use activation tokens instead (more secure)
     firmware_version = models.CharField(
         max_length=50,
         blank=True,
@@ -40,7 +36,8 @@ class Kiosk(models.Model):
         help_text="Timestamp of last heartbeat received from device",
     )
     is_active = models.BooleanField(
-        default=True, help_text="Whether this kiosk is active and accepting requests"
+        default=False,  # Changed from True - kiosks start inactive until activated
+        help_text="Whether this kiosk is active and accepting requests",
     )
     battery_level = models.DecimalField(
         max_digits=5,
@@ -53,9 +50,7 @@ class Kiosk(models.Model):
     storage_used_mb = models.PositiveIntegerField(
         null=True, blank=True, help_text="Storage used in MB on the device"
     )
-    created_at = models.DateTimeField(
-        auto_now_add=True, help_text="When this kiosk was registered"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this kiosk was registered")
     updated_at = models.DateTimeField(
         auto_now=True, help_text="When this kiosk record was last updated"
     )
@@ -135,9 +130,7 @@ class KioskStatus(models.Model):
         related_name="status",
         help_text="Kiosk this status belongs to",
     )
-    last_heartbeat = models.DateTimeField(
-        help_text="Last heartbeat received from kiosk"
-    )
+    last_heartbeat = models.DateTimeField(help_text="Last heartbeat received from kiosk")
     database_version = models.CharField(
         max_length=50, help_text="Timestamp of current database version"
     )
@@ -146,9 +139,7 @@ class KioskStatus(models.Model):
         blank=True,
         help_text="Content hash of kiosk database (for integrity)",
     )
-    student_count = models.IntegerField(
-        default=0, help_text="Number of students in kiosk database"
-    )
+    student_count = models.IntegerField(default=0, help_text="Number of students in kiosk database")
     embedding_count = models.IntegerField(
         default=0, help_text="Number of embeddings in kiosk database"
     )
@@ -164,9 +155,7 @@ class KioskStatus(models.Model):
     storage_available_mb = models.IntegerField(
         null=True, blank=True, help_text="Available storage in MB"
     )
-    camera_active = models.BooleanField(
-        default=False, help_text="Is camera currently active"
-    )
+    camera_active = models.BooleanField(default=False, help_text="Is camera currently active")
     network_type = models.CharField(
         max_length=20,
         null=True,
@@ -181,9 +170,7 @@ class KioskStatus(models.Model):
     last_face_detected = models.DateTimeField(
         null=True, blank=True, help_text="Last time a face was detected"
     )
-    faces_detected_today = models.IntegerField(
-        default=0, help_text="Faces detected today"
-    )
+    faces_detected_today = models.IntegerField(default=0, help_text="Faces detected today")
     students_identified_today = models.IntegerField(
         default=0, help_text="Students identified today"
     )
@@ -195,12 +182,8 @@ class KioskStatus(models.Model):
         default="ok",
         help_text="Overall kiosk status",
     )
-    last_error = models.TextField(
-        null=True, blank=True, help_text="Last error message if any"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True, help_text="When this status was last updated"
-    )
+    last_error = models.TextField(null=True, blank=True, help_text="Last error message if any")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this status was last updated")
 
     class Meta:
         db_table = "kiosk_status"
@@ -208,9 +191,7 @@ class KioskStatus(models.Model):
         verbose_name_plural = "Kiosk Statuses"
         indexes = [
             models.Index(fields=["status"], name="idx_kiosk_status_status"),
-            models.Index(
-                fields=["last_heartbeat"], name="idx_kiosk_status_heartbeat"
-            ),
+            models.Index(fields=["last_heartbeat"], name="idx_kiosk_status_heartbeat"),
         ]
 
     def __str__(self):
@@ -222,10 +203,7 @@ class KioskStatus(models.Model):
         if not self.kiosk.bus:
             return False
 
-        return (
-            self.kiosk.bus.last_student_update.isoformat()
-            > self.database_version
-        )
+        return self.kiosk.bus.last_student_update.isoformat() > self.database_version
 
     @property
     def is_offline(self):
@@ -251,18 +229,14 @@ class DeviceLog(models.Model):
         ("CRITICAL", "Critical"),
     ]
 
-    log_id = models.BigAutoField(
-        primary_key=True, help_text="Auto-incrementing log entry ID"
-    )
+    log_id = models.BigAutoField(primary_key=True, help_text="Auto-incrementing log entry ID")
     kiosk = models.ForeignKey(
         Kiosk,
         on_delete=models.CASCADE,
         related_name="logs",
         help_text="Kiosk that generated this log entry",
     )
-    log_level = models.CharField(
-        max_length=20, choices=LOG_LEVELS, help_text="Log level severity"
-    )
+    log_level = models.CharField(max_length=20, choices=LOG_LEVELS, help_text="Log level severity")
     message = models.TextField(help_text="Log message content")
     metadata = models.JSONField(
         default=dict, blank=True, help_text="Additional structured data as JSON"
@@ -285,8 +259,7 @@ class DeviceLog(models.Model):
 
     def __str__(self):
         return (
-            f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: "
-            f"{self.message[:50]}..."
+            f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: " f"{self.message[:50]}..."
         )
 
     @classmethod
@@ -301,3 +274,98 @@ class DeviceLog(models.Model):
         if timestamp is not None:
             data["timestamp"] = timestamp
         return cls.objects.create(**data)
+
+
+class KioskActivationToken(models.Model):
+    """
+    One-time activation token (like Windows license key).
+    Becomes garbage after first use.
+
+    Security: Prevents WhatsApp leak after setup.
+    Each token is valid for 24 hours and can only be used once.
+    """
+
+    kiosk = models.ForeignKey(
+        Kiosk,
+        on_delete=models.CASCADE,
+        related_name="activation_tokens",
+        help_text="Kiosk this activation token belongs to",
+    )
+
+    token_hash = models.CharField(
+        max_length=64,  # HMAC-SHA256 hex length
+        unique=True,
+        help_text="HMAC-SHA256 hash of activation token",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True, help_text="When this activation token was created"
+    )
+
+    expires_at = models.DateTimeField(help_text="Token expires after 24 hours")
+
+    # One-time use tracking
+    is_used = models.BooleanField(
+        default=False, help_text="Whether this token has been used for activation"
+    )
+
+    used_at = models.DateTimeField(
+        null=True, blank=True, help_text="When this token was used for activation"
+    )
+
+    used_by_ip = models.GenericIPAddressField(
+        null=True, blank=True, help_text="IP address that used this token"
+    )
+
+    class Meta:
+        db_table = "kiosk_activation_tokens"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["token_hash"], name="idx_activation_token_hash"),
+            models.Index(fields=["kiosk", "is_used"], name="idx_activation_kiosk_used"),
+            models.Index(fields=["expires_at"], name="idx_activation_expires"),
+        ]
+        verbose_name = "Kiosk Activation Token"
+        verbose_name_plural = "Kiosk Activation Tokens"
+
+    def is_valid(self):
+        """Check if token can still be used"""
+        if self.is_used:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        return True
+
+    @classmethod
+    def generate_for_kiosk(cls, kiosk):
+        """
+        Generate a new activation token for a kiosk.
+
+        Returns:
+            tuple: (raw_token, activation_record)
+        """
+        import hmac
+        import secrets
+        from hashlib import sha256
+
+        from django.conf import settings
+
+        # Generate cryptographically secure random token
+        raw_token = secrets.token_urlsafe(32)
+
+        # Hash with HMAC for security (database breach protection)
+        token_hash = hmac.new(settings.SECRET_KEY.encode(), raw_token.encode(), sha256).hexdigest()
+
+        # Create database record
+        activation = cls.objects.create(
+            kiosk=kiosk,
+            token_hash=token_hash,
+            expires_at=timezone.now() + timezone.timedelta(hours=24),
+        )
+
+        # Return raw token (show to admin ONCE)
+        return raw_token, activation
+
+    def __str__(self):
+        status = "USED" if self.is_used else "VALID" if self.is_valid() else "EXPIRED"
+        return f"{self.kiosk.kiosk_id} - {status} ({self.created_at.date()})"
