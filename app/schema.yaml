@@ -15,12 +15,10 @@ paths:
           type: string
         required: true
       - in: query
-        name: last_sync
+        name: last_sync_hash
         schema:
           type: string
-          format: date-time
-        description: Last sync timestamp from kiosk
-        required: true
+        description: Last content hash from kiosk
       tags:
       - api
       security:
@@ -66,7 +64,7 @@ paths:
   /api/v1/{kiosk_id}/snapshot/:
     get:
       operationId: api_v1_snapshot_retrieve
-      description: Get download URL for kiosk database snapshot
+      description: Generate and download a kiosk database snapshot.
       parameters:
       - in: path
         name: kiosk_id
@@ -83,7 +81,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SnapshotResponse'
+                content:
+                  application/x-sqlite3:
+                    schema:
+                      type: string
+                      format: binary
+                description: A SQLite database file containing the student and embedding
+                  data for the kiosk.
           description: ''
   /api/v1/api-keys/:
     get:
@@ -4137,29 +4141,6 @@ components:
       - created_at
       - name
       - school_id
-    SnapshotResponse:
-      type: object
-      description: Serializer for snapshot download response
-      properties:
-        download_url:
-          type: string
-          format: uri
-          description: Signed URL to download snapshot
-        checksum:
-          type: string
-          description: SHA-256 checksum of snapshot
-        size_bytes:
-          type: integer
-          description: Size of snapshot in bytes
-        expires_at:
-          type: string
-          format: date-time
-          description: URL expiration time
-      required:
-      - checksum
-      - download_url
-      - expires_at
-      - size_bytes
     Status7cfEnum:
       enum:
       - active

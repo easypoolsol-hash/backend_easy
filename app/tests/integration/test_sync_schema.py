@@ -39,7 +39,7 @@ def test_check_updates_matches_schema(api_client, test_kiosk):
 
     response = api_client.get(
         f"/api/v1/{kiosk.kiosk_id}/check-updates/",
-        {"last_sync": (timezone.now() - timezone.timedelta(days=1)).isoformat()},
+        {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
     )
 
     # Validate against schema
@@ -67,11 +67,7 @@ def test_snapshot_matches_schema(api_client, test_kiosk):
 
     # Validate against schema
     assert response.status_code == 200
-    json_data = response.json()
-    assert "download_url" in json_data
-    assert "checksum" in json_data
-    assert "size_bytes" in json_data
-    assert "expires_at" in json_data
+    assert response["Content-Type"] == "application/x-sqlite3"
 
 
 @pytest.mark.django_db
@@ -103,9 +99,6 @@ def test_heartbeat_matches_schema(api_client, test_kiosk):
         "database_hash": "abc123def456",
         "student_count": 1,
         "embedding_count": 1,
-        "battery_level": 85.5,
-        "storage_available_mb": 1024,
-        "last_face_scan": "2025-10-06T14:55:00Z",
     }
 
     response = api_client.post(
@@ -167,7 +160,7 @@ def test_complete_sync_workflow(api_client, test_kiosk):
     # Step 1: Check for updates
     check_response = api_client.get(
         f"/api/v1/{kiosk.kiosk_id}/check-updates/",
-        {"last_sync": (timezone.now() - timezone.timedelta(days=1)).isoformat()},
+        {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
     )
     assert check_response.status_code == 200
     assert "needs_update" in check_response.json()
@@ -175,15 +168,13 @@ def test_complete_sync_workflow(api_client, test_kiosk):
     # Step 2: Download snapshot
     snapshot_response = api_client.get(f"/api/v1/{kiosk.kiosk_id}/snapshot/")
     assert snapshot_response.status_code == 200
-    snapshot_data = snapshot_response.json()
-    assert "download_url" in snapshot_data
-    assert "checksum" in snapshot_data
+    assert snapshot_response["Content-Type"] == "application/x-sqlite3"
 
     # Step 3: Report heartbeat (use data from snapshot response)
     heartbeat_data = {
         "timestamp": "2025-10-06T15:00:00Z",
         "database_version": "2025-10-06T14:30:00Z",
-        "database_hash": snapshot_data["checksum"][:32],  # Truncate to 32 chars (schema limit)
+        "database_hash": "d41d8cd98f00b204e9800998ecf8427e",
         "student_count": 1,
         "embedding_count": 1,
     }

@@ -6,6 +6,7 @@ Tests authenticated API access using JWT tokens.
 
 import pytest
 from rest_framework import status
+from django.utils import timezone
 
 
 @pytest.mark.django_db
@@ -24,28 +25,33 @@ class TestKioskAPIAuthentication:
         )
         token = auth_response.json()["access"]
 
-        # 2. Use token to send heartbeat
+        # Create KioskStatus for the kiosk
+        from kiosks.models import KioskStatus
+
+        KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
+
+        heartbeat_data = {
+            "timestamp": timezone.now().isoformat(),
+            "database_version": timezone.now().isoformat(),
+            "database_hash": "abc123def456",
+            "student_count": 1,
+            "embedding_count": 1,
+        }
         response = api_client.post(
-            "/api/v1/heartbeat/",
-            {
-                "kiosk_id": kiosk.kiosk_id,
-                "battery_level": 85,
-                "firmware_version": "1.0.0",
-            },
+            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            data=heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data["status"] == "ok"
-        assert response.data["kiosk_id"] == kiosk.kiosk_id
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     def test_kiosk_heartbeat_without_token(self, api_client, test_kiosk):
         """Test kiosk heartbeat fails without token"""
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            "/api/v1/heartbeat/",
+            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id, "battery_level": 85},
             format="json",
         )
@@ -60,7 +66,7 @@ class TestKioskAPIAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            "/api/v1/heartbeat/",
+            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id},
             HTTP_AUTHORIZATION="Bearer invalid-token-format",
             format="json",
@@ -75,7 +81,7 @@ class TestKioskAPIAuthentication:
 
         # authenticated_client has a USER token, not kiosk token
         response = authenticated_client.post(
-            "/api/v1/heartbeat/",
+            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id, "battery_level": 85},
             format="json",
         )

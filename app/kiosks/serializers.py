@@ -89,7 +89,9 @@ class DeviceLogSerializer(serializers.ModelSerializer):
 class CheckUpdatesSerializer(serializers.Serializer):
     """Serializer for check updates request"""
 
-    last_sync = serializers.DateTimeField(required=True, help_text="Last sync timestamp from kiosk")
+    last_sync_hash = serializers.CharField(
+        required=False, allow_blank=True, help_text="Last content hash from kiosk"
+    )
 
 
 class CheckUpdatesResponseSerializer(serializers.Serializer):

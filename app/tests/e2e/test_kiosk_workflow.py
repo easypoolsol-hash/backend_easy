@@ -5,6 +5,7 @@ Tests the full flow: Auth → Heartbeat → Log
 """
 
 import pytest
+from django.utils import timezone
 from rest_framework import status
 
 
@@ -60,7 +61,7 @@ class TestKioskWorkflow:
 
         # Step 3: Send device log with token
         log_response = api_client.post(
-            "/api/v1/log/",
+            "/api/v1/logs/",
             {
                 "logs": [
                     {
@@ -78,13 +79,53 @@ class TestKioskWorkflow:
         assert log_response.data["status"] == "ok"
         assert log_response.data["logged_count"] == 1
 
+    def test_snapshot_download_workflow(self, api_client, test_kiosk):
+        """
+        Test the complete snapshot download workflow:
+        1. Activate kiosk to get JWT token.
+        2. Call /check-updates to simulate a client check.
+        3. Call /download-snapshot to get the database file.
+        4. Verify the response is a valid file download.
+        """
+        kiosk, activation_token = test_kiosk
+
+        # Step 1: Activate kiosk
+        auth_response = api_client.post(
+            "/api/v1/kiosks/activate/",
+            {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
+            format="json",
+        )
+        token = auth_response.data["access"]
+
+        # Step 2: Check for updates (optional, but good practice to test)
+        check_updates_response = api_client.get(
+            f"/api/v1/{kiosk.kiosk_id}/check-updates/",
+            {"last_sync": timezone.now().isoformat()},
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        assert check_updates_response.status_code == status.HTTP_200_OK
+
+        # Step 3: Download the snapshot
+        snapshot_response = api_client.get(
+            f"/api/v1/{kiosk.kiosk_id}/snapshot/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        # Step 4: Verify the file response
+        assert snapshot_response.status_code == status.HTTP_200_OK
+        assert snapshot_response["Content-Type"] == "application/x-sqlite3"
+        assert "attachment; filename=" in snapshot_response["Content-Disposition"]
+
+        # Verify the content is a valid SQLite file by checking the header
+        assert snapshot_response.content.startswith(b"SQLite format 3\x00")
+
     def test_workflow_fails_without_authentication(self, api_client, test_kiosk):
         """Test workflow fails if kiosk doesn't authenticate first"""
         kiosk, _ = test_kiosk
 
         # Try heartbeat without auth
         response = api_client.post(
-            "/api/v1/heartbeat/",
+            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id, "battery_level": 90},
             format="json",
         )

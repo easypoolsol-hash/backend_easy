@@ -114,7 +114,7 @@ class TestProtectedEndpoints:
 
         response = api_client.get(
             f"/api/v1/{kiosk.kiosk_id}/check-updates/",
-            {"last_sync": (timezone.now() - timezone.timedelta(days=1)).isoformat()},
+            {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
         )
         assert response.status_code in [200, 304]
 
@@ -237,7 +237,7 @@ class TestKioskSyncWorkflow:
         # Step 1: Check updates
         response = api_client.get(
             f"/api/v1/{kiosk.kiosk_id}/check-updates/",
-            {"last_sync": (timezone.now() - timezone.timedelta(days=1)).isoformat()},
+            {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
         )
         assert response.status_code == 200
         assert "needs_update" in response.json()
@@ -245,15 +245,14 @@ class TestKioskSyncWorkflow:
         # Step 2: Get snapshot
         response = api_client.get(f"/api/v1/{kiosk.kiosk_id}/snapshot/")
         assert response.status_code == 200
-        snapshot_data = response.json()
-        assert "download_url" in snapshot_data
-        assert "checksum" in snapshot_data
+        assert response["Content-Type"] == "application/x-sqlite3"
 
         # Step 3: Send heartbeat
+        checksum = response["x-snapshot-checksum"]
         heartbeat = {
             "timestamp": timezone.now().isoformat(),
             "database_version": timezone.now().isoformat(),
-            "database_hash": snapshot_data["checksum"][:32],
+            "database_hash": checksum[:32],
             "student_count": 1,
             "embedding_count": 0,
         }

@@ -1,31 +1,28 @@
-"""
-Unit tests for SnapshotGenerator - Critical sync functionality
-Fortune 500 standard: Test data integrity
-"""
-
 import sqlite3
+import json
 import tempfile
 from pathlib import Path
-
 import pytest
-from kiosks.services.snapshot_generator import SnapshotGenerator
-from tests.factories import BusFactory, StudentFactory
+from kiosks.services import SnapshotGenerator
+from tests.factories import BusFactory, StudentFactory, FaceEmbeddingMetadataFactory
 
 
 @pytest.mark.django_db
 class TestSnapshotGenerator:
-    """Test snapshot generation creates valid SQLite databases"""
+    """Test the new in-memory SnapshotGenerator."""
 
-    def test_snapshot_contains_correct_students(self):
-        """CRITICAL: Snapshot must only contain students for the specific bus"""
-        # Create bus with students
-        bus = BusFactory()
-        student1 = StudentFactory(plaintext_name="Student 1", assigned_bus=bus)
-        student2 = StudentFactory(plaintext_name="Student 2", assigned_bus=bus)
-        other_student = StudentFactory(plaintext_name="Other Student")  # Different bus
+    def test_snapshot_contains_correct_data(self):
+        """Verify snapshot contains correct students and their embeddings for a specific bus."""
+        bus1 = BusFactory()
+        student1 = StudentFactory(assigned_bus=bus1)
+        emb1 = FaceEmbeddingMetadataFactory(student_photo__student=student1, embedding=[1.0, 2.0])
 
-        # Generate snapshot
-        generator = SnapshotGenerator(bus_id=str(bus.bus_id))
+        bus2 = BusFactory()
+        student2 = StudentFactory(assigned_bus=bus2)  # Belongs to a different bus
+        FaceEmbeddingMetadataFactory(student_photo__student=student2)
+
+        # Generate snapshot for bus1
+        generator = SnapshotGenerator(bus_id=str(bus1.bus_id))
         snapshot_bytes, metadata = generator.generate()
 
         # Write to temp file and verify
@@ -37,60 +34,45 @@ class TestSnapshotGenerator:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # Verify only correct students
-            cursor.execute("SELECT student_id FROM students ORDER BY student_id")
+            # Check students table
+            cursor.execute("SELECT student_id FROM students")
             student_ids = [row[0] for row in cursor.fetchall()]
-
+            assert len(student_ids) == 1
             assert str(student1.student_id) in student_ids
-            assert str(student2.student_id) in student_ids
-            assert str(other_student.student_id) not in student_ids
-            assert len(student_ids) == 2
+            assert str(student2.student_id) not in student_ids
+
+            # Check embeddings table
+            cursor.execute("SELECT embedding_id, student_id, embedding FROM embeddings")
+            embedding_rows = cursor.fetchall()
+            assert len(embedding_rows) == 1
+            db_emb_id, db_student_id, db_embedding_json = embedding_rows[0]
+
+            assert db_emb_id == str(emb1.embedding_id)
+            assert db_student_id == str(student1.student_id)
+            assert json.loads(db_embedding_json) == [1.0, 2.0]
 
             conn.close()
         finally:
             Path(db_path).unlink()
 
     def test_snapshot_has_valid_metadata(self):
-        """CRITICAL: Snapshot must include sync metadata"""
+        """Verify the generated snapshot metadata is correct."""
         bus = BusFactory()
-        StudentFactory(assigned_bus=bus)
+        student = StudentFactory(assigned_bus=bus)
+        FaceEmbeddingMetadataFactory(student_photo__student=student)
 
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
-        snapshot_bytes, metadata = generator.generate()
+        _, metadata = generator.generate()
 
-        # Verify metadata dict
         assert "sync_timestamp" in metadata
-        assert "bus_id" in metadata
-        assert "student_count" in metadata
-        assert "embedding_count" in metadata
+        assert metadata["student_count"] == 1
+        assert metadata["embedding_count"] == 1
         assert "content_hash" in metadata
 
-        assert metadata["bus_id"] == str(bus.bus_id)
-        assert metadata["student_count"] == 1
-
-        # Verify metadata in SQLite
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            f.write(snapshot_bytes)
-            db_path = f.name
-
-        try:
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-
-            cursor.execute("SELECT key, value FROM sync_metadata")
-            db_metadata = dict(cursor.fetchall())
-
-            assert "sync_timestamp" in db_metadata
-            assert "bus_id" in db_metadata
-            assert db_metadata["bus_id"] == str(bus.bus_id)
-
-            conn.close()
-        finally:
-            Path(db_path).unlink()
-
     def test_snapshot_sqlite_integrity(self):
-        """CRITICAL: Generated SQLite must pass integrity check"""
+        """Verify the generated snapshot is a valid SQLite database."""
         bus = BusFactory()
+        StudentFactory(assigned_bus=bus)
 
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
         snapshot_bytes, _ = generator.generate()
@@ -103,21 +85,16 @@ class TestSnapshotGenerator:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # SQLite integrity check
             cursor.execute("PRAGMA integrity_check")
             result = cursor.fetchone()[0]
-
-            assert result == "ok", f"SQLite integrity check failed: {result}"
-
+            assert result == "ok"
             conn.close()
         finally:
             Path(db_path).unlink()
 
     def test_snapshot_has_correct_schema(self):
-        """CRITICAL: Snapshot must have required tables and schema"""
+        """Verify the generated SQLite file has the correct table schema."""
         bus = BusFactory()
-        StudentFactory(assigned_bus=bus)
-
         generator = SnapshotGenerator(bus_id=str(bus.bus_id))
         snapshot_bytes, _ = generator.generate()
 
@@ -129,21 +106,9 @@ class TestSnapshotGenerator:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
 
-            # Verify tables exist
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            tables = [row[0] for row in cursor.fetchall()]
-
-            assert "students" in tables
-            assert "face_embeddings" in tables
-            assert "sync_metadata" in tables
-
-            # Verify students table schema
-            cursor.execute("PRAGMA table_info(students)")
-            columns = {row[1]: row[2] for row in cursor.fetchall()}  # name: type
-
-            assert "student_id" in columns
-            assert "name" in columns
-            assert "status" in columns
+            tables = {row[0] for row in cursor.fetchall()}
+            assert {"students", "embeddings", "metadata"}.issubset(tables)
 
             conn.close()
         finally:

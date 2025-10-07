@@ -56,8 +56,8 @@ class StudentAdmin(admin.ModelAdmin):
 class FaceEmbeddingInline(admin.TabularInline):
     model = FaceEmbeddingMetadata
     extra = 0
-    fields = ["model_name", "quality_score", "is_primary", "qdrant_point_id"]
-    readonly_fields = ["qdrant_point_id", "created_at"]
+    fields = ["model_name", "quality_score", "is_primary", "embedding"]
+    readonly_fields = ["embedding", "created_at"]
 
 
 @admin.register(StudentPhoto)
@@ -144,11 +144,11 @@ class FaceEmbeddingMetadataAdmin(admin.ModelAdmin):
         "model_name",
         "quality_score",
         "is_primary",
-        "qdrant_point_id",
+        "embedding",
     ]
     list_filter = ["model_name", "is_primary"]
-    search_fields = ["student_photo__student__name", "qdrant_point_id"]
-    readonly_fields = ["embedding_id", "qdrant_point_id", "created_at"]
+    search_fields = ["student_photo__student__name", "embedding"]
+    readonly_fields = ["embedding_id", "embedding", "created_at"]
 
     def get_student(self, obj):
         return obj.student_photo.student

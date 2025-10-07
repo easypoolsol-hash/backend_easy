@@ -390,8 +390,8 @@ class FaceEmbeddingMetadata(models.Model):
     model_version: models.CharField = models.CharField(
         max_length=50, help_text="Face recognition model version"
     )
-    qdrant_point_id: models.CharField = models.CharField(
-        max_length=100, unique=True, help_text="Reference to Qdrant point"
+    embedding: models.JSONField = models.JSONField(
+        help_text="The embedding vector as a list of floats", default=dict
     )
     quality_score: models.FloatField = models.FloatField(
         help_text="Face detection quality score (0-1)"

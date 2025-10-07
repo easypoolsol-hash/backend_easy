@@ -15,6 +15,7 @@ Example:
 """
 
 from datetime import date
+from django.utils import timezone
 
 import factory
 from buses.models import Bus, Route
@@ -268,17 +269,13 @@ class StudentPhotoFactory(DjangoModelFactory):
         model = StudentPhoto
 
     student = factory.SubFactory(StudentFactory)
-    photo_url = "s3://bucket/photos/test_student.jpg"
+    photo = factory.django.ImageField(color="blue")
     is_primary = True
 
 
-class FaceEmbeddingFactory(DjangoModelFactory):
+class FaceEmbeddingMetadataFactory(DjangoModelFactory):
     """
-    Factory for creating test face embeddings
-
-    Usage:
-        embedding = FaceEmbeddingFactory()
-        embedding = FaceEmbeddingFactory(student=student)
+    Factory for creating test face embedding metadata
     """
 
     class Meta:
@@ -287,16 +284,7 @@ class FaceEmbeddingFactory(DjangoModelFactory):
     student_photo = factory.SubFactory(StudentPhotoFactory)
     model_name = "MobileFaceNet"
     model_version = "1.0"
-    qdrant_point_id = factory.Sequence(lambda n: f"point_{n}")
+    embedding = factory.LazyFunction(lambda: [0.1] * 128)  # Default embedding
     is_primary = True
     quality_score = 0.90
-
-    @factory.post_generation
-    def student(self, create, extracted, **kwargs):
-        """Allow passing student directly"""
-        if not create:
-            return
-        if extracted:
-            photo = StudentPhotoFactory(student=extracted)
-            self.student_photo = photo
-            self.save()
+    captured_at = factory.LazyFunction(timezone.now)

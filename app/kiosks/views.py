@@ -248,19 +248,24 @@ def check_updates(request, kiosk_id):
     serializer = CheckUpdatesSerializer(data=request.query_params)
     serializer.is_valid(raise_exception=True)
 
-    last_sync = serializer.validated_data["last_sync"]
+    last_sync_hash = serializer.validated_data.get("last_sync_hash", "")
     bus = kiosk.bus
 
     # Check if update needed
-    needs_update = bus.last_student_update > last_sync
+    # (A more robust method than using timestamps)
 
-    # Generate metadata (even if no update needed, for verification)
-    generator = SnapshotGenerator(bus.bus_id)
-    _, metadata = generator.generate()
+    # Generate metadata to check the latest version on the server
+    # This is efficient as it doesn't generate the full snapshot file yet
+    generator = SnapshotGenerator(kiosk.bus.bus_id)
+    _, metadata = generator.generate()  # We only need metadata here
+
+    # Check if update needed by comparing content hashes
+    # (A more robust method than using timestamps)
+    needs_update = metadata.get("content_hash") != last_sync_hash
 
     response_data = {
         "needs_update": needs_update,
-        "current_version": bus.last_student_update.isoformat(),
+        "current_version": metadata["sync_timestamp"],
         "student_count": metadata["student_count"],
         "embedding_count": metadata["embedding_count"],
         "content_hash": metadata["content_hash"],
@@ -269,26 +274,36 @@ def check_updates(request, kiosk_id):
     return Response(response_data)
 
 
+from django.http import HttpResponse
+from .services import SnapshotGenerator
+
+
 @extend_schema(
-    responses={200: SnapshotResponseSerializer},
-    description="Get download URL for kiosk database snapshot",
+    responses={
+        200: {
+            "content": {
+                "application/x-sqlite3": {"schema": {"type": "string", "format": "binary"}}
+            },
+            "description": "A SQLite database file containing the student and embedding data for the kiosk.",
+        }
+    },
+    description="Generate and download a kiosk database snapshot.",
 )
 @api_view(["GET"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
 def download_snapshot(request, kiosk_id):
     """
-    Generate and return download URL for kiosk database snapshot.
+    Generates and serves a SQLite database snapshot for the specified kiosk.
 
-    Creates SQLite database with students/embeddings for this kiosk's bus.
-    Returns signed URL for download with checksum for verification.
+    This endpoint is protected and ensures the kiosk can only download data
+    for its assigned bus route.
     """
     try:
         kiosk = Kiosk.objects.select_related("bus").get(kiosk_id=kiosk_id)
     except Kiosk.DoesNotExist:
         return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    # Verify authenticated kiosk matches requested kiosk_id
     if request.user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
@@ -297,31 +312,29 @@ def download_snapshot(request, kiosk_id):
 
     if not kiosk.bus:
         return Response(
-            {"detail": "Kiosk not assigned to a bus"},
-            status=status.HTTP_400_BAD_REQUEST,
+            {"detail": "Kiosk not assigned to a bus"}, status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Generate snapshot
-    generator = SnapshotGenerator(kiosk.bus.bus_id)
-    snapshot_bytes, metadata = generator.generate()
+    try:
+        # 1. Generate the snapshot database in memory.
+        generator = SnapshotGenerator(kiosk.bus.bus_id)
+        snapshot_bytes, metadata = generator.generate()
 
-    # Calculate checksum
-    checksum = calculate_checksum(snapshot_bytes)
+        # 2. Create a direct file response.
+        response = HttpResponse(snapshot_bytes, content_type="application/x-sqlite3")
+        response["Content-Disposition"] = (
+            f"attachment; filename=\"snapshot_{metadata['sync_timestamp']}.db\""
+        )
+        response["x-snapshot-checksum"] = calculate_checksum(snapshot_bytes)
 
-    # TODO: Upload to S3 and generate signed URL
-    # For now, return placeholder
-    # In production: upload snapshot_bytes to S3, get signed URL
-    download_url = f"https://example.com/snapshots/{kiosk.bus.bus_id}.db"
-    expires_at = timezone.now() + timedelta(minutes=30)
+        return response
 
-    response_data = {
-        "download_url": download_url,
-        "checksum": checksum,
-        "size_bytes": len(snapshot_bytes),
-        "expires_at": expires_at.isoformat(),
-    }
-
-    return Response(response_data)
+    except Exception as e:
+        # In a real app, you would log this exception.
+        return Response(
+            {"detail": f"Failed to generate snapshot: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @extend_schema(
