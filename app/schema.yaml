@@ -1070,6 +1070,47 @@ paths:
       responses:
         '200':
           description: No response body
+  /api/v1/kiosks/activate/:
+    post:
+      operationId: api_v1_kiosks_activate_create
+      description: "\n    **Fortune 500 Standard: One-time Device Activation**\n\n\
+        \    Used by: Google Nest, Amazon Alexa, Netflix devices\n\n    Activates\
+        \ a kiosk using a disposable activation token.\n    After activation, the\
+        \ token becomes garbage and cannot be reused.\n\n    **Security Features:**\n\
+        \    - One-time use activation tokens (WhatsApp leak protection)\n    - Tokens\
+        \ destroyed after first use\n    - 60-day rotating refresh tokens\n    - 15-minute\
+        \ access tokens\n\n    **Example Request:**\n    ```json\n    {\n        \"\
+        kiosk_id\": \"KIOSK-SCHOOL-001\",\n        \"activation_token\": \"8Jz4Y-x9K2mQ_r5WvLp3NcTg7HfB6DsA1eU0oI9j8Xw\"\
+        \n    }\n    ```\n    "
+      tags:
+      - Kiosk Activation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KioskActivation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KioskActivation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KioskActivation'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KioskActivationResponse'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Invalid activation token or kiosk not found
+          description: ''
   /api/v1/log/:
     post:
       operationId: api_v1_log_create
@@ -3264,6 +3305,59 @@ components:
       - kiosk_id
       - status_display
       - updated_at
+    KioskActivation:
+      type: object
+      description: |-
+        Fortune 500 Standard: One-time kiosk activation
+
+        Used by: Google, Amazon, Netflix for device activation
+        Pattern: Disposable tokens that become garbage after first use
+      properties:
+        kiosk_id:
+          type: string
+          description: Kiosk identifier (e.g., KIOSK-SCHOOL-001)
+          maxLength: 100
+        activation_token:
+          type: string
+          writeOnly: true
+          description: One-time activation token (destroyed after use)
+          maxLength: 255
+      required:
+      - activation_token
+      - kiosk_id
+    KioskActivationResponse:
+      type: object
+      description: |-
+        Response for successful kiosk activation
+
+        Fortune 500 Pattern: Include everything needed for device operation
+      properties:
+        message:
+          type: string
+          description: Success message
+        access:
+          type: string
+          description: JWT access token (15 minutes)
+        refresh:
+          type: string
+          description: JWT refresh token (60 days)
+        kiosk_id:
+          type: string
+          description: Activated kiosk ID
+        bus_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Assigned bus ID
+        activation_token_destroyed:
+          type: boolean
+          description: Confirms token is now garbage
+      required:
+      - access
+      - activation_token_destroyed
+      - kiosk_id
+      - message
+      - refresh
     KioskHeartbeat:
       type: object
       description: |-

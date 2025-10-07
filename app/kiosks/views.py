@@ -25,6 +25,8 @@ from .serializers import (
     CheckUpdatesSerializer,
     DeviceLogSerializer,
     HeartbeatSerializer,
+    KioskActivationResponseSerializer,
+    KioskActivationSerializer,
     KioskHeartbeatSerializer,
     KioskSerializer,
     KioskStatusSerializer,
@@ -38,74 +40,75 @@ def calculate_checksum(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-# Plain Django view that bypasses DRF permission system entirely
-def activate_kiosk_view(request):
-    """
-    One-time kiosk activation endpoint.
+# Fortune 500 Standard: DRF APIView for kiosk activation
+@extend_schema(
+    request=KioskActivationSerializer,
+    responses={
+        200: KioskActivationResponseSerializer,
+        400: {"description": "Invalid activation token or kiosk not found"},
+    },
+    description="""
+    **Fortune 500 Standard: One-time Device Activation**
+
+    Used by: Google Nest, Amazon Alexa, Netflix devices
 
     Activates a kiosk using a disposable activation token.
     After activation, the token becomes garbage and cannot be reused.
 
-    **Request:**
+    **Security Features:**
+    - One-time use activation tokens (WhatsApp leak protection)
+    - Tokens destroyed after first use
+    - 60-day rotating refresh tokens
+    - 15-minute access tokens
+
+    **Example Request:**
     ```json
-    POST /api/v1/kiosks/activate/
     {
         "kiosk_id": "KIOSK-SCHOOL-001",
         "activation_token": "8Jz4Y-x9K2mQ_r5WvLp3NcTg7HfB6DsA1eU0oI9j8Xw"
     }
     ```
-
-    **Success Response (200):**
-    ```json
-    {
-        "message": "Kiosk activated successfully",
-        "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-        "kiosk_id": "KIOSK-SCHOOL-001",
-        "activation_token_destroyed": true
-    }
-    ```
-
-    **Security Features:**
-    - One-time use activation tokens
-    - Tokens become garbage after first use
-    - Prevents WhatsApp leak exploitation
-    - 60-day rotating refresh tokens
-    - 15-minute access tokens
+    """,
+    tags=["Kiosk Activation"],
+)
+@api_view(["POST"])
+@authentication_classes([])  # No authentication required for activation
+@permission_classes([])  # Public endpoint
+def activate_kiosk_view(request):
     """
-    import json
+    Fortune 500 Standard: DRF APIView for kiosk activation
 
-    from django.http import JsonResponse
+    Replaces plain Django view with proper DRF patterns:
+    - Automatic serialization/deserialization
+    - Built-in validation
+    - OpenAPI schema generation
+    - Consistent error responses
+    """
+    # Validate input using DRF serializer (Fortune 500 pattern)
+    serializer = KioskActivationSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    if request.method != "POST":
-        return JsonResponse({"error": "Method not allowed"}, status=405)
+    kiosk_id = serializer.validated_data["kiosk_id"]
+    activation_token = serializer.validated_data["activation_token"]
 
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
-
-    kiosk_id = data.get("kiosk_id")
-    activation_token = data.get("activation_token")
-
-    if not kiosk_id or not activation_token:
-        return JsonResponse({"error": "kiosk_id and activation_token are required"}, status=400)
-
+    # Activate kiosk (business logic in authentication module)
     try:
         result = activate_kiosk(kiosk_id, activation_token)
     except ValueError as e:
-        return JsonResponse({"error": str(e)}, status=400)
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Prepare response data
+    # Prepare response data (Fortune 500 standard structure)
     response_data = {
         "message": result["message"],
         "refresh": result["refresh_token"],
         "access": result["access_token"],
         "kiosk_id": result["kiosk"].kiosk_id,
+        "bus_id": result["kiosk"].bus.bus_id if result["kiosk"].bus else None,
         "activation_token_destroyed": True,
     }
 
-    # Log successful activation
+    # Log successful activation (Fortune 500: audit trail)
     DeviceLog.log(
         kiosk=result["kiosk"],
         level="INFO",
@@ -116,7 +119,8 @@ def activate_kiosk_view(request):
         },
     )
 
-    return JsonResponse(response_data, status=200)
+    # Return DRF Response (not JsonResponse)
+    return Response(response_data, status=status.HTTP_200_OK)
 
 
 class KioskViewSet(viewsets.ModelViewSet):
