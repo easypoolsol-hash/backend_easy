@@ -21,9 +21,11 @@ env:
   REGISTRY: docker.io
   IMAGE_NAME: bus_kiosk_backend
 
-defaults:
-  run:
-    working-directory: backend_easy
+# Note: don't set a global defaults.run.working-directory to a repository subfolder.
+# The runner's GITHUB_WORKSPACE already points to /home/runner/work/<repo>/<repo>,
+# and prepending a folder here caused paths like
+# /home/runner/work/backend_easy/backend_easy/backend_easy which do not exist.
+# Leave per-job or per-step cd commands instead.
 
 jobs:
   # Job 1: Code Quality (Fast Feedback)
