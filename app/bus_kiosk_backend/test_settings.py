@@ -97,7 +97,20 @@ ENCRYPTION_KEY = "NktQAERTtbDEW5ZiIWXy8BEpOVzUWhrTc7elWaaYIY0="
 
 # Debug print to verify settings are loaded
 print("TEST SETTINGS LOADED - REST_FRAMEWORK:", REST_FRAMEWORK)
-if django.apps.apps.ready:
+
+# Avoid accessing django.apps at import time without guards. In some CI
+# environments a shadowed or incomplete `django` module can cause
+# AttributeError: module 'django' has no attribute 'apps'. Use a safe
+# import/getattr pattern so tests don't crash at import time.
+try:
+    # Try to import the apps registry the normal way. This will fail
+    # cleanly if Django isn't properly installed or if a local module
+    # is shadowing the real package.
+    from django.apps import apps as django_apps  # type: ignore
+except Exception as _exc:  # pragma: no cover - defensive for CI
+    django_apps = None
+
+if getattr(django_apps, "ready", False):
     from django.conf import settings
 
     print("RUNTIME REST_FRAMEWORK:", settings.REST_FRAMEWORK)
