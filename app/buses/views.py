@@ -35,7 +35,9 @@ class RouteViewSet(viewsets.ModelViewSet):
     def route_students(self, request, pk=None):
         """Get all students assigned to buses on this route"""
         route = self.get_object()
-        students = Student.objects.filter(assigned_bus__route=route, status="active").select_related("assigned_bus")
+        students = Student.objects.filter(
+            assigned_bus__route=route, status="active"
+        ).select_related("assigned_bus")
         # Return basic student info (would need StudentSerializer)
         data = [
             {
@@ -54,7 +56,11 @@ class RouteViewSet(viewsets.ModelViewSet):
 class BusViewSet(viewsets.ModelViewSet):
     """ViewSet for buses"""
 
-    queryset = Bus.objects.select_related("route").prefetch_related("assigned_students").order_by("license_plate")
+    queryset = (
+        Bus.objects.select_related("route")
+        .prefetch_related("assigned_students")
+        .order_by("license_plate")
+    )
     serializer_class = BusSerializer
     permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
@@ -96,7 +102,9 @@ class BusViewSet(viewsets.ModelViewSet):
             current_count = bus.assigned_students.filter(status="active").count()
             if current_count + len(student_ids) > bus.capacity:
                 return Response(
-                    {"error": f"Bus capacity exceeded. Current: {current_count}, Adding: {len(student_ids)}, Capacity: {bus.capacity}"},
+                    {
+                        "error": f"Bus capacity exceeded. Current: {current_count}, Adding: {len(student_ids)}, Capacity: {bus.capacity}"
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -133,7 +141,9 @@ class BusViewSet(viewsets.ModelViewSet):
         # Summary stats
         total_capacity = sum(b["capacity"] for b in data)
         total_assigned = sum(b["assigned_students"] for b in data)
-        overall_utilization = (total_assigned / total_capacity * 100) if total_capacity > 0 else 0
+        overall_utilization = (
+            (total_assigned / total_capacity * 100) if total_capacity > 0 else 0
+        )
 
         return Response(
             {

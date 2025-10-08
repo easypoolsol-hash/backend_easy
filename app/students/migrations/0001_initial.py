@@ -77,7 +77,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "email",
-                    models.EmailField(help_text="Encrypted", max_length=254, unique=True),
+                    models.EmailField(
+                        help_text="Encrypted", max_length=254, unique=True
+                    ),
                 ),
                 ("name", models.TextField(help_text="Encrypted")),
                 ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
@@ -205,7 +207,9 @@ class Migration(migrations.Migration):
                 ("photo_url", models.TextField(help_text="S3 path to student photo")),
                 (
                     "is_primary",
-                    models.BooleanField(default=False, help_text="Primary photo for student"),
+                    models.BooleanField(
+                        default=False, help_text="Primary photo for student"
+                    ),
                 ),
                 (
                     "captured_at",
@@ -249,7 +253,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "model_version",
-                    models.CharField(help_text="Face recognition model version", max_length=50),
+                    models.CharField(
+                        help_text="Face recognition model version", max_length=50
+                    ),
                 ),
                 (
                     "qdrant_point_id",
@@ -265,7 +271,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "is_primary",
-                    models.BooleanField(default=False, help_text="Primary embedding for this photo"),
+                    models.BooleanField(
+                        default=False, help_text="Primary embedding for this photo"
+                    ),
                 ),
                 (
                     "captured_at",
@@ -287,7 +295,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="student",
-            index=models.Index(fields=["school", "status"], name="idx_students_school_status"),
+            index=models.Index(
+                fields=["school", "status"], name="idx_students_school_status"
+            ),
         ),
         migrations.AddIndex(
             model_name="student",

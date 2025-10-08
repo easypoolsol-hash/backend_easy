@@ -7,7 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def process_student_attendance(student_name, boarding_time, bus_id=None, face_confidence=None):
+def process_student_attendance(
+    student_name, boarding_time, bus_id=None, face_confidence=None
+):
     """
     Process boarding event asynchronously after kiosk approval
     - Store attendance record in database
@@ -30,7 +32,9 @@ def process_student_attendance(student_name, boarding_time, bus_id=None, face_co
         # 4. Send real-time notifications
         # 5. Update analytics dashboards
 
-        logger.info(f"✅ Boarding processed for {student_name} at {boarding_time} (Face confidence: {face_confidence}%, Bus: {bus_id})")
+        logger.info(
+            f"✅ Boarding processed for {student_name} at {boarding_time} (Face confidence: {face_confidence}%, Bus: {bus_id})"
+        )
 
         return {
             "status": "processed",

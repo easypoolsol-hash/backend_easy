@@ -87,7 +87,9 @@ class StudentViewSet(viewsets.ModelViewSet):
         if search:
             # Note: This is a basic search - in production you'd want
             # full-text search
-            queryset = queryset.filter(Q(name__icontains=search) | Q(grade__icontains=search))
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(grade__icontains=search)
+            )
 
         return queryset
 
@@ -139,7 +141,9 @@ class ParentViewSet(viewsets.ModelViewSet):
         # Search by phone or email (encrypted fields - limited search)
         search = self.request.query_params.get("search")
         if search:
-            queryset = queryset.filter(Q(phone__icontains=search) | Q(email__icontains=search))
+            queryset = queryset.filter(
+                Q(phone__icontains=search) | Q(email__icontains=search)
+            )
 
         return queryset
 
@@ -179,7 +183,9 @@ class StudentParentViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         # Ensure only one primary parent per student
         if request.data.get("is_primary"):
-            existing_primary = StudentParent.objects.filter(student_id=request.data["student"], is_primary=True)
+            existing_primary = StudentParent.objects.filter(
+                student_id=request.data["student"], is_primary=True
+            )
             if existing_primary.exists():
                 return Response(
                     {"error": "Student already has a primary parent"},
@@ -214,7 +220,9 @@ class StudentPhotoViewSet(viewsets.ModelViewSet):
         photo = self.get_object()
 
         # Set all other photos for this student to non-primary
-        StudentPhoto.objects.filter(student=photo.student).exclude(pk=photo.pk).update(is_primary=False)
+        StudentPhoto.objects.filter(student=photo.student).exclude(pk=photo.pk).update(
+            is_primary=False
+        )
 
         # Set this photo as primary
         photo.is_primary = True
@@ -251,7 +259,9 @@ class KioskBoardingView(APIView):
                 },
             }
         },
-        description=("Student boarding endpoint - returns immediate approval and schedules background processing"),
+        description=(
+            "Student boarding endpoint - returns immediate approval and schedules background processing"
+        ),
     )
     def post(self, request):
         """

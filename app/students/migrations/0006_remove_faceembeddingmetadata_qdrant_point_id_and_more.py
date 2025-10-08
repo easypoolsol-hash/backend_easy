@@ -16,6 +16,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="faceembeddingmetadata",
             name="embedding",
-            field=models.JSONField(default=dict, help_text="The embedding vector as a list of floats"),
+            field=models.JSONField(
+                default=dict, help_text="The embedding vector as a list of floats"
+            ),
         ),
     ]

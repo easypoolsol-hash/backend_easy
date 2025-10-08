@@ -87,7 +87,9 @@ def check_database() -> dict[str, Any]:
                 "status": "healthy",
                 "query_time_ms": round(query_time * 1000, 2),
                 "database_engine": getattr(connection, "vendor", "unknown"),
-                "database_name": str(getattr(connection, "settings_dict", {}).get("NAME", "unknown")),
+                "database_name": str(
+                    getattr(connection, "settings_dict", {}).get("NAME", "unknown")
+                ),
             }
     except Exception as e:
         return {
@@ -164,9 +166,13 @@ def check_celery() -> dict[str, Any]:
                 "status": "healthy",
                 "active_workers": worker_count,
                 "active_tasks": active_task_count,
-                "broker_url": current_app.conf.broker_url.replace(current_app.conf.broker_url.split("@")[0] + "@", "***@"),  # Mask credentials
+                "broker_url": current_app.conf.broker_url.replace(
+                    current_app.conf.broker_url.split("@")[0] + "@", "***@"
+                ),  # Mask credentials
                 "result_backend": (
-                    current_app.conf.result_backend.replace(current_app.conf.result_backend.split("@")[0] + "@", "***@")
+                    current_app.conf.result_backend.replace(
+                        current_app.conf.result_backend.split("@")[0] + "@", "***@"
+                    )
                     if current_app.conf.result_backend
                     else None
                 ),
@@ -280,7 +286,9 @@ def check_business_logic() -> dict[str, Any]:
                     }
 
             # Overall business logic status
-            unhealthy_checks = [k for k, v in checks.items() if v["status"] == "unhealthy"]
+            unhealthy_checks = [
+                k for k, v in checks.items() if v["status"] == "unhealthy"
+            ]
             status = "unhealthy" if unhealthy_checks else "healthy"
 
             return {

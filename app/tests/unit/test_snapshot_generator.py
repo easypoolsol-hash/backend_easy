@@ -17,7 +17,9 @@ class TestSnapshotGenerator:
         """Verify snapshot contains correct students and their embeddings for a specific bus."""
         bus1 = BusFactory()
         student1 = StudentFactory(assigned_bus=bus1)
-        emb1 = FaceEmbeddingMetadataFactory(student_photo__student=student1, embedding=[1.0, 2.0])
+        emb1 = FaceEmbeddingMetadataFactory(
+            student_photo__student=student1, embedding=[1.0, 2.0]
+        )
 
         bus2 = BusFactory()
         student2 = StudentFactory(assigned_bus=bus2)  # Belongs to a different bus

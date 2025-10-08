@@ -11,7 +11,9 @@ from students.models import Student
 
 def calculate_content_hash(student_ids: list, embedding_ids: list) -> str:
     """Calculates a stable hash for the content of the snapshot."""
-    hash_input = "".join(sorted(map(str, student_ids))) + "".join(sorted(map(str, embedding_ids)))
+    hash_input = "".join(sorted(map(str, student_ids))) + "".join(
+        sorted(map(str, embedding_ids))
+    )
     # Use SHA-256 for collision resistance (avoid MD5)
     return hashlib.sha256(hash_input.encode()).hexdigest()
 
@@ -46,7 +48,9 @@ class SnapshotGenerator:
             embedding_count = len(embedding_ids)
             content_hash = calculate_content_hash(student_ids, embedding_ids)
 
-            self._populate_metadata(cursor, student_count, embedding_count, content_hash)
+            self._populate_metadata(
+                cursor, student_count, embedding_count, content_hash
+            )
 
             conn.commit()
             conn.close()
@@ -102,10 +106,17 @@ class SnapshotGenerator:
         except Bus.DoesNotExist:
             return [], [], []
 
-        students = Student.objects.filter(assigned_bus__route=bus.route, status="active").prefetch_related("photos__face_embeddings")
+        students = Student.objects.filter(
+            assigned_bus__route=bus.route, status="active"
+        ).prefetch_related("photos__face_embeddings")
 
         student_ids = [s.student_id for s in students]
-        embedding_ids = [emb.embedding_id for s in students for p in s.photos.all() for emb in p.face_embeddings.all()]
+        embedding_ids = [
+            emb.embedding_id
+            for s in students
+            for p in s.photos.all()
+            for emb in p.face_embeddings.all()
+        ]
 
         return students, student_ids, embedding_ids
 
@@ -129,7 +140,9 @@ class SnapshotGenerator:
                         )
                     )
 
-        cursor.executemany("INSERT INTO students (student_id, name) VALUES (?, ?)", student_rows)
+        cursor.executemany(
+            "INSERT INTO students (student_id, name) VALUES (?, ?)", student_rows
+        )
         cursor.executemany(
             "INSERT INTO embeddings (embedding_id, student_id, embedding, model_name) VALUES (?, ?, ?, ?)",
             embedding_rows,
@@ -144,4 +157,6 @@ class SnapshotGenerator:
             ("embedding_count", str(embedding_count)),
             ("content_hash", content_hash),
         ]
-        cursor.executemany("INSERT INTO metadata (key, value) VALUES (?, ?)", metadata_rows)
+        cursor.executemany(
+            "INSERT INTO metadata (key, value) VALUES (?, ?)", metadata_rows
+        )

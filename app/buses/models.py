@@ -22,7 +22,9 @@ class Route(models.Model):
         unique=True,
         help_text="Route name (e.g., 'Route A', 'North Loop')",
     )
-    description = models.TextField(blank=True, help_text="Detailed description of the route")
+    description = models.TextField(
+        blank=True, help_text="Detailed description of the route"
+    )
     stops = models.JSONField(
         default=list,
         help_text="Array of stop objects: [{name, lat, lon, sequence, estimated_time}]",
@@ -31,9 +33,15 @@ class Route(models.Model):
         default=dict,
         help_text="Schedule data: {morning: {start, end}, afternoon: {start, end}}",
     )
-    is_active = models.BooleanField(default=True, help_text="Whether this route is currently active")
-    created_at = models.DateTimeField(auto_now_add=True, help_text="When this route was created")
-    updated_at = models.DateTimeField(auto_now=True, help_text="When this route was last updated")
+    is_active = models.BooleanField(
+        default=True, help_text="Whether this route is currently active"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, help_text="When this route was created"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="When this route was last updated"
+    )
 
     class Meta:
         db_table = "routes"
@@ -73,7 +81,9 @@ class Bus(models.Model):
         editable=False,
         help_text="UUID primary key",
     )
-    license_plate = models.CharField(max_length=20, unique=True, help_text="Vehicle license plate number")
+    license_plate = models.CharField(
+        max_length=20, unique=True, help_text="Vehicle license plate number"
+    )
     route = models.ForeignKey(
         Route,
         on_delete=models.SET_NULL,
@@ -82,7 +92,9 @@ class Bus(models.Model):
         related_name="buses",
         help_text="Route this bus is assigned to",
     )
-    capacity = models.PositiveIntegerField(validators=[MinValueValidator(1)], help_text="Maximum number of passengers")
+    capacity = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)], help_text="Maximum number of passengers"
+    )
     device_id = models.CharField(
         max_length=100,
         unique=True,
@@ -96,12 +108,22 @@ class Bus(models.Model):
         default="active",
         help_text="Current operational status",
     )
-    manufacturer = models.CharField(max_length=100, blank=True, help_text="Bus manufacturer")
+    manufacturer = models.CharField(
+        max_length=100, blank=True, help_text="Bus manufacturer"
+    )
     model = models.CharField(max_length=100, blank=True, help_text="Bus model")
-    year = models.PositiveIntegerField(null=True, blank=True, help_text="Manufacturing year")
-    last_maintenance = models.DateField(null=True, blank=True, help_text="Date of last maintenance")
-    created_at = models.DateTimeField(auto_now_add=True, help_text="When this bus was added to the system")
-    updated_at = models.DateTimeField(auto_now=True, help_text="When this bus record was last updated")
+    year = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Manufacturing year"
+    )
+    last_maintenance = models.DateField(
+        null=True, blank=True, help_text="Date of last maintenance"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, help_text="When this bus was added to the system"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, help_text="When this bus record was last updated"
+    )
     last_student_update = models.DateTimeField(
         auto_now=True,
         help_text="Last time students/embeddings changed for this bus",

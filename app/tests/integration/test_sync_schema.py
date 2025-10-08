@@ -129,7 +129,9 @@ def test_all_sync_endpoints_have_schema():
 
     for endpoint in required_endpoints:
         # Check if endpoint exists in schema paths
-        assert endpoint in paths, f"Endpoint {endpoint} not found in OpenAPI schema. Available paths: {sorted(paths)}"
+        assert (
+            endpoint in paths
+        ), f"Endpoint {endpoint} not found in OpenAPI schema. Available paths: {sorted(paths)}"
 
 
 @pytest.mark.django_db
@@ -184,4 +186,6 @@ def test_complete_sync_workflow(api_client, test_kiosk):
         data=heartbeat_data,
         format="json",
     )
-    assert heartbeat_response.status_code == 204, f"Heartbeat failed: {heartbeat_response.json()}"
+    assert (
+        heartbeat_response.status_code == 204
+    ), f"Heartbeat failed: {heartbeat_response.json()}"

@@ -52,7 +52,9 @@ class Command(BaseCommand):
                     defaults={"address": fields.get("address", "")},
                 )
                 created_objects["school"] = school_obj
-                self.stdout.write(f"[OK] School: {school_obj.name} ({'created' if created else 'exists'})")
+                self.stdout.write(
+                    f"[OK] School: {school_obj.name} ({'created' if created else 'exists'})"
+                )
 
             elif model_name == "buses.route":
                 route_obj, created = Route.objects.get_or_create(
@@ -64,7 +66,9 @@ class Command(BaseCommand):
                     },
                 )
                 created_objects["route"] = route_obj
-                self.stdout.write(f"[OK] Route: {route_obj.name} ({'created' if created else 'exists'})")
+                self.stdout.write(
+                    f"[OK] Route: {route_obj.name} ({'created' if created else 'exists'})"
+                )
 
             elif model_name == "buses.bus":
                 license_plate = fields.get("license_plate")
@@ -77,7 +81,9 @@ class Command(BaseCommand):
                     },
                 )
                 created_objects["bus"] = bus_obj
-                self.stdout.write(f"[OK] Bus: {bus_obj.license_plate} ({'created' if created else 'exists'})")
+                self.stdout.write(
+                    f"[OK] Bus: {bus_obj.license_plate} ({'created' if created else 'exists'})"
+                )
 
             elif model_name == "kiosks.kiosk":
                 kiosk_obj, created = Kiosk.objects.get_or_create(
@@ -88,12 +94,16 @@ class Command(BaseCommand):
                     },
                 )
                 created_objects["kiosk"] = kiosk_obj
-                self.stdout.write(f"[OK] Kiosk: {kiosk_obj.kiosk_id} ({'created' if created else 'exists'})")
+                self.stdout.write(
+                    f"[OK] Kiosk: {kiosk_obj.kiosk_id} ({'created' if created else 'exists'})"
+                )
 
             elif model_name == "students.parent":
                 parent_obj = Parent.objects.first()
                 if not parent_obj:
-                    parent_obj = Parent.objects.create(phone="temp_phone", email="temp_email", name="temp_name")
+                    parent_obj = Parent.objects.create(
+                        phone="temp_phone", email="temp_email", name="temp_name"
+                    )
                     parent_obj.encrypted_phone = fields.get("phone", "")
                     parent_obj.encrypted_email = fields.get("email", "")
                     parent_obj.encrypted_name = fields.get("name", "")
@@ -102,10 +112,14 @@ class Command(BaseCommand):
                 else:
                     created = False
                 created_objects["parent"] = parent_obj
-                self.stdout.write(f"[OK] Parent: {parent_obj.encrypted_name} ({'created' if created else 'exists'})")
+                self.stdout.write(
+                    f"[OK] Parent: {parent_obj.encrypted_name} ({'created' if created else 'exists'})"
+                )
 
             elif model_name == "students.student":
-                student_obj = Student.objects.filter(school=cast(School, created_objects.get("school"))).first()
+                student_obj = Student.objects.filter(
+                    school=cast(School, created_objects.get("school"))
+                ).first()
                 if not student_obj:
                     student_obj = Student.objects.create(
                         school=cast(School, created_objects.get("school")),
@@ -121,32 +135,54 @@ class Command(BaseCommand):
                 else:
                     created = False
                 created_objects["student"] = student_obj
-                self.stdout.write(f"[OK] Student: {student_obj.encrypted_name} ({'created' if created else 'exists'})")
+                self.stdout.write(
+                    f"[OK] Student: {student_obj.encrypted_name} ({'created' if created else 'exists'})"
+                )
 
             elif model_name == "students.studentphoto":
                 # Get student folder from dataset
                 student = created_objects.get("student")
                 if student is None:
-                    self.stdout.write(self.style.WARNING("[SKIP] No student available for photos"))
+                    self.stdout.write(
+                        self.style.WARNING("[SKIP] No student available for photos")
+                    )
                     continue
                 student_folder_name = fields.get("student_folder", "")
 
                 if not student_folder_name:
-                    self.stdout.write(self.style.WARNING("[SKIP] No student_folder specified for photos"))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            "[SKIP] No student_folder specified for photos"
+                        )
+                    )
                     continue
 
                 student_folder = dataset_path / student_folder_name
 
                 if not student_folder.exists():
-                    self.stdout.write(self.style.ERROR(f"[ERROR] Student folder not found: {student_folder}"))
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"[ERROR] Student folder not found: {student_folder}"
+                        )
+                    )
                     continue
 
                 # Get all image files from student folder
                 image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
-                photo_files = sorted([f for f in student_folder.iterdir() if f.suffix.lower() in image_extensions])
+                photo_files = sorted(
+                    [
+                        f
+                        for f in student_folder.iterdir()
+                        if f.suffix.lower() in image_extensions
+                    ]
+                )
 
                 if not photo_files:
-                    self.stdout.write(self.style.WARNING(f"[SKIP] No photos found in {student_folder}"))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"[SKIP] No photos found in {student_folder}"
+                        )
+                    )
                     continue
 
                 # Delete existing photos for this student
@@ -170,18 +206,30 @@ class Command(BaseCommand):
                     msg = f"[OK] Photo {idx + 1}/{len(photo_files)}: {photo_obj.photo.name}{primary_label}"
                     self.stdout.write(self.style.SUCCESS(msg))
 
-                self.stdout.write(self.style.SUCCESS(f"Total photos for {student.encrypted_name}: {len(photo_files)}\n"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Total photos for {student.encrypted_name}: {len(photo_files)}\n"
+                    )
+                )
 
             elif model_name == "students.faceembeddingmetadata":
                 # Create a FaceEmbeddingMetadata entry linked to the student's primary photo
                 student = created_objects.get("student")
                 if not student:
-                    self.stdout.write(self.style.WARNING("[SKIP] No student available for embedding"))
+                    self.stdout.write(
+                        self.style.WARNING("[SKIP] No student available for embedding")
+                    )
                     continue
 
-                primary_photo = StudentPhoto.objects.filter(student=student, is_primary=True).first()
+                primary_photo = StudentPhoto.objects.filter(
+                    student=student, is_primary=True
+                ).first()
                 if not primary_photo:
-                    self.stdout.write(self.style.WARNING("[SKIP] No primary photo found for student to attach embedding"))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            "[SKIP] No primary photo found for student to attach embedding"
+                        )
+                    )
                     continue
 
                 # Extract fields from fixture
@@ -196,7 +244,9 @@ class Command(BaseCommand):
                 try:
                     if captured_at_raw:
                         # timezone-aware parsing using standard library
-                        captured_at = datetime.fromisoformat(captured_at_raw.replace("Z", "+00:00"))
+                        captured_at = datetime.fromisoformat(
+                            captured_at_raw.replace("Z", "+00:00")
+                        )
                         # Make timezone-aware if naive
                         if captured_at.tzinfo is None:
                             from django.utils import timezone as dj_tz
@@ -217,6 +267,10 @@ class Command(BaseCommand):
                     captured_at=captured_at,
                 )
                 fem.save()
-                self.stdout.write(self.style.SUCCESS(f"[OK] Seeded face embedding for {student.encrypted_name}"))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"[OK] Seeded face embedding for {student.encrypted_name}"
+                    )
+                )
 
         self.stdout.write(self.style.SUCCESS("\n=== Seed complete! ==="))

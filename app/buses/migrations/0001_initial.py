@@ -36,7 +36,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "description",
-                    models.TextField(blank=True, help_text="Detailed description of the route"),
+                    models.TextField(
+                        blank=True, help_text="Detailed description of the route"
+                    ),
                 ),
                 (
                     "stops",
@@ -54,21 +56,29 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "is_active",
-                    models.BooleanField(default=True, help_text="Whether this route is currently active"),
+                    models.BooleanField(
+                        default=True, help_text="Whether this route is currently active"
+                    ),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(auto_now_add=True, help_text="When this route was created"),
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="When this route was created"
+                    ),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(auto_now=True, help_text="When this route was last updated"),
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this route was last updated"
+                    ),
                 ),
             ],
             options={
                 "db_table": "routes",
                 "ordering": ["name"],
-                "indexes": [models.Index(fields=["is_active"], name="idx_routes_active")],
+                "indexes": [
+                    models.Index(fields=["is_active"], name="idx_routes_active")
+                ],
             },
         ),
         migrations.CreateModel(
@@ -124,7 +134,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "manufacturer",
-                    models.CharField(blank=True, help_text="Bus manufacturer", max_length=100),
+                    models.CharField(
+                        blank=True, help_text="Bus manufacturer", max_length=100
+                    ),
                 ),
                 (
                     "model",
@@ -132,11 +144,15 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "year",
-                    models.PositiveIntegerField(blank=True, help_text="Manufacturing year", null=True),
+                    models.PositiveIntegerField(
+                        blank=True, help_text="Manufacturing year", null=True
+                    ),
                 ),
                 (
                     "last_maintenance",
-                    models.DateField(blank=True, help_text="Date of last maintenance", null=True),
+                    models.DateField(
+                        blank=True, help_text="Date of last maintenance", null=True
+                    ),
                 ),
                 (
                     "created_at",
@@ -147,7 +163,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(auto_now=True, help_text="When this bus record was last updated"),
+                    models.DateTimeField(
+                        auto_now=True, help_text="When this bus record was last updated"
+                    ),
                 ),
                 (
                     "route",
@@ -165,7 +183,9 @@ class Migration(migrations.Migration):
                 "db_table": "buses",
                 "ordering": ["license_plate"],
                 "indexes": [
-                    models.Index(fields=["route", "status"], name="idx_buses_route_status"),
+                    models.Index(
+                        fields=["route", "status"], name="idx_buses_route_status"
+                    ),
                     models.Index(fields=["device_id"], name="idx_buses_device"),
                     models.Index(fields=["license_plate"], name="idx_buses_license"),
                     models.Index(fields=["status"], name="idx_buses_status"),

@@ -209,3 +209,6 @@ trivy-results.sarif
 trivy-results.json
 *.sarif
 *.sarif.json
+pylint_output.json
+bandit_output.json
+scripts/

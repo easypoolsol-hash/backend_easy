@@ -27,7 +27,9 @@ class BoardingEventSerializer(serializers.ModelSerializer):
     def validate_confidence_score(self, value):
         """Validate confidence score is between 0 and 1"""
         if not (0.0 <= value <= 1.0):
-            raise serializers.ValidationError("Confidence score must be between 0.0 and 1.0")
+            raise serializers.ValidationError(
+                "Confidence score must be between 0.0 and 1.0"
+            )
         return value
 
 

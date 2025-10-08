@@ -169,13 +169,16 @@ def kiosk_log(request):
                 log_level=log_data.get("level", "INFO"),
                 message=log_data.get("message", ""),
                 metadata=log_data.get("metadata", {}),
-                timestamp=log_data.get("timestamp") or timezone.now(),  # Explicitly set timestamp
+                timestamp=log_data.get("timestamp")
+                or timezone.now(),  # Explicitly set timestamp
             )
         )
 
     DeviceLog.objects.bulk_create(log_entries)
 
-    return Response({"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id})
+    return Response(
+        {"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id}
+    )
 
 
 class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
@@ -195,7 +198,12 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
         # Group logs by level for the last 24 hours
         yesterday = timezone.now() - timedelta(days=1)
 
-        summary = DeviceLog.objects.filter(timestamp__gte=yesterday).values("log_level").annotate(count=Count("log_id")).order_by("log_level")
+        summary = (
+            DeviceLog.objects.filter(timestamp__gte=yesterday)
+            .values("log_level")
+            .annotate(count=Count("log_id"))
+            .order_by("log_level")
+        )
 
         return Response({"period": "last 24 hours", "summary": list(summary)})
 
@@ -305,7 +313,9 @@ def download_snapshot(request, kiosk_id):
 
         # 2. Create a direct file response.
         response = HttpResponse(snapshot_bytes, content_type="application/x-sqlite3")
-        response["Content-Disposition"] = f'attachment; filename="snapshot_{metadata["sync_timestamp"]}.db"'
+        response["Content-Disposition"] = (
+            f'attachment; filename="snapshot_{metadata["sync_timestamp"]}.db"'
+        )
         response["x-snapshot-checksum"] = calculate_checksum(snapshot_bytes)
 
         return response

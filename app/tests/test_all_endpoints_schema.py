@@ -152,7 +152,9 @@ class TestSchemaValidation:
         ]
 
         for endpoint in required_endpoints:
-            assert endpoint in paths, f"CRITICAL: Endpoint {endpoint} missing from OpenAPI schema"
+            assert (
+                endpoint in paths
+            ), f"CRITICAL: Endpoint {endpoint} missing from OpenAPI schema"
 
     def test_schema_has_valid_structure(self):
         """OpenAPI schema has required components"""
@@ -265,7 +267,9 @@ class TestKioskSyncWorkflow:
             "student_count": 1,
             "embedding_count": 0,
         }
-        response = api_client.post(f"/api/v1/{kiosk.kiosk_id}/heartbeat/", heartbeat, format="json")
+        response = api_client.post(
+            f"/api/v1/{kiosk.kiosk_id}/heartbeat/", heartbeat, format="json"
+        )
         assert response.status_code == 204
 
 

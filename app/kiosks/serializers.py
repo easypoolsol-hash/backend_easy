@@ -7,7 +7,9 @@ class KioskSerializer(serializers.ModelSerializer):
     """Serializer for kiosks"""
 
     bus = serializers.CharField(source="bus.bus_id", read_only=True)
-    bus_license_plate = serializers.CharField(source="bus.license_plate", read_only=True)
+    bus_license_plate = serializers.CharField(
+        source="bus.license_plate", read_only=True
+    )
     status_display = serializers.ReadOnlyField()
     is_online = serializers.ReadOnlyField()
     battery_level = serializers.FloatField(required=False)
@@ -87,17 +89,29 @@ class DeviceLogSerializer(serializers.ModelSerializer):
 class CheckUpdatesSerializer(serializers.Serializer):
     """Serializer for check updates request"""
 
-    last_sync_hash = serializers.CharField(required=False, allow_blank=True, help_text="Last content hash from kiosk")
+    last_sync_hash = serializers.CharField(
+        required=False, allow_blank=True, help_text="Last content hash from kiosk"
+    )
 
 
 class CheckUpdatesResponseSerializer(serializers.Serializer):
     """Serializer for check updates response"""
 
-    needs_update = serializers.BooleanField(help_text="Whether kiosk needs to download new snapshot")
-    current_version = serializers.CharField(help_text="Current database version timestamp")
-    student_count = serializers.IntegerField(help_text="Number of students for this bus")
-    embedding_count = serializers.IntegerField(help_text="Number of embeddings for this bus")
-    content_hash = serializers.CharField(help_text="Content hash for integrity verification")
+    needs_update = serializers.BooleanField(
+        help_text="Whether kiosk needs to download new snapshot"
+    )
+    current_version = serializers.CharField(
+        help_text="Current database version timestamp"
+    )
+    student_count = serializers.IntegerField(
+        help_text="Number of students for this bus"
+    )
+    embedding_count = serializers.IntegerField(
+        help_text="Number of embeddings for this bus"
+    )
+    content_hash = serializers.CharField(
+        help_text="Content hash for integrity verification"
+    )
 
 
 class SnapshotResponseSerializer(serializers.Serializer):
@@ -112,13 +126,19 @@ class SnapshotResponseSerializer(serializers.Serializer):
 class HealthDataSerializer(serializers.Serializer):
     """Serializer for health metrics"""
 
-    battery_level = serializers.IntegerField(required=False, min_value=0, max_value=100, allow_null=True)
+    battery_level = serializers.IntegerField(
+        required=False, min_value=0, max_value=100, allow_null=True
+    )
     is_charging = serializers.BooleanField(default=False)
-    storage_available_mb = serializers.IntegerField(required=False, min_value=0, allow_null=True)
+    storage_available_mb = serializers.IntegerField(
+        required=False, min_value=0, allow_null=True
+    )
     camera_active = serializers.BooleanField(default=False)
     network_type = serializers.CharField(required=False, max_length=20, allow_null=True)
     app_version = serializers.CharField(required=False, max_length=20, allow_null=True)
-    last_face_detected_ago_min = serializers.IntegerField(required=False, min_value=0, allow_null=True)
+    last_face_detected_ago_min = serializers.IntegerField(
+        required=False, min_value=0, allow_null=True
+    )
     faces_detected_today = serializers.IntegerField(default=0, min_value=0)
     students_identified_today = serializers.IntegerField(default=0, min_value=0)
 
@@ -127,7 +147,9 @@ class HeartbeatSerializer(serializers.Serializer):
     """Serializer for kiosk heartbeat"""
 
     timestamp = serializers.DateTimeField(help_text="Heartbeat timestamp")
-    database_version = serializers.CharField(max_length=50, help_text="Current database version on kiosk")
+    database_version = serializers.CharField(
+        max_length=50, help_text="Current database version on kiosk"
+    )
     database_hash = serializers.CharField(
         max_length=32,
         required=False,
@@ -135,7 +157,9 @@ class HeartbeatSerializer(serializers.Serializer):
         help_text="Database content hash",
     )
     student_count = serializers.IntegerField(min_value=0, help_text="Students in DB")
-    embedding_count = serializers.IntegerField(min_value=0, help_text="Embeddings in DB")
+    embedding_count = serializers.IntegerField(
+        min_value=0, help_text="Embeddings in DB"
+    )
     health = HealthDataSerializer(required=False)
 
 
@@ -143,7 +167,9 @@ class KioskStatusSerializer(serializers.ModelSerializer):
     """Serializer for KioskStatus model"""
 
     kiosk_id = serializers.CharField(source="kiosk.kiosk_id", read_only=True)
-    bus_id = serializers.UUIDField(source="kiosk.bus.bus_id", read_only=True, allow_null=True)
+    bus_id = serializers.UUIDField(
+        source="kiosk.bus.bus_id", read_only=True, allow_null=True
+    )
     is_outdated = serializers.ReadOnlyField()
     is_offline = serializers.ReadOnlyField()
 
@@ -215,5 +241,9 @@ class KioskActivationResponseSerializer(serializers.Serializer):
     access = serializers.CharField(help_text="JWT access token (15 minutes)")
     refresh = serializers.CharField(help_text="JWT refresh token (60 days)")
     kiosk_id = serializers.CharField(help_text="Activated kiosk ID")
-    bus_id = serializers.UUIDField(help_text="Assigned bus ID", allow_null=True, required=False)
-    activation_token_destroyed = serializers.BooleanField(help_text="Confirms token is now garbage")
+    bus_id = serializers.UUIDField(
+        help_text="Assigned bus ID", allow_null=True, required=False
+    )
+    activation_token_destroyed = serializers.BooleanField(
+        help_text="Confirms token is now garbage"
+    )

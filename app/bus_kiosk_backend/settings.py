@@ -55,7 +55,9 @@ except Exception:
         # Import here to avoid top-level logging config issues during startup
         import logging
 
-        logging.getLogger(__name__).warning("Failed to relax logs dir permissions: %s", e)
+        logging.getLogger(__name__).warning(
+            "Failed to relax logs dir permissions: %s", e
+        )
 
 
 # Quick-start development settings - unsuitable for production
@@ -90,7 +92,9 @@ ALLOWED_HOSTS: list[str] = [
 
 # Add environment variable hosts if specified (for flexibility)
 if os.getenv("ALLOWED_HOSTS"):
-    ALLOWED_HOSTS.extend([host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")])
+    ALLOWED_HOSTS.extend(
+        [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
+    )
 elif os.getenv("GITHUB_ACTIONS") == "true":
     # GitHub Actions CI environment
     ALLOWED_HOSTS.extend(["localhost", "127.0.0.1", "testserver"])
@@ -319,7 +323,9 @@ SPECTACULAR_SETTINGS = {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": ("JWT Authorization header using the Bearer scheme. Example: 'Authorization: Bearer {token}'"),
+            "description": (
+                "JWT Authorization header using the Bearer scheme. Example: 'Authorization: Bearer {token}'"
+            ),
         }
     },
     # Self-hosted Swagger UI (no CDN)
@@ -445,7 +451,9 @@ else:
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        "NAME": ("django.contrib.auth.password_validation.UserAttributeSimilarityValidator"),
+        "NAME": (
+            "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+        ),
     },
     {
         "NAME": ("django.contrib.auth.password_validation.MinimumLengthValidator"),

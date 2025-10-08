@@ -35,7 +35,9 @@ class KioskJWTAuthentication(JWTAuthentication):
         try:
             kiosk_id = validated_token["kiosk_id"]
         except KeyError:
-            raise exceptions.AuthenticationFailed("Token missing kiosk_id claim") from None
+            raise exceptions.AuthenticationFailed(
+                "Token missing kiosk_id claim"
+            ) from None
 
         try:
             kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
@@ -103,11 +105,15 @@ def activate_kiosk(kiosk_id, activation_token):
         raise ValueError("Kiosk is not active. Please contact an administrator.")
 
     # Hash submitted token
-    submitted_hash = hmac.new(settings.SECRET_KEY.encode(), activation_token.encode(), sha256).hexdigest()
+    submitted_hash = hmac.new(
+        settings.SECRET_KEY.encode(), activation_token.encode(), sha256
+    ).hexdigest()
 
     # Find matching activation token
     try:
-        activation = KioskActivationToken.objects.get(kiosk=kiosk, token_hash=submitted_hash, is_used=False)
+        activation = KioskActivationToken.objects.get(
+            kiosk=kiosk, token_hash=submitted_hash, is_used=False
+        )
     except KioskActivationToken.DoesNotExist:
         raise ValueError("Invalid or already used activation token") from None
 
@@ -147,5 +153,7 @@ class KioskJWTAuthenticationScheme(OpenApiAuthenticationExtension):
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": ("JWT auth for kiosks. Use 'Authorization: Bearer <token>'."),
+            "description": (
+                "JWT auth for kiosks. Use 'Authorization: Bearer <token>'."
+            ),
         }
