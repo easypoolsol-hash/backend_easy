@@ -151,5 +151,5 @@ class KioskJWTAuthenticationScheme(OpenApiAuthenticationExtension):
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "JWT authentication for kiosk devices. Include token in Authorization header as: Bearer <token>",
+            "description": "JWT auth for kiosks. Use 'Authorization: Bearer <token>'.",
         }

@@ -15,12 +15,12 @@ Example:
 """
 
 from datetime import date
-from django.utils import timezone
 
 import factory
 from buses.models import Bus, Route
 from cryptography.fernet import Fernet
 from django.conf import settings
+from django.utils import timezone
 from factory.django import DjangoModelFactory
 from kiosks.models import Kiosk
 from students.models import (
@@ -51,8 +51,8 @@ class RouteFactory(DjangoModelFactory):
         model = Route
 
     name = factory.Sequence(lambda n: f"Test Route {n}")
-    stops = []
-    schedule = {}
+    stops: list = []
+    schedule: dict = {}
     is_active = True
 
 
@@ -237,7 +237,7 @@ class RoleFactory(DjangoModelFactory):
         django_get_or_create = ("name",)
 
     name = "backend_engineer"
-    permissions = {}
+    permissions: dict = {}
     is_active = True
 
 

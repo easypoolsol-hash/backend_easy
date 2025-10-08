@@ -382,10 +382,16 @@ class TestKioskHeartbeatErrorHandling:
         # Based on current implementation, it should accept (validation happens at model level)
         if invalid_battery in [-1, 101, 150]:  # Invalid numbers
             # Model validation should catch this
-            assert response.status_code in [status.HTTP_400_BAD_REQUEST, status.HTTP_204_NO_CONTENT]
+            assert response.status_code in [
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_204_NO_CONTENT,
+            ]
         else:
             # Other invalid types might be accepted or rejected
-            assert response.status_code in [status.HTTP_204_NO_CONTENT, status.HTTP_400_BAD_REQUEST]
+            assert response.status_code in [
+                status.HTTP_204_NO_CONTENT,
+                status.HTTP_400_BAD_REQUEST,
+            ]
 
     def test_heartbeat_missing_required_fields(self, api_client, test_kiosk):
         """
