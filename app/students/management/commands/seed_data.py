@@ -19,7 +19,7 @@ from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from kiosks.models import Kiosk
-from students.models import Parent, School, Student, StudentPhoto
+from students.models import Parent, School, Student, StudentPhoto, FaceEmbeddingMetadata
 
 
 class Command(BaseCommand):
@@ -189,5 +189,49 @@ class Command(BaseCommand):
                         f"Total photos for {student.encrypted_name}: {len(photo_files)}\n"
                     )
                 )
+
+            elif model_name == "students.faceembeddingmetadata":
+                # Create a FaceEmbeddingMetadata entry linked to the student's primary photo
+                student = created_objects.get("student")
+                if not student:
+                    self.stdout.write(self.style.WARNING("[SKIP] No student available for embedding"))
+                    continue
+
+                primary_photo = StudentPhoto.objects.filter(student=student, is_primary=True).first()
+                if not primary_photo:
+                    self.stdout.write(self.style.WARNING("[SKIP] No primary photo found for student to attach embedding"))
+                    continue
+
+                # Extract fields from fixture
+                model_name_field = fields.get("model_name", "unknown")
+                model_version = fields.get("model_version", "v1")
+                embedding = fields.get("embedding", [])
+                quality_score = fields.get("quality_score", 0.0)
+                is_primary = fields.get("is_primary", False)
+                captured_at_raw = fields.get("captured_at")
+
+                # Parse captured_at if provided, otherwise use now()
+                try:
+                    if captured_at_raw:
+                        # timezone-aware parsing
+                        captured_at = timezone.datetime.fromisoformat(captured_at_raw.replace("Z", "+00:00"))
+                        if timezone.is_naive(captured_at):
+                            captured_at = timezone.make_aware(captured_at, timezone.utc)
+                    else:
+                        captured_at = timezone.now()
+                except Exception:
+                    captured_at = timezone.now()
+
+                fem = FaceEmbeddingMetadata(
+                    student_photo=primary_photo,
+                    model_name=model_name_field,
+                    model_version=model_version,
+                    embedding=embedding,
+                    quality_score=quality_score,
+                    is_primary=is_primary,
+                    captured_at=captured_at,
+                )
+                fem.save()
+                self.stdout.write(self.style.SUCCESS(f"[OK] Seeded face embedding for {student.encrypted_name}"))
 
         self.stdout.write(self.style.SUCCESS("\n=== Seed complete! ==="))

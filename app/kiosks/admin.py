@@ -13,7 +13,7 @@ class KioskAdmin(admin.ModelAdmin):
         "bus",
         "status_display",
         "firmware_version",
-        "battery_level",
+        "current_battery_display",
         "last_heartbeat",
         "is_online_display",
         "created_at",
@@ -47,6 +47,26 @@ class KioskAdmin(admin.ModelAdmin):
 
     is_online_display.short_description = "Online Status"  # type: ignore[attr-defined]
 
+    def current_battery_display(self, obj):
+        """Display current battery level from KioskStatus."""
+        try:
+            status = obj.status  # Access the related KioskStatus
+            if status.battery_level is None:
+                return "—"
+            icon = "🔌" if status.is_charging else "⚡"
+            return format_html(
+                '<span style="font-weight: bold;">{}% {}</span>',
+                status.battery_level,
+                icon
+            )
+        except KioskStatus.DoesNotExist:
+            # Fallback to old battery_level field if no status exists
+            if obj.battery_level is None:
+                return "—"
+            return f"{obj.battery_level}% ⚠️"
+
+    current_battery_display.short_description = "Battery"  # type: ignore
+
     def get_queryset(self, request):
         """Optimize queryset"""
         return super().get_queryset(request).select_related("bus")
@@ -59,12 +79,13 @@ class KioskAdmin(admin.ModelAdmin):
 
         tokens = []
         for kiosk in queryset:
-            raw_token, activation = KioskActivationToken.generate_for_kiosk(kiosk)
+            raw_token, _ = KioskActivationToken.generate_for_kiosk(kiosk)
             tokens.append(f"{kiosk.kiosk_id}: {raw_token}")
 
         # Show tokens to admin (copy to clipboard - won't show again!)
-        message = "⚠️ ACTIVATION TOKENS (COPY NOW - Won't show again):\n\n" + "\n".join(tokens)
-        message += "\n\nSend these tokens to technicians via secure channel (not WhatsApp!)"
+        message = "⚠️ ACTIVATION TOKENS (COPY NOW - Won't show again):\n\n"
+        message += "\n".join(tokens)
+        message += "\n\nSend these tokens to technicians via secure channel!"
         self.message_user(request, message, level=messages.WARNING)
 
     generate_activation_token.short_description = "Generate Activation Tokens"
