@@ -14,9 +14,12 @@ import pytest
 import schemathesis
 from rest_framework_simplejwt.tokens import RefreshToken
 from tests.factories import BusFactory, KioskFactory, UserFactory
+from pathlib import Path
 
-# Load OpenAPI schema (single source of truth)
-schema = schemathesis.from_path("schema.yaml")
+# Load OpenAPI schema (single source of truth) using an absolute path so pytest's
+# working directory doesn't affect which schema file is used.
+schema_file = Path(__file__).resolve().parents[1] / "schema.yaml"
+schema = schemathesis.from_path(str(schema_file))
 
 
 def get_user_token(user):
@@ -61,7 +64,10 @@ class TestAuthenticationEndpoints:
         activation_token = kiosk._activation_token  # From factory
         response = api_client.post(
             "/api/v1/kiosks/activate/",
-            {"kiosk_id": str(kiosk.kiosk_id), "activation_token": activation_token},
+            {
+                "kiosk_id": str(kiosk.kiosk_id),
+                "activation_token": activation_token,
+            },
             format="json",
         )
 
@@ -110,7 +116,7 @@ class TestProtectedEndpoints:
         token = activate_response.json()["access"]
         api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
-        from django.utils import timezone
+        # timezone import not required in this test scope
 
         response = api_client.get(
             f"/api/v1/{kiosk.kiosk_id}/check-updates/",

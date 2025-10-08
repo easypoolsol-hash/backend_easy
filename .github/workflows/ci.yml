@@ -51,8 +51,12 @@ jobs:
     - name: Install all dependencies from pyproject.toml
       run: |
         python -m pip install --upgrade pip
-        cp config/pyproject.toml app/pyproject.toml
-        cd app && pip install -e .[dev,testing]
+        cp config/pyproject.toml pyproject.toml
+        pip install -e .[dev,testing]
+
+    - name: Verify schemathesis installation
+      run: |
+        python -c "import schemathesis, sys; print('schemathesis:', getattr(schemathesis, '__version__', 'unknown')); print('module file:', getattr(schemathesis, '__file__', 'none')); print('sys.path:', '\n'.join(sys.path[:10]))"
 
     - name: Run quality checks (ruff + mypy)
       run: |
@@ -102,8 +106,12 @@ jobs:
     - name: Install all dependencies on runner
       run: |
         python -m pip install --upgrade pip
-        cp config/pyproject.toml app/pyproject.toml
-        cd app && pip install -e .[dev,testing]
+        cp config/pyproject.toml pyproject.toml
+        pip install -e .[dev,testing]
+
+    - name: Verify schemathesis installation
+      run: |
+        python -c "import schemathesis, sys; print('schemathesis:', getattr(schemathesis, '__version__', 'unknown')); print('module file:', getattr(schemathesis, '__file__', 'none')); print('sys.path:', '\n'.join(sys.path[:10]))"
 
     # NOTE: Additional test tools should be installed via the project's
     # testing extras (pyproject.toml). Avoid ad-hoc installations or debug

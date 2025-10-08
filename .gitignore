@@ -188,6 +188,10 @@ staticfiles/
 media/
 static/
 
+# Student photos (user data - never commit!)
+student_photos/
+app/student_photos/
+
 # Development
 debug.log
 *.pid

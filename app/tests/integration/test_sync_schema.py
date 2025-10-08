@@ -35,8 +35,6 @@ def test_check_updates_matches_schema(api_client, test_kiosk):
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     # Make request with required last_sync parameter
-    from django.utils import timezone
-
     response = api_client.get(
         f"/api/v1/{kiosk.kiosk_id}/check-updates/",
         {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
@@ -102,7 +100,9 @@ def test_heartbeat_matches_schema(api_client, test_kiosk):
     }
 
     response = api_client.post(
-        f"/api/v1/{kiosk.kiosk_id}/heartbeat/", data=heartbeat_data, format="json"
+        f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+        data=heartbeat_data,
+        format="json",
     )
 
     # Validate against schema
@@ -128,9 +128,9 @@ def test_all_sync_endpoints_have_schema():
 
     for endpoint in required_endpoints:
         # Check if endpoint exists in schema paths
-        assert (
-            endpoint in paths
-        ), f"Endpoint {endpoint} not found in OpenAPI schema. Available paths: {sorted(paths)}"
+        assert endpoint in paths, (
+            f"Endpoint {endpoint} not found in OpenAPI schema. " f"Available paths: {sorted(paths)}"
+        )
 
 
 @pytest.mark.django_db
@@ -138,7 +138,8 @@ def test_complete_sync_workflow(api_client, test_kiosk):
     """
     CRITICAL: Test complete sync workflow sequence
 
-    Fortune 500 standard: Test realistic user flows, not just individual endpoints.
+    Fortune 500 standard: Test realistic user flows, not just individual
+    endpoints.
     Tests: check → download → heartbeat
     """
     from django.utils import timezone
@@ -179,6 +180,8 @@ def test_complete_sync_workflow(api_client, test_kiosk):
         "embedding_count": 1,
     }
     heartbeat_response = api_client.post(
-        f"/api/v1/{kiosk.kiosk_id}/heartbeat/", data=heartbeat_data, format="json"
+        f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+        data=heartbeat_data,
+        format="json",
     )
     assert heartbeat_response.status_code == 204, f"Heartbeat failed: {heartbeat_response.json()}"
