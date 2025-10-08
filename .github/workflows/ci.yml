@@ -105,26 +105,9 @@ jobs:
         cp config/pyproject.toml app/pyproject.toml
         cd app && pip install -e .[dev,testing]
 
-    - name: Install additional test tools
-      # Some test utilities (e.g. schemathesis) are used from tests/conftest.py
-      # and may not be present in the editable install. Install them explicitly
-      # to avoid ModuleNotFoundError in CI.
-      run: |
-        cd app
-        python -m pip install --upgrade pip
-        pip install schemathesis
-
-    - name: 'CI: debug django import'
-      # Temporary diagnostic step to show what `django` the runner will import.
-      # This helps identify shadowing files or missing installs.
-      run: |
-        python - <<'PY'
-        import django, sys, pprint
-        print('django repr:', django)
-        print('django.__file__:', getattr(django, '__file__', None))
-        print('--- sys.path (first 40 entries) ---')
-        pprint.pprint(sys.path[:40])
-        PY
+    # NOTE: Additional test tools should be installed via the project's
+    # testing extras (pyproject.toml). Avoid ad-hoc installations or debug
+    # prints in CI; they cause noisy logs and fragile runs.
 
     - name: Run migrations on runner
       run: cd app && python manage.py migrate --noinput
