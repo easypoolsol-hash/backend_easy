@@ -103,6 +103,18 @@ jobs:
         cp config/pyproject.toml app/pyproject.toml
         cd app && pip install -e .[dev,testing]
 
+    - name: 'CI: debug django import'
+      # Temporary diagnostic step to show what `django` the runner will import.
+      # This helps identify shadowing files or missing installs.
+      run: |
+        python - <<'PY'
+        import django, sys, pprint
+        print('django repr:', django)
+        print('django.__file__:', getattr(django, '__file__', None))
+        print('--- sys.path (first 40 entries) ---')
+        pprint.pprint(sys.path[:40])
+        PY
+
     - name: Run migrations on runner
       run: cd app && python manage.py migrate --noinput
       env:
