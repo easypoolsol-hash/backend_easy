@@ -315,8 +315,8 @@ class TestKioskStatusModelMethods:
         """
         Test is_outdated property when kiosk has no bus assigned.
         """
-        # Create a kiosk explicitly without an assigned bus to ensure test isolation
-        kiosk_without_bus = KioskFactory(assigned_bus=None)
+        # Create a kiosk explicitly without a bus to ensure test isolation
+        kiosk_without_bus = KioskFactory(bus=None)
         status = KioskStatus.objects.create(
             kiosk=kiosk_without_bus,
             last_heartbeat=timezone.now(),
