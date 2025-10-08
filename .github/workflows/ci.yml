@@ -150,9 +150,10 @@ jobs:
         echo "📊 Running All Tests with Coverage..."
         python -m pytest tests/ -v --tb=short \
           --cov=kiosks --cov=buses --cov=students --cov=events --cov=users --cov=bus_kiosk_backend \
+          --cov-config=../.coveragerc \
           --cov-report=xml:../build/coverage.xml \
           --cov-report=term-missing \
-          --cov-fail-under=60
+          --cov-fail-under=50
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only

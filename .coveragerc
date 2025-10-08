@@ -1,0 +1,21 @@
+[run]
+source = bus_kiosk_backend, users, students, buses, events, kiosks
+omit =
+    */admin.py
+    */migrations/*
+    */tests/*
+    */utils/__init__.py
+    manage.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
