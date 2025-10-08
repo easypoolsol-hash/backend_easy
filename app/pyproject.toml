@@ -206,3 +206,28 @@ markers = [
     "api: API endpoint tests",
     "slow: Slow running tests",
 ]
+
+[tool.bandit]
+# Security scanning configuration
+exclude_dirs = ["tests", "migrations", "node_modules"]
+skips = ["B101", "B601"]  # Skip assert checks and shell usage (Django patterns)
+
+[tool.coverage.run]
+source = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*",
+    "manage.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

@@ -379,7 +379,7 @@ def heartbeat(request, kiosk_id):
             kiosk_status = "warning"
 
     # Check if offline (heartbeat old)
-    if kiosk.status:
+    if hasattr(kiosk, 'status') and kiosk.status:
         if kiosk.status.is_offline:
             kiosk_status = "critical"
 
