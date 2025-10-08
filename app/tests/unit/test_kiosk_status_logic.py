@@ -183,6 +183,7 @@ class TestKioskStatusBusinessLogic:
             )
 
 
+@pytest.mark.django_db
 class TestKioskStatusModelValidation:
     """
     Test KioskStatus model field validation and constraints.
@@ -300,6 +301,7 @@ class TestKioskStatusModelValidation:
         assert 'status' in error_dict, f"Expected status validation error, got: {error_dict}"
 
 
+@pytest.mark.django_db
 class TestKioskStatusModelMethods:
     """
     Test KioskStatus model methods and properties.
@@ -313,8 +315,10 @@ class TestKioskStatusModelMethods:
         """
         Test is_outdated property when kiosk has no bus assigned.
         """
+        # Create a kiosk explicitly without an assigned bus to ensure test isolation
+        kiosk_without_bus = KioskFactory(assigned_bus=None)
         status = KioskStatus.objects.create(
-            kiosk=sample_kiosk,
+            kiosk=kiosk_without_bus,
             last_heartbeat=timezone.now(),
             database_version="2025-10-08T10:00:00Z",
             status="ok"
@@ -349,6 +353,7 @@ class TestKioskStatusModelMethods:
         assert str(kiosk_status) == expected
 
 
+@pytest.mark.django_db
 class TestKioskModelMethods:
     """
     Test Kiosk model methods related to status.
