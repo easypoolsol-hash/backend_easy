@@ -86,10 +86,10 @@ class Command(BaseCommand):
                 )
 
             elif model_name == "kiosks.kiosk":
-                kiosk_obj, created = Kiosk.objects.get_or_create(
-                    kiosk_id=fields.get("kiosk_id"),
+                kiosk_obj, created = Kiosk.objects.update_or_create(
+                    bus=created_objects.get("bus"),
                     defaults={
-                        "bus": created_objects.get("bus"),
+                        "kiosk_id": fields.get("kiosk_id"),
                         "is_active": fields.get("is_active", True),
                     },
                 )
