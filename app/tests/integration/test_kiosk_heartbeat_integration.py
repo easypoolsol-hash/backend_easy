@@ -18,6 +18,9 @@ from rest_framework.test import APIClient
 from kiosks.models import KioskStatus
 from tests.factories import KioskFactory
 
+# Ensure all tests in this module are allowed DB access
+pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
 def api_client():

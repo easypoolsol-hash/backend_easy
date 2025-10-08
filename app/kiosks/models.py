@@ -110,6 +110,18 @@ class Kiosk(models.Model):
         self.last_heartbeat = timezone.now()
         self.save(update_fields=["last_heartbeat", "updated_at"])
 
+    def generate_activation_token(self):
+        """Convenience wrapper to generate an activation token for this kiosk.
+
+        Returns the raw token string. Uses KioskActivationToken.generate_for_kiosk
+        which also persists the activation record.
+        """
+        # Import here to avoid circular reference issues at module import time
+        from .models import KioskActivationToken as _KAT  # type: ignore
+
+        raw_token, _ = _KAT.generate_for_kiosk(self)
+        return raw_token
+
 
 class KioskStatus(models.Model):
     """
