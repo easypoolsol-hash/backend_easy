@@ -81,13 +81,8 @@ paths:
           content:
             application/json:
               schema:
-                content:
-                  application/x-sqlite3:
-                    schema:
-                      type: string
-                      format: binary
-                description: A SQLite database file containing the student and embedding
-                  data for the kiosk.
+                type: string
+                format: binary
           description: ''
   /api/v1/api-keys/:
     get:
@@ -782,11 +777,10 @@ paths:
   /api/v1/buses/:
     get:
       operationId: api_v1_buses_list
+      description: ViewSet for buses
       parameters:
-      - name: ordering
-        required: false
-        in: query
-        description: Which field to use when ordering the results.
+      - in: query
+        name: device_id
         schema:
           type: string
       - name: page
@@ -795,12 +789,26 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
-      - name: search
-        required: false
-        in: query
-        description: A search term.
+      - in: query
+        name: route
         schema:
           type: string
+          format: uuid
+        description: UUID primary key
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - maintenance
+          - retired
+        description: |-
+          Current operational status
+
+          * `active` - Active
+          * `maintenance` - Under Maintenance
+          * `retired` - Retired
       tags:
       - api
       security:
@@ -817,6 +825,7 @@ paths:
           description: ''
     post:
       operationId: api_v1_buses_create
+      description: ViewSet for buses
       tags:
       - api
       requestBody:
@@ -846,6 +855,7 @@ paths:
   /api/v1/buses/{bus_id}/:
     get:
       operationId: api_v1_buses_retrieve
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -870,6 +880,7 @@ paths:
           description: ''
     put:
       operationId: api_v1_buses_update
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -906,6 +917,7 @@ paths:
           description: ''
     patch:
       operationId: api_v1_buses_partial_update
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -941,6 +953,7 @@ paths:
           description: ''
     delete:
       operationId: api_v1_buses_destroy
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -1036,9 +1049,27 @@ paths:
   /api/v1/kiosk/boarding/:
     post:
       operationId: api_v1_kiosk_boarding_create
-      description: Student boarding endpoint - must respond in < 0.5 seconds!
+      description: Student boarding endpoint - returns immediate approval and schedules
+        background processing
       tags:
       - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
       security:
       - jwtAuth: []
       - KioskJWTAuth: []
@@ -1046,7 +1077,16 @@ paths:
       - Bearer: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+          description: ''
   /api/v1/kiosks/activate/:
     post:
       operationId: api_v1_kiosks_activate_create
@@ -2963,7 +3003,7 @@ components:
       - timestamp
     Bus:
       type: object
-      description: Full bus serializer for BusViewSet
+      description: Serializer for buses
       properties:
         bus_id:
           type: string
@@ -2979,6 +3019,9 @@ components:
           format: uuid
           description: Route this bus is assigned to
           nullable: true
+        route_name:
+          type: string
+          readOnly: true
         capacity:
           type: integer
           maximum: 9223372036854775807
@@ -3019,6 +3062,15 @@ components:
           format: date
           nullable: true
           description: Date of last maintenance
+        assigned_students_count:
+          type: string
+          readOnly: true
+        utilization_percentage:
+          type: string
+          readOnly: true
+        is_available:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -3029,18 +3081,16 @@ components:
           format: date-time
           readOnly: true
           description: When this bus record was last updated
-        last_student_update:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Last time students/embeddings changed for this bus
       required:
+      - assigned_students_count
       - bus_id
       - capacity
       - created_at
-      - last_student_update
+      - is_available
       - license_plate
+      - route_name
       - updated_at
+      - utilization_percentage
     BusBasic:
       type: object
       description: Basic bus serializer for nested use in student views
@@ -3726,7 +3776,7 @@ components:
           description: When this record was created in database
     PatchedBus:
       type: object
-      description: Full bus serializer for BusViewSet
+      description: Serializer for buses
       properties:
         bus_id:
           type: string
@@ -3742,6 +3792,9 @@ components:
           format: uuid
           description: Route this bus is assigned to
           nullable: true
+        route_name:
+          type: string
+          readOnly: true
         capacity:
           type: integer
           maximum: 9223372036854775807
@@ -3782,6 +3835,15 @@ components:
           format: date
           nullable: true
           description: Date of last maintenance
+        assigned_students_count:
+          type: string
+          readOnly: true
+        utilization_percentage:
+          type: string
+          readOnly: true
+        is_available:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -3792,11 +3854,6 @@ components:
           format: date-time
           readOnly: true
           description: When this bus record was last updated
-        last_student_update:
-          type: string
-          format: date-time
-          readOnly: true
-          description: Last time students/embeddings changed for this bus
     PatchedParent:
       type: object
       properties:

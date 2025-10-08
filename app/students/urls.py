@@ -5,7 +5,6 @@ from . import views
 
 router = DefaultRouter()
 router.register(r"schools", views.SchoolViewSet)
-router.register(r"buses", views.BusViewSet)
 router.register(r"students", views.StudentViewSet)
 router.register(r"student-photos", views.StudentPhotoViewSet)
 router.register(r"parents", views.ParentViewSet)

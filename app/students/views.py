@@ -15,8 +15,7 @@ from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
     StudentParent,
     StudentPhoto,
 )
-from .serializers import (  # FaceEmbeddingMetadataSerializer removed - no API endpoint needed
-    BusSerializer,
+from .serializers import (  # FaceEmbeddingMetadataSerializer removed - no API endpoint needed; BusSerializer removed - Use buses.serializers.BusSerializer instead
     ParentSerializer,
     SchoolSerializer,
     StudentParentSerializer,
@@ -24,6 +23,7 @@ from .serializers import (  # FaceEmbeddingMetadataSerializer removed - no API e
     StudentSerializer,
 )
 from .tasks import process_student_attendance
+from drf_spectacular.utils import extend_schema
 
 # pylint: disable=no-member
 
@@ -34,17 +34,12 @@ class SchoolViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSchoolAdmin]
 
 
-class BusViewSet(viewsets.ModelViewSet):
-    queryset = Bus.objects.all()
-    serializer_class = BusSerializer
-    permission_classes = [IsSchoolAdmin]
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        status_filter = self.request.query_params.get("status")
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-        return queryset
+# BusViewSet REMOVED - Use buses.views.BusViewSet instead
+# The full-featured implementation is in app/buses/views.py with:
+# - Bulk student assignment
+# - Capacity checking
+# - Utilization reports
+# This duplicate was causing URL routing conflicts and confusion
 
 
 class StudentViewSet(viewsets.ModelViewSet):
@@ -240,6 +235,16 @@ class KioskBoardingView(APIView):
     Simulate a bus kiosk boarding endpoint - FAST response needed!
     """
 
+    @extend_schema(
+        request="events.serializers.BoardingEventCreateSerializer",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {"status": {"type": "string"}, "message": {"type": "string"}},
+            }
+        },
+        description="Student boarding endpoint - returns immediate approval and schedules background processing",
+    )
     def post(self, request):
         """
         Student boarding endpoint - must respond in < 0.5 seconds!

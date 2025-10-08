@@ -5,6 +5,7 @@ from bus_kiosk_backend.permissions import IsSchoolAdmin
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
 
 # type: ignore[import-not-found]
 from drf_spectacular.utils import extend_schema
@@ -275,18 +276,12 @@ def check_updates(request, kiosk_id):
 
 
 from django.http import HttpResponse
+
 from .services import SnapshotGenerator
 
 
 @extend_schema(
-    responses={
-        200: {
-            "content": {
-                "application/x-sqlite3": {"schema": {"type": "string", "format": "binary"}}
-            },
-            "description": "A SQLite database file containing the student and embedding data for the kiosk.",
-        }
-    },
+    responses={200: OpenApiTypes.BINARY},
     description="Generate and download a kiosk database snapshot.",
 )
 @api_view(["GET"])
