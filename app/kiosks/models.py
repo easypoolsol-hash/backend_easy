@@ -116,10 +116,12 @@ class Kiosk(models.Model):
         Returns the raw token string. Uses KioskActivationToken.generate_for_kiosk
         which also persists the activation record.
         """
-        # Import here to avoid circular reference issues at module import time
-        from .models import KioskActivationToken as _KAT  # type: ignore
+        # Import model here to avoid circular import at module load time
+        from .models import (
+            KioskActivationToken as KioskActivationTokenModel,  # type: ignore
+        )
 
-        raw_token, _ = _KAT.generate_for_kiosk(self)
+        raw_token, _ = KioskActivationTokenModel.generate_for_kiosk(self)
         return raw_token
 
 

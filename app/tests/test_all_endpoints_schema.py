@@ -58,7 +58,7 @@ class TestAuthenticationEndpoints:
     def test_kiosk_can_get_jwt_token(self, api_client):
         """Kiosk activation returns valid JWT tokens"""
         bus = BusFactory()
-        kiosk = KioskFactory(bus=bus)
+        kiosk = KioskFactory(bus=bus, is_active=True)
 
         # Use activation token instead of api_key
         activation_token = kiosk._activation_token  # From factory
@@ -100,7 +100,7 @@ class TestProtectedEndpoints:
     def test_kiosk_endpoints_require_kiosk_token(self, api_client):
         """Kiosk sync endpoints require kiosk-type JWT tokens"""
         bus = BusFactory()
-        kiosk = KioskFactory(bus=bus)
+        kiosk = KioskFactory(bus=bus, is_active=True)
 
         # Without token - should fail
         response = api_client.get(f"/api/v1/{kiosk.kiosk_id}/check-updates/")
@@ -227,7 +227,7 @@ class TestKioskSyncWorkflow:
 
         # Setup
         bus = BusFactory()
-        kiosk = KioskFactory(bus=bus)
+        kiosk = KioskFactory(bus=bus, is_active=True)
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
         # Activate kiosk to get proper token

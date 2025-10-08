@@ -30,8 +30,8 @@ def api_client():
 
 @pytest.fixture
 def test_kiosk():
-    """Create test kiosk with activation token."""
-    kiosk = KioskFactory()
+    """Create an ACTIVE test kiosk with an activation token."""
+    kiosk = KioskFactory(is_active=True)
     activation_token = kiosk._activation_token
     return kiosk, activation_token
 
@@ -74,7 +74,7 @@ class TestKioskHeartbeatIntegration:
                 "app_version": "1.2.3",
                 "device_model": "TestDevice",
                 "os_version": "Android 12",
-            }
+            },
         }
 
         response = api_client.post(
@@ -100,27 +100,27 @@ class TestKioskHeartbeatIntegration:
         assert kiosk.last_heartbeat is not None
         assert kiosk.is_online is True
 
-    @pytest.mark.parametrize("battery_level,is_charging,expected_status", [
-        # Critical battery scenarios
-        (5, False, "critical"),
-        (9, False, "critical"),
-        (0, False, "critical"),
-
-        # Warning battery scenarios
-        (10, False, "warning"),
-        (15, False, "warning"),
-        (19, False, "warning"),
-
-        # OK battery scenarios
-        (20, False, "ok"),
-        (50, False, "ok"),
-        (100, False, "ok"),
-
-        # Charging overrides
-        (5, True, "ok"),
-        (1, True, "ok"),
-        (15, True, "ok"),
-    ])
+    @pytest.mark.parametrize(
+        "battery_level,is_charging,expected_status",
+        [
+            # Critical battery scenarios
+            (5, False, "critical"),
+            (9, False, "critical"),
+            (0, False, "critical"),
+            # Warning battery scenarios
+            (10, False, "warning"),
+            (15, False, "warning"),
+            (19, False, "warning"),
+            # OK battery scenarios
+            (20, False, "ok"),
+            (50, False, "ok"),
+            (100, False, "ok"),
+            # Charging overrides
+            (5, True, "ok"),
+            (1, True, "ok"),
+            (15, True, "ok"),
+        ],
+    )
     def test_heartbeat_status_determination_integration(
         self, api_client, test_kiosk, battery_level, is_charging, expected_status
     ):
@@ -151,7 +151,7 @@ class TestKioskHeartbeatIntegration:
                 "battery_level": battery_level,
                 "is_charging": is_charging,
                 "app_version": "1.0.0",
-            }
+            },
         }
 
         response = api_client.post(
@@ -197,7 +197,7 @@ class TestKioskHeartbeatIntegration:
                 "battery_level": 80,
                 "is_charging": False,
                 "app_version": "1.0.0",
-            }
+            },
         }
 
         api_client.post(
@@ -257,7 +257,7 @@ class TestKioskHeartbeatIntegration:
                 "battery_level": 75,
                 "is_charging": True,
                 "app_version": "1.1.0",
-            }
+            },
         }
 
         response = api_client.post(
@@ -299,7 +299,7 @@ class TestKioskHeartbeatErrorHandling:
             "health": {
                 "battery_level": 85,
                 "app_version": "1.0.0",
-            }
+            },
         }
 
         response = api_client.post(
@@ -328,7 +328,7 @@ class TestKioskHeartbeatErrorHandling:
             "health": {
                 "battery_level": 85,
                 "app_version": "1.0.0",
-            }
+            },
         }
 
         response = api_client.post(
@@ -368,7 +368,7 @@ class TestKioskHeartbeatErrorHandling:
                 "battery_level": invalid_battery,
                 "is_charging": False,
                 "app_version": "1.0.0",
-            }
+            },
         }
 
         response = api_client.post(
@@ -421,23 +421,24 @@ class TestKioskHeartbeatErrorHandling:
 
     def test_heartbeat_inactive_kiosk(self, api_client):
         """
-        Test heartbeat from inactive kiosk.
-
-        Industry Standard: Test business rule enforcement.
+        Test that activating an inactive kiosk fails.
+        Industry Standard: Test business rule enforcement (fail-safe default).
         """
         # Create inactive kiosk
         kiosk = KioskFactory(is_active=False)
+        # Generate a valid activation token for it
         activation_token = kiosk.generate_activation_token()
 
-        # Try to activate inactive kiosk
+        # Try to activate the inactive kiosk
         auth_response = api_client.post(
             "/api/v1/kiosks/activate/",
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
 
-        # Should fail activation
+        # Activation should FAIL for an inactive kiosk
         assert auth_response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Kiosk is not active" in auth_response.json()["error"]
 
 
 class TestKioskHeartbeatPerformance:
@@ -448,37 +449,42 @@ class TestKioskHeartbeatPerformance:
     """
 
     @pytest.mark.django_db
-    def test_multiple_kiosks_heartbeat_concurrency(self, api_client):
+    def test_multiple_kiosks_heartbeat_concurrency(self):
         """
         Test multiple kiosks sending heartbeats concurrently.
-
-        Industry Standard: Load testing for concurrent operations.
+        This test ensures that authentication and data processing for one kiosk
+        do not interfere with another, simulating a real-world concurrent environment.
+        Industry Standard: Load testing for concurrent operations with isolated state.
         """
         # Create multiple kiosks
         kiosks = []
         tokens = []
 
         for i in range(5):
-            kiosk = KioskFactory(kiosk_id=f"test_kiosk_{i}")
+            kiosk = KioskFactory(kiosk_id=f"test_kiosk_{i}", is_active=True)
             activation_token = kiosk.generate_activation_token()
             kiosks.append(kiosk)
             tokens.append(activation_token)
 
-        # Activate all kiosks
+        # Activate all kiosks and collect access tokens, using a new client for each
+        access_tokens = []
         for kiosk, token in zip(kiosks, tokens, strict=True):
-            auth_response = api_client.post(
+            client = APIClient()  # Create a new, isolated client for each kiosk
+            auth_response = client.post(
                 "/api/v1/kiosks/activate/",
                 {"kiosk_id": kiosk.kiosk_id, "activation_token": token},
                 format="json",
             )
             assert auth_response.status_code == status.HTTP_200_OK
+            access_tokens.append(auth_response.data["access"])
 
-        # Send heartbeats from all kiosks
+        # Send heartbeats from all kiosks, again using isolated clients
         results = []
         errors = []
 
         def send_heartbeat(kiosk, token):
             try:
+                client = APIClient()  # Use a new client for each request
                 heartbeat_data = {
                     "timestamp": timezone.now().isoformat(),
                     "database_version": timezone.now().isoformat(),
@@ -489,10 +495,10 @@ class TestKioskHeartbeatPerformance:
                         "battery_level": 80,
                         "is_charging": False,
                         "app_version": "1.0.0",
-                    }
+                    },
                 }
 
-                response = api_client.post(
+                response = client.post(
                     f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
                     heartbeat_data,
                     HTTP_AUTHORIZATION=f"Bearer {token}",
@@ -502,17 +508,17 @@ class TestKioskHeartbeatPerformance:
             except Exception as e:
                 errors.append((kiosk.kiosk_id, str(e)))
 
-        # Note: In real implementation, would use threading or async
-        # For this test, we'll send sequentially but verify no interference
-        for kiosk, token in zip(kiosks, tokens, strict=True):
+        # Sequentially send requests, but with isolated clients to prevent state leakage
+        for kiosk, token in zip(kiosks, access_tokens, strict=True):
             send_heartbeat(kiosk, token)
 
         # Verify all heartbeats succeeded
+        assert not errors
         assert len(results) == 5
         for kiosk_id, status_code in results:
-            assert status_code == status.HTTP_204_NO_CONTENT, (
-                f"Heartbeat failed for {kiosk_id}"
-            )
+            assert (
+                status_code == status.HTTP_204_NO_CONTENT
+            ), f"Heartbeat failed for {kiosk_id} with status {status_code}"
 
         # Verify all kiosks have status records
         for kiosk in kiosks:
@@ -525,7 +531,7 @@ class TestKioskHeartbeatPerformance:
         """
         Test heartbeat timing and frequency handling.
 
-        Industry Standard: Test temporal behavior and rate limiting.
+        Industry Standard: Test temporal behavior and data consistency over time.
         """
         kiosk, activation_token = test_kiosk
 
@@ -541,21 +547,19 @@ class TestKioskHeartbeatPerformance:
         base_time = timezone.now()
 
         for i in range(3):
-            heartbeat_time = base_time + timezone.timedelta(
-                seconds=i*30
-            )  # 30 second intervals
+            heartbeat_time = base_time + timezone.timedelta(seconds=i * 30)  # 30 second intervals
 
             heartbeat_data = {
                 "timestamp": heartbeat_time.isoformat(),
                 "database_version": heartbeat_time.isoformat(),
                 "database_hash": f"hash_{i}",
-                "student_count": 100 + i*10,
-                "embedding_count": 100 + i*10,
+                "student_count": 100 + i * 10,
+                "embedding_count": 100 + i * 10,
                 "health": {
-                    "battery_level": 90 - i*5,  # Decreasing battery
+                    "battery_level": 90 - i * 5,  # Decreasing battery: 90, 85, 80
                     "is_charging": False,
                     "app_version": "1.0.0",
-                }
+                },
             }
 
             response = api_client.post(
@@ -566,7 +570,7 @@ class TestKioskHeartbeatPerformance:
             )
             assert response.status_code == status.HTTP_204_NO_CONTENT
 
-        # Verify final state
+        # Verify final state reflects the last heartbeat
         kiosk_status = KioskStatus.objects.get(kiosk=kiosk)
-        assert kiosk_status.battery_level == 75  # Final battery level
+        assert kiosk_status.battery_level == 80  # Final battery level should be 80
         assert kiosk_status.student_count == 120  # Final student count

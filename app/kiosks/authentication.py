@@ -98,6 +98,10 @@ def activate_kiosk(kiosk_id, activation_token):
     except Kiosk.DoesNotExist:
         raise ValueError("Invalid kiosk_id")
 
+    # Fortune 500 security: explicit check for active status
+    if not kiosk.is_active:
+        raise ValueError("Kiosk is not active. Please contact an administrator.")
+
     # Hash submitted token
     submitted_hash = hmac.new(
         settings.SECRET_KEY.encode(), activation_token.encode(), sha256
