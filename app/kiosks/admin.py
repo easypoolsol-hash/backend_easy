@@ -1,7 +1,13 @@
 from django.contrib import admin
+from django.contrib.admin import display
 from django.utils.html import format_html
 
-from .models import DeviceLog, Kiosk, KioskActivationToken, KioskStatus
+from .models import (
+    DeviceLog,
+    Kiosk,
+    KioskActivationToken,
+    KioskStatus,
+)
 
 
 @admin.register(Kiosk)
@@ -27,7 +33,13 @@ class KioskAdmin(admin.ModelAdmin):
         ("Device Info", {"fields": ("kiosk_id", "bus", "is_active")}),
         (
             "Technical Details",
-            {"fields": ("firmware_version", "battery_level", "storage_used_mb")},
+            {
+                "fields": (
+                    "firmware_version",
+                    "battery_level",
+                    "storage_used_mb",
+                )
+            },
         ),
         (
             "Status",
@@ -38,6 +50,7 @@ class KioskAdmin(admin.ModelAdmin):
         ),
     )
 
+    @display(description="Online Status")
     def is_online_display(self, obj):
         """Display online status with color coding"""
         if obj.is_online:
@@ -45,8 +58,7 @@ class KioskAdmin(admin.ModelAdmin):
         else:
             return format_html('<span style="color: red;">● Offline</span>')
 
-    is_online_display.short_description = "Online Status"  # type: ignore[attr-defined]
-
+    @display(description="Battery")
     def current_battery_display(self, obj):
         """Display current battery level from KioskStatus."""
         try:
@@ -57,7 +69,7 @@ class KioskAdmin(admin.ModelAdmin):
             return format_html(
                 '<span style="font-weight: bold;">{}% {}</span>',
                 status.battery_level,
-                icon
+                icon,
             )
         except KioskStatus.DoesNotExist:
             # Fallback to old battery_level field if no status exists
@@ -65,7 +77,7 @@ class KioskAdmin(admin.ModelAdmin):
                 return "—"
             return f"{obj.battery_level}% ⚠️"
 
-    current_battery_display.short_description = "Battery"  # type: ignore
+    # short_description provided by decorator
 
     def get_queryset(self, request):
         """Optimize queryset"""
@@ -73,6 +85,7 @@ class KioskAdmin(admin.ModelAdmin):
 
     actions = ["mark_active", "mark_inactive", "generate_activation_token"]
 
+    @admin.action(description="Generate Activation Tokens")
     def generate_activation_token(self, request, queryset):
         """Generate activation tokens for selected kiosks"""
         from django.contrib import messages
@@ -83,12 +96,17 @@ class KioskAdmin(admin.ModelAdmin):
             tokens.append(f"{kiosk.kiosk_id}: {raw_token}")
 
         # Show tokens to admin (copy to clipboard - won't show again!)
-        message = "⚠️ ACTIVATION TOKENS (COPY NOW - Won't show again):\n\n"
-        message += "\n".join(tokens)
-        message += "\n\nSend these tokens to technicians via secure channel!"
+        message_lines = [
+            "⚠️ ACTIVATION TOKENS (COPY NOW - Won't show again):",
+            "",
+        ]
+        message_lines.extend(tokens)
+        message_lines.append("")
+        message_lines.append("Send tokens to technicians via secure channel")
+        message = "\n".join(message_lines)
         self.message_user(request, message, level=messages.WARNING)
 
-    generate_activation_token.short_description = "Generate Activation Tokens"
+    # admin.action used for description
 
 
 @admin.register(DeviceLog)
@@ -113,18 +131,18 @@ class DeviceLogAdmin(admin.ModelAdmin):
         ("Content", {"fields": ("log_level", "message", "metadata")}),
     )
 
+    @display(description="Message")
     def message_preview(self, obj):
         """Show first 50 characters of message"""
-        return obj.message[:50] + "..." if len(obj.message) > 50 else obj.message
+        preview = obj.message
+        if len(preview) > 50:
+            return preview[:50] + "..."
+        return preview
 
-    message_preview.short_description = "Message"  # type: ignore[attr-defined]
-
+    @display(description="Has Metadata", boolean=True)
     def has_metadata(self, obj):
         """Check if log entry has metadata"""
         return bool(obj.metadata)
-
-    has_metadata.boolean = True  # type: ignore[attr-defined]
-    has_metadata.short_description = "Has Metadata"  # type: ignore[attr-defined]
 
     def get_queryset(self, request):
         """Optimize queryset"""
@@ -195,16 +213,23 @@ class KioskStatusAdmin(admin.ModelAdmin):
         ),
         (
             "Status",
-            {"fields": ("status", "last_error", "last_heartbeat", "updated_at")},
+            {
+                "fields": (
+                    "status",
+                    "last_error",
+                    "last_heartbeat",
+                    "updated_at",
+                )
+            },
         ),
     )
 
+    @display(description="Kiosk ID")
     def kiosk_id_display(self, obj):
         """Display kiosk ID"""
         return obj.kiosk.kiosk_id
 
-    kiosk_id_display.short_description = "Kiosk ID"  # type: ignore[attr-defined]
-
+    @display(description="Status")
     def status_badge(self, obj):
         """Display status with color badge"""
         colors = {
@@ -219,8 +244,7 @@ class KioskStatusAdmin(admin.ModelAdmin):
             obj.get_status_display(),
         )
 
-    status_badge.short_description = "Status"  # type: ignore[attr-defined]
-
+    @display(description="Battery")
     def battery_display(self, obj):
         """Display battery level with charging indicator"""
         if obj.battery_level is None:
@@ -228,15 +252,16 @@ class KioskStatusAdmin(admin.ModelAdmin):
         icon = "🔌" if obj.is_charging else "⚡"
         return f"{obj.battery_level}% {icon}"
 
-    battery_display.short_description = "Battery"  # type: ignore[attr-defined]
+    # short_description via decorator
 
+    @display(description="DB Status")
     def is_outdated_display(self, obj):
         """Display if database is outdated"""
         if obj.is_outdated:
             return format_html('<span style="color: red;">● Outdated</span>')
         return format_html('<span style="color: green;">● Current</span>')
 
-    is_outdated_display.short_description = "DB Status"  # type: ignore[attr-defined]
+    # short_description via decorator
 
     def get_queryset(self, request):
         """Optimize queryset"""
@@ -264,14 +289,24 @@ class KioskActivationTokenAdmin(admin.ModelAdmin):
     ]
     list_filter = ["is_used", "created_at", "expires_at"]
     search_fields = ["kiosk__kiosk_id"]
-    readonly_fields = ["kiosk", "token_hash", "created_at", "used_at", "used_by_ip"]
+    readonly_fields = [
+        "kiosk",
+        "token_hash",
+        "created_at",
+        "used_at",
+        "used_by_ip",
+    ]
     ordering = ["-created_at"]
 
     fieldsets = (
-        ("Token Info", {"fields": ("kiosk", "token_hash", "created_at", "expires_at")}),
+        (
+            "Token Info",
+            {"fields": ("kiosk", "token_hash", "created_at", "expires_at")},
+        ),
         ("Usage", {"fields": ("is_used", "used_at", "used_by_ip")}),
     )
 
+    @display(description="Status")
     def status_badge(self, obj):
         """Display status with color badge"""
         if obj.is_used:
@@ -284,18 +319,21 @@ class KioskActivationTokenAdmin(admin.ModelAdmin):
             color = "gray"
             text = "EXPIRED"
         return format_html(
-            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>',
+            (
+                '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>'
+            ),
             color,
             text,
         )
 
-    status_badge.short_description = "Status"
+    # decorator sets short_description
 
     def get_queryset(self, request):
         """Optimize queryset"""
         return super().get_queryset(request).select_related("kiosk")
 
-    # Prevent manual creation/editing - tokens should be generated via admin action
+    # Prevent manual creation/editing -
+    # tokens should be generated via admin action
     def has_add_permission(self, request):
         return False
 

@@ -1,10 +1,12 @@
-import sqlite3
 import json
-import tempfile
 from pathlib import Path
+import sqlite3
+import tempfile
+
 import pytest
+
 from kiosks.services import SnapshotGenerator
-from tests.factories import BusFactory, StudentFactory, FaceEmbeddingMetadataFactory
+from tests.factories import BusFactory, FaceEmbeddingMetadataFactory, StudentFactory
 
 
 @pytest.mark.django_db

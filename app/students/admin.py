@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin import display
 from django.utils.html import format_html
 
 from .models import (
@@ -18,18 +19,22 @@ class SchoolAdmin(admin.ModelAdmin):
     readonly_fields = ["school_id", "created_at"]
 
 
+NO_PHOTO = "No photo"
+
+
 class StudentPhotoInline(admin.TabularInline):
     model = StudentPhoto
     extra = 1  # Allow adding new photos inline
     fields = ["photo", "is_primary", "captured_at", "photo_preview"]
     readonly_fields = ["captured_at", "photo_preview"]
 
+    @display(description="Preview")
     def photo_preview(self, obj):
         if obj.photo:
-            return format_html('<img src="{}" width="100" height="100" />', obj.photo.url)
-        return "No photo"
-
-    photo_preview.short_description = "Preview"
+            return format_html(
+                '<img src="{}" width="100" height="100" />', obj.photo.url
+            )
+        return NO_PHOTO
 
 
 @admin.register(Student)
@@ -47,10 +52,9 @@ class StudentAdmin(admin.ModelAdmin):
     readonly_fields = ["student_id", "created_at", "updated_at"]
     inlines = [StudentPhotoInline]
 
+    @display(description="Name")
     def get_name(self, obj):
         return obj.encrypted_name
-
-    get_name.short_description = "Name"
 
 
 class FaceEmbeddingInline(admin.TabularInline):
@@ -84,49 +88,49 @@ class StudentPhotoAdmin(admin.ModelAdmin):
         "created_at",
     ]
 
+    @display(description="Thumbnail")
     def photo_thumbnail(self, obj):
         if obj.photo:
             return format_html('<img src="{}" width="50" height="50" />', obj.photo.url)
-        return "No photo"
+        return NO_PHOTO
 
-    photo_thumbnail.short_description = "Thumbnail"
-
+    @display(description="Photo Preview")
     def photo_preview(self, obj):
         if obj.photo:
             return format_html('<img src="{}" width="300" />', obj.photo.url)
-        return "No photo"
+        return NO_PHOTO
 
-    photo_preview.short_description = "Photo Preview"
-
+    @display(description="Embeddings")
     def embedding_count(self, obj):
         count = obj.face_embeddings.count()
         if count > 0:
             return format_html('<span style="color: green;">✓ {}</span>', count)
         return format_html('<span style="color: red;">✗ 0</span>')
 
-    embedding_count.short_description = "Embeddings"
-
 
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
-    list_display = ["parent_id", "get_name", "get_phone", "get_email", "created_at"]
+    list_display = [
+        "parent_id",
+        "get_name",
+        "get_phone",
+        "get_email",
+        "created_at",
+    ]
     search_fields = ["phone", "email", "name"]
     readonly_fields = ["parent_id", "created_at"]
 
+    @display(description="Name")
     def get_name(self, obj):
         return obj.encrypted_name
 
-    get_name.short_description = "Name"
-
+    @display(description="Phone")
     def get_phone(self, obj):
         return obj.encrypted_phone
 
-    get_phone.short_description = "Phone"
-
+    @display(description="Email")
     def get_email(self, obj):
         return obj.encrypted_email
-
-    get_email.short_description = "Email"
 
 
 @admin.register(StudentParent)
@@ -150,7 +154,6 @@ class FaceEmbeddingMetadataAdmin(admin.ModelAdmin):
     search_fields = ["student_photo__student__name", "embedding"]
     readonly_fields = ["embedding_id", "embedding", "created_at"]
 
+    @display(description="Student")
     def get_student(self, obj):
         return obj.student_photo.student
-
-    get_student.short_description = "Student"

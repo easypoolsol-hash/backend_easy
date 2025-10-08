@@ -76,9 +76,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, help_text="When this kiosk was registered"
-                    ),
+                    models.DateTimeField(auto_now_add=True, help_text="When this kiosk was registered"),
                 ),
                 (
                     "updated_at",
@@ -178,9 +176,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="devicelog",
-            index=models.Index(
-                fields=["kiosk", "timestamp"], name="idx_logs_kiosk_time"
-            ),
+            index=models.Index(fields=["kiosk", "timestamp"], name="idx_logs_kiosk_time"),
         ),
         migrations.AddIndex(
             model_name="devicelog",

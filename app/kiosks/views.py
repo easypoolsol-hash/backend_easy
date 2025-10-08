@@ -1,13 +1,11 @@
-import hashlib
 from datetime import timedelta
+import hashlib
 
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from django.db.models import Count
+from django.http import HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
-
-# type: ignore[import-not-found]
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import (
@@ -17,6 +15,8 @@ from rest_framework.decorators import (
     permission_classes,
 )
 from rest_framework.response import Response
+
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 
 from .authentication import KioskJWTAuthentication, activate_kiosk
 from .models import DeviceLog, Kiosk, KioskStatus
@@ -28,10 +28,6 @@ from .serializers import (
     HeartbeatSerializer,
     KioskActivationResponseSerializer,
     KioskActivationSerializer,
-    KioskHeartbeatSerializer,
-    KioskSerializer,
-    KioskStatusSerializer,
-    SnapshotResponseSerializer,
 )
 from .services import SnapshotGenerator
 
@@ -199,12 +195,7 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
         # Group logs by level for the last 24 hours
         yesterday = timezone.now() - timedelta(days=1)
 
-        summary = (
-            DeviceLog.objects.filter(timestamp__gte=yesterday)
-            .values("log_level")
-            .annotate(count=Count("log_id"))
-            .order_by("log_level")
-        )
+        summary = DeviceLog.objects.filter(timestamp__gte=yesterday).values("log_level").annotate(count=Count("log_id")).order_by("log_level")
 
         return Response({"period": "last 24 hours", "summary": list(summary)})
 
@@ -257,7 +248,8 @@ def check_updates(request, kiosk_id):
 
     # Generate metadata to check the latest version on the server
     # This is efficient as it doesn't generate the full snapshot file yet
-    generator = SnapshotGenerator(kiosk.bus.bus_id)
+    # Use the local bus variable (avoid unused variable warnings)
+    generator = SnapshotGenerator(bus.bus_id)
     _, metadata = generator.generate()  # We only need metadata here
 
     # Check if update needed by comparing content hashes
@@ -273,11 +265,6 @@ def check_updates(request, kiosk_id):
     }
 
     return Response(response_data)
-
-
-from django.http import HttpResponse
-
-from .services import SnapshotGenerator
 
 
 @extend_schema(
@@ -307,7 +294,8 @@ def download_snapshot(request, kiosk_id):
 
     if not kiosk.bus:
         return Response(
-            {"detail": "Kiosk not assigned to a bus"}, status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Kiosk not assigned to a bus"},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
@@ -317,9 +305,7 @@ def download_snapshot(request, kiosk_id):
 
         # 2. Create a direct file response.
         response = HttpResponse(snapshot_bytes, content_type="application/x-sqlite3")
-        response["Content-Disposition"] = (
-            f"attachment; filename=\"snapshot_{metadata['sync_timestamp']}.db\""
-        )
+        response["Content-Disposition"] = f'attachment; filename="snapshot_{metadata["sync_timestamp"]}.db"'
         response["x-snapshot-checksum"] = calculate_checksum(snapshot_bytes)
 
         return response
@@ -379,7 +365,7 @@ def heartbeat(request, kiosk_id):
             kiosk_status = "warning"
 
     # Check if offline (heartbeat old)
-    if hasattr(kiosk, 'status') and kiosk.status:
+    if hasattr(kiosk, "status") and kiosk.status:
         if kiosk.status.is_offline:
             kiosk_status = "critical"
 

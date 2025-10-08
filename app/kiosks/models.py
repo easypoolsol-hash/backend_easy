@@ -1,7 +1,8 @@
-from buses.models import Bus
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
+
+from buses.models import Bus
 
 
 class Kiosk(models.Model):
@@ -47,13 +48,9 @@ class Kiosk(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Battery level percentage (0-100)",
     )
-    storage_used_mb = models.PositiveIntegerField(
-        null=True, blank=True, help_text="Storage used in MB on the device"
-    )
+    storage_used_mb = models.PositiveIntegerField(null=True, blank=True, help_text="Storage used in MB on the device")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this kiosk was registered")
-    updated_at = models.DateTimeField(
-        auto_now=True, help_text="When this kiosk record was last updated"
-    )
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this kiosk record was last updated")
 
     class Meta:
         db_table = "kiosks"
@@ -118,7 +115,7 @@ class Kiosk(models.Model):
         """
         # Import model here to avoid circular import at module load time
         from .models import (
-            KioskActivationToken as KioskActivationTokenModel,  # type: ignore
+            KioskActivationToken as KioskActivationTokenModel,
         )
 
         raw_token, _ = KioskActivationTokenModel.generate_for_kiosk(self)
@@ -145,18 +142,14 @@ class KioskStatus(models.Model):
         help_text="Kiosk this status belongs to",
     )
     last_heartbeat = models.DateTimeField(help_text="Last heartbeat received from kiosk")
-    database_version = models.CharField(
-        max_length=50, help_text="Timestamp of current database version"
-    )
+    database_version = models.CharField(max_length=50, help_text="Timestamp of current database version")
     database_hash = models.CharField(
         max_length=32,
         blank=True,
         help_text="Content hash of kiosk database (for integrity)",
     )
     student_count = models.IntegerField(default=0, help_text="Number of students in kiosk database")
-    embedding_count = models.IntegerField(
-        default=0, help_text="Number of embeddings in kiosk database"
-    )
+    embedding_count = models.IntegerField(default=0, help_text="Number of embeddings in kiosk database")
 
     # Health metrics
     battery_level = models.IntegerField(
@@ -166,9 +159,7 @@ class KioskStatus(models.Model):
         help_text="Battery level percentage (0-100)",
     )
     is_charging = models.BooleanField(default=False, help_text="Is device charging")
-    storage_available_mb = models.IntegerField(
-        null=True, blank=True, help_text="Available storage in MB"
-    )
+    storage_available_mb = models.IntegerField(null=True, blank=True, help_text="Available storage in MB")
     camera_active = models.BooleanField(default=False, help_text="Is camera currently active")
     network_type = models.CharField(
         max_length=20,
@@ -176,18 +167,12 @@ class KioskStatus(models.Model):
         blank=True,
         help_text="Network type (wifi, 4g, none)",
     )
-    app_version = models.CharField(
-        max_length=20, null=True, blank=True, help_text="Kiosk app version"
-    )
+    app_version = models.CharField(max_length=20, null=True, blank=True, help_text="Kiosk app version")
 
     # Activity stats
-    last_face_detected = models.DateTimeField(
-        null=True, blank=True, help_text="Last time a face was detected"
-    )
+    last_face_detected = models.DateTimeField(null=True, blank=True, help_text="Last time a face was detected")
     faces_detected_today = models.IntegerField(default=0, help_text="Faces detected today")
-    students_identified_today = models.IntegerField(
-        default=0, help_text="Students identified today"
-    )
+    students_identified_today = models.IntegerField(default=0, help_text="Students identified today")
 
     # Status
     status = models.CharField(
@@ -252,12 +237,8 @@ class DeviceLog(models.Model):
     )
     log_level = models.CharField(max_length=20, choices=LOG_LEVELS, help_text="Log level severity")
     message = models.TextField(help_text="Log message content")
-    metadata = models.JSONField(
-        default=dict, blank=True, help_text="Additional structured data as JSON"
-    )
-    timestamp = models.DateTimeField(
-        default=timezone.now, help_text="When this log entry was created"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional structured data as JSON")
+    timestamp = models.DateTimeField(default=timezone.now, help_text="When this log entry was created")
 
     class Meta:
         db_table = "device_logs"
@@ -272,9 +253,7 @@ class DeviceLog(models.Model):
         # Django ORM, requires raw SQL in migrations
 
     def __str__(self):
-        return (
-            f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: " f"{self.message[:50]}..."
-        )
+        return f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: {self.message[:50]}..."
 
     @classmethod
     def log(cls, kiosk, level, message, metadata=None, timestamp=None):
@@ -312,24 +291,16 @@ class KioskActivationToken(models.Model):
         help_text="HMAC-SHA256 hash of activation token",
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True, help_text="When this activation token was created"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this activation token was created")
 
     expires_at = models.DateTimeField(help_text="Token expires after 24 hours")
 
     # One-time use tracking
-    is_used = models.BooleanField(
-        default=False, help_text="Whether this token has been used for activation"
-    )
+    is_used = models.BooleanField(default=False, help_text="Whether this token has been used for activation")
 
-    used_at = models.DateTimeField(
-        null=True, blank=True, help_text="When this token was used for activation"
-    )
+    used_at = models.DateTimeField(null=True, blank=True, help_text="When this token was used for activation")
 
-    used_by_ip = models.GenericIPAddressField(
-        null=True, blank=True, help_text="IP address that used this token"
-    )
+    used_by_ip = models.GenericIPAddressField(null=True, blank=True, help_text="IP address that used this token")
 
     class Meta:
         db_table = "kiosk_activation_tokens"
@@ -358,9 +329,9 @@ class KioskActivationToken(models.Model):
         Returns:
             tuple: (raw_token, activation_record)
         """
+        from hashlib import sha256
         import hmac
         import secrets
-        from hashlib import sha256
 
         from django.conf import settings
 
@@ -371,10 +342,12 @@ class KioskActivationToken(models.Model):
         token_hash = hmac.new(settings.SECRET_KEY.encode(), raw_token.encode(), sha256).hexdigest()
 
         # Create database record
+        from datetime import timedelta
+
         activation = cls.objects.create(
             kiosk=kiosk,
             token_hash=token_hash,
-            expires_at=timezone.now() + timezone.timedelta(hours=24),
+            expires_at=timezone.now() + timedelta(hours=24),
         )
 
         # Return raw token (show to admin ONCE)

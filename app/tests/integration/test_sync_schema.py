@@ -74,6 +74,7 @@ def test_heartbeat_matches_schema(api_client, test_kiosk):
     CRITICAL: Heartbeat endpoint request/response must match OpenAPI schema
     """
     from django.utils import timezone
+
     from kiosks.models import KioskStatus
 
     kiosk, activation_token = test_kiosk
@@ -128,9 +129,7 @@ def test_all_sync_endpoints_have_schema():
 
     for endpoint in required_endpoints:
         # Check if endpoint exists in schema paths
-        assert endpoint in paths, (
-            f"Endpoint {endpoint} not found in OpenAPI schema. " f"Available paths: {sorted(paths)}"
-        )
+        assert endpoint in paths, f"Endpoint {endpoint} not found in OpenAPI schema. Available paths: {sorted(paths)}"
 
 
 @pytest.mark.django_db
@@ -143,6 +142,7 @@ def test_complete_sync_workflow(api_client, test_kiosk):
     Tests: check → download → heartbeat
     """
     from django.utils import timezone
+
     from kiosks.models import KioskStatus
 
     kiosk, activation_token = test_kiosk

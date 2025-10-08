@@ -16,8 +16,8 @@ def test_openapi_schema():
 
             # Check basic info
             info = schema.get("info", {})
-            print(f'Title: {info.get("title", "N/A")}')
-            print(f'Version: {info.get("version", "N/A")}')
+            print(f"Title: {info.get('title', 'N/A')}")
+            print(f"Version: {info.get('version', 'N/A')}")
 
             # Check security schemes
             components = schema.get("components", {})
@@ -25,9 +25,9 @@ def test_openapi_schema():
             if "Bearer" in security_schemes:
                 print("Bearer security scheme found!")
                 bearer = security_schemes["Bearer"]
-                print(f'   Type: {bearer.get("type")}')
-                print(f'   Scheme: {bearer.get("scheme")}')
-                print(f'   Bearer Format: {bearer.get("bearerFormat")}')
+                print(f"   Type: {bearer.get('type')}")
+                print(f"   Scheme: {bearer.get('scheme')}")
+                print(f"   Bearer Format: {bearer.get('bearerFormat')}")
             else:
                 print("Bearer security scheme NOT found!")
                 print(f"   Available schemes: {list(security_schemes.keys())}")

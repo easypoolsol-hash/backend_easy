@@ -1,10 +1,11 @@
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 from students.models import Student
 
 from .models import Bus, Route
@@ -34,9 +35,7 @@ class RouteViewSet(viewsets.ModelViewSet):
     def route_students(self, request, pk=None):
         """Get all students assigned to buses on this route"""
         route = self.get_object()
-        students = Student.objects.filter(
-            assigned_bus__route=route, status="active"
-        ).select_related("assigned_bus")
+        students = Student.objects.filter(assigned_bus__route=route, status="active").select_related("assigned_bus")
         # Return basic student info (would need StudentSerializer)
         data = [
             {
@@ -55,11 +54,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 class BusViewSet(viewsets.ModelViewSet):
     """ViewSet for buses"""
 
-    queryset = (
-        Bus.objects.select_related("route")
-        .prefetch_related("assigned_students")
-        .order_by("license_plate")
-    )
+    queryset = Bus.objects.select_related("route").prefetch_related("assigned_students").order_by("license_plate")
     serializer_class = BusSerializer
     permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
@@ -101,9 +96,7 @@ class BusViewSet(viewsets.ModelViewSet):
             current_count = bus.assigned_students.filter(status="active").count()
             if current_count + len(student_ids) > bus.capacity:
                 return Response(
-                    {
-                        "error": f"Bus capacity exceeded. Current: {current_count}, Adding: {len(student_ids)}, Capacity: {bus.capacity}"
-                    },
+                    {"error": f"Bus capacity exceeded. Current: {current_count}, Adding: {len(student_ids)}, Capacity: {bus.capacity}"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

@@ -68,9 +68,7 @@ class BusSerializer(serializers.ModelSerializer):
 
         current_year = datetime.now().year
         if value and (value < 2000 or value > current_year + 1):
-            raise serializers.ValidationError(
-                f"Year must be between 2000 and {current_year + 1}"
-            )
+            raise serializers.ValidationError(f"Year must be between 2000 and {current_year + 1}")
         return value
 
 
@@ -78,9 +76,7 @@ class BusAssignmentSerializer(serializers.Serializer):
     """Serializer for bulk bus-student assignments"""
 
     bus_id = serializers.UUIDField()
-    student_ids = serializers.ListField(
-        child=serializers.UUIDField(), allow_empty=False
-    )
+    student_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
 
     def validate_bus_id(self, value):
         """Validate bus exists and is active"""
@@ -92,16 +88,10 @@ class BusAssignmentSerializer(serializers.Serializer):
         """Validate all students exist"""
         from students.models import Student
 
-        existing_ids = set(
-            Student.objects.filter(student_id__in=value).values_list(
-                "student_id", flat=True
-            )
-        )
+        existing_ids = set(Student.objects.filter(student_id__in=value).values_list("student_id", flat=True))
 
         missing_ids = set(value) - existing_ids
         if missing_ids:
-            raise serializers.ValidationError(
-                f"Students not found: {list(missing_ids)}"
-            )
+            raise serializers.ValidationError(f"Students not found: {list(missing_ids)}")
 
         return value

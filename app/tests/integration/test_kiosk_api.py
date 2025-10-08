@@ -4,9 +4,9 @@ Integration tests for kiosk API endpoints (Essential tests only)
 Tests authenticated API access using JWT tokens.
 """
 
+from django.utils import timezone
 import pytest
 from rest_framework import status
-from django.utils import timezone
 
 
 @pytest.mark.django_db

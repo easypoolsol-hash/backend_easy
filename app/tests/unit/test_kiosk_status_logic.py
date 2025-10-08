@@ -9,9 +9,9 @@ Fortune 500 Testing Standards:
 - Error handling and boundary testing
 """
 
-import pytest
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+import pytest
 
 from kiosks.models import KioskStatus
 from tests.factories import KioskFactory
@@ -34,7 +34,7 @@ def kiosk_status(sample_kiosk):
         embedding_count=150,
         battery_level=85,
         is_charging=False,
-        status="ok"
+        status="ok",
     )
 
 
@@ -46,28 +46,28 @@ class TestKioskStatusBusinessLogic:
     kiosk health status based on battery and connectivity metrics.
     """
 
-    @pytest.mark.parametrize("battery_level,is_charging,expected_status", [
-        # Critical battery cases (< 10% and not charging)
-        (0, False, "critical"),
-        (5, False, "critical"),
-        (9, False, "critical"),
-
-        # Warning battery cases (< 20% and not charging)
-        (10, False, "warning"),
-        (15, False, "warning"),
-        (19, False, "warning"),
-
-        # OK battery cases (>= 20% or charging)
-        (20, False, "ok"),
-        (50, False, "ok"),
-        (100, False, "ok"),
-
-        # Charging overrides low battery
-        (5, True, "ok"),
-        (9, True, "ok"),
-        (15, True, "ok"),
-        (1, True, "ok"),
-    ])
+    @pytest.mark.parametrize(
+        "battery_level,is_charging,expected_status",
+        [
+            # Critical battery cases (< 10% and not charging)
+            (0, False, "critical"),
+            (5, False, "critical"),
+            (9, False, "critical"),
+            # Warning battery cases (< 20% and not charging)
+            (10, False, "warning"),
+            (15, False, "warning"),
+            (19, False, "warning"),
+            # OK battery cases (>= 20% or charging)
+            (20, False, "ok"),
+            (50, False, "ok"),
+            (100, False, "ok"),
+            # Charging overrides low battery
+            (5, True, "ok"),
+            (9, True, "ok"),
+            (15, True, "ok"),
+            (1, True, "ok"),
+        ],
+    )
     def test_battery_based_status_determination(self, battery_level, is_charging, expected_status):
         """
         Test that kiosk status is correctly determined based on battery metrics.
@@ -84,18 +84,20 @@ class TestKioskStatusBusinessLogic:
 
         assert status == expected_status
 
-    @pytest.mark.parametrize("battery_level,is_charging,expected_status", [
-        # Edge cases at boundaries
-        (9, False, "critical"),   # Exactly at critical threshold
-        (10, False, "warning"),   # Exactly at warning threshold
-        (19, False, "warning"),   # Just below OK threshold
-        (20, False, "ok"),        # Exactly at OK threshold
-
-        # Charging state overrides
-        (1, True, "ok"),          # Very low but charging = OK
-        (9, True, "ok"),          # Critical but charging = OK
-        (19, True, "ok"),         # Warning but charging = OK
-    ])
+    @pytest.mark.parametrize(
+        "battery_level,is_charging,expected_status",
+        [
+            # Edge cases at boundaries
+            (9, False, "critical"),  # Exactly at critical threshold
+            (10, False, "warning"),  # Exactly at warning threshold
+            (19, False, "warning"),  # Just below OK threshold
+            (20, False, "ok"),  # Exactly at OK threshold
+            # Charging state overrides
+            (1, True, "ok"),  # Very low but charging = OK
+            (9, True, "ok"),  # Critical but charging = OK
+            (19, True, "ok"),  # Warning but charging = OK
+        ],
+    )
     def test_battery_status_edge_cases(self, battery_level, is_charging, expected_status):
         """
         Test edge cases and boundary conditions for battery status logic.
@@ -120,10 +122,10 @@ class TestKioskStatusBusinessLogic:
         """
         # Simulate various battery levels for offline kiosks
         test_cases = [
-            (100, True),   # Full battery, charging
-            (50, False),   # Half battery, not charging
-            (20, False),   # Low battery, not charging
-            (5, False),    # Critical battery, not charging
+            (100, True),  # Full battery, charging
+            (50, False),  # Half battery, not charging
+            (20, False),  # Low battery, not charging
+            (5, False),  # Critical battery, not charging
         ]
 
         for battery_level, is_charging in test_cases:
@@ -139,9 +141,7 @@ class TestKioskStatusBusinessLogic:
             else:
                 status = "ok"
 
-            assert status == "critical", (
-                f"Offline kiosk with {battery_level}% battery should be critical"
-            )
+            assert status == "critical", f"Offline kiosk with {battery_level}% battery should be critical"
 
     def test_online_kiosk_status_based_on_battery(self):
         """
@@ -192,7 +192,6 @@ class TestKioskStatusModelValidation:
     """
 
     @pytest.mark.django_db
-
     @pytest.mark.parametrize("valid_battery_level", [0, 1, 25, 50, 75, 99, 100])
     def test_valid_battery_levels_accepted(self, valid_battery_level, sample_kiosk):
         """
@@ -207,7 +206,7 @@ class TestKioskStatusModelValidation:
             database_version="2025-10-08T10:00:00Z",
             battery_level=valid_battery_level,
             is_charging=False,
-            status="ok"
+            status="ok",
         )
 
         # Run full validation
@@ -229,7 +228,7 @@ class TestKioskStatusModelValidation:
             database_version="2025-10-08T10:00:00Z",
             battery_level=invalid_battery_level,
             is_charging=False,
-            status="ok"
+            status="ok",
         )
 
         # Should raise ValidationError
@@ -238,7 +237,7 @@ class TestKioskStatusModelValidation:
 
         # Check that battery_level is mentioned in the error
         error_dict = exc_info.value.message_dict
-        assert 'battery_level' in error_dict, f"Expected battery_level validation error, got: {error_dict}"
+        assert "battery_level" in error_dict, f"Expected battery_level validation error, got: {error_dict}"
 
     def test_battery_level_none_allowed(self, sample_kiosk):
         """
@@ -252,7 +251,7 @@ class TestKioskStatusModelValidation:
             database_version="2025-10-08T10:00:00Z",
             battery_level=None,  # Unknown battery level
             is_charging=False,
-            status="ok"
+            status="ok",
         )
 
         # Should not raise ValidationError
@@ -272,7 +271,7 @@ class TestKioskStatusModelValidation:
             kiosk=sample_kiosk,
             last_heartbeat=timezone.now(),
             database_version="2025-10-08T10:00:00Z",
-            status=valid_status
+            status=valid_status,
         )
 
         try:
@@ -291,14 +290,14 @@ class TestKioskStatusModelValidation:
             kiosk=sample_kiosk,
             last_heartbeat=timezone.now(),
             database_version="2025-10-08T10:00:00Z",
-            status=invalid_status
+            status=invalid_status,
         )
 
         with pytest.raises(ValidationError) as exc_info:
             status.full_clean()
 
         error_dict = exc_info.value.message_dict
-        assert 'status' in error_dict, f"Expected status validation error, got: {error_dict}"
+        assert "status" in error_dict, f"Expected status validation error, got: {error_dict}"
 
 
 @pytest.mark.django_db
@@ -310,7 +309,6 @@ class TestKioskStatusModelMethods:
     """
 
     @pytest.mark.django_db
-
     def test_is_outdated_property_no_bus(self, sample_kiosk):
         """
         Test is_outdated property when kiosk has no bus assigned.
@@ -321,7 +319,7 @@ class TestKioskStatusModelMethods:
             kiosk=kiosk_without_bus,
             last_heartbeat=timezone.now(),
             database_version="2025-10-08T10:00:00Z",
-            status="ok"
+            status="ok",
         )
 
         # Kiosk with no bus should not be outdated
@@ -362,7 +360,6 @@ class TestKioskModelMethods:
     """
 
     @pytest.mark.django_db
-
     def test_is_online_recent_heartbeat(self, sample_kiosk):
         """
         Test is_online property with recent heartbeat.

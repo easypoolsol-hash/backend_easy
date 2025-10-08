@@ -3,11 +3,12 @@ from datetime import timedelta
 from django.db.models import Count, Q
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from kiosks.permissions import IsKiosk
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from kiosks.permissions import IsKiosk
 from students.models import Student
 
 from .models import AttendanceRecord, BoardingEvent
@@ -44,9 +45,7 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
         if hasattr(self.request.user, "role"):
             if self.request.user.role == "parent":
                 # Parents can only see their children's events
-                student_ids = Student.objects.filter(
-                    student_parents__parent__user=self.request.user
-                ).values_list("student_id", flat=True)
+                student_ids = Student.objects.filter(student_parents__parent__user=self.request.user).values_list("student_id", flat=True)
                 queryset = queryset.filter(student_id__in=student_ids)
             elif self.request.user.role == "school_admin":
                 # School admins can see all events in their school
@@ -94,9 +93,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
         if hasattr(self.request.user, "role"):
             if self.request.user.role == "parent":
                 # Parents can only see their children's attendance
-                student_ids = Student.objects.filter(
-                    student_parents__parent__user=self.request.user
-                ).values_list("student_id", flat=True)
+                student_ids = Student.objects.filter(student_parents__parent__user=self.request.user).values_list("student_id", flat=True)
                 queryset = queryset.filter(student_id__in=student_ids)
             elif self.request.user.role == "school_admin":
                 # School admins can see all attendance in their school
@@ -117,9 +114,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         # Aggregate attendance data
-        summary_data = AttendanceRecord.objects.filter(
-            date__range=[start_date, end_date]
-        ).aggregate(
+        summary_data = AttendanceRecord.objects.filter(date__range=[start_date, end_date]).aggregate(
             total_students=Count("student", distinct=True),
             present_count=Count("record_id", filter=Q(status="present")),
             absent_count=Count("record_id", filter=Q(status="absent")),
@@ -127,9 +122,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         if summary_data["total_students"] > 0:
-            summary_data["attendance_rate"] = (
-                summary_data["present_count"] / summary_data["total_students"]
-            )
+            summary_data["attendance_rate"] = summary_data["present_count"] / summary_data["total_students"]
         else:
             summary_data["attendance_rate"] = 0
 
@@ -147,11 +140,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
             return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check permissions
-        if (
-            hasattr(request.user, "role")
-            and request.user.role == "parent"
-            and not student.student_parents.filter(parent__user=request.user).exists()
-        ):
+        if hasattr(request.user, "role") and request.user.role == "parent" and not student.student_parents.filter(parent__user=request.user).exists():
             return Response({"error": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
 
         records = self.get_queryset().filter(student=student)

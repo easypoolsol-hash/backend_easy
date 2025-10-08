@@ -10,11 +10,13 @@ This ONE file replaces:
 Uses OpenAPI schema to automatically validate ALL endpoints.
 """
 
-import pytest
-import schemathesis
-from rest_framework_simplejwt.tokens import RefreshToken
-from tests.factories import BusFactory, KioskFactory, UserFactory
 from pathlib import Path
+
+import pytest
+from rest_framework_simplejwt.tokens import RefreshToken
+import schemathesis
+
+from tests.factories import BusFactory, KioskFactory, UserFactory
 
 # Load OpenAPI schema (single source of truth) using an absolute path so pytest's
 # working directory doesn't affect which schema file is used.
@@ -210,7 +212,7 @@ class TestCRUDOperations:
         if response.status_code == 200:
             data = response.json()
             # Validate response is array or paginated object
-            assert isinstance(data, (list, dict))
+            assert isinstance(data, list) or isinstance(data, dict)
 
 
 @pytest.mark.django_db
@@ -223,6 +225,7 @@ class TestKioskSyncWorkflow:
         Flow: check-updates → snapshot → heartbeat
         """
         from django.utils import timezone
+
         from kiosks.models import KioskStatus
 
         # Setup

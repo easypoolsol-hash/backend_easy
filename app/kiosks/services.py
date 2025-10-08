@@ -1,10 +1,9 @@
 import hashlib
-import io
 import json
 import os
 import sqlite3
 import tempfile
-from datetime import datetime
+from typing import Any
 
 from buses.models import Bus
 from students.models import Student
@@ -13,15 +12,20 @@ from students.models import Student
 def calculate_content_hash(student_ids: list, embedding_ids: list) -> str:
     """Calculates a stable hash for the content of the snapshot."""
     hash_input = "".join(sorted(map(str, student_ids))) + "".join(sorted(map(str, embedding_ids)))
-    return hashlib.md5(hash_input.encode()).hexdigest()
+    # Use SHA-256 for collision resistance (avoid MD5)
+    return hashlib.sha256(hash_input.encode()).hexdigest()
 
 
 class SnapshotGenerator:
     """Creates a portable, secure SQLite database snapshot for a given bus."""
 
-    def __init__(self, bus_id: str):
-        self.bus_id = bus_id
-        self.sync_timestamp = datetime.utcnow().isoformat()
+    def __init__(self, bus_id: Any):
+        from django.utils import timezone as dj_tz
+
+        # Accept strings or UUIDs and normalise to str for filenames/IDs
+        self.bus_id = str(bus_id)
+        # Use timezone-aware timestamp
+        self.sync_timestamp = dj_tz.now().isoformat()
 
     def generate(self) -> tuple[bytes, dict]:
         """
@@ -98,17 +102,10 @@ class SnapshotGenerator:
         except Bus.DoesNotExist:
             return [], [], []
 
-        students = Student.objects.filter(
-            assigned_bus__route=bus.route, status="active"
-        ).prefetch_related("photos__face_embeddings")
+        students = Student.objects.filter(assigned_bus__route=bus.route, status="active").prefetch_related("photos__face_embeddings")
 
         student_ids = [s.student_id for s in students]
-        embedding_ids = [
-            emb.embedding_id
-            for s in students
-            for p in s.photos.all()
-            for emb in p.face_embeddings.all()
-        ]
+        embedding_ids = [emb.embedding_id for s in students for p in s.photos.all() for emb in p.face_embeddings.all()]
 
         return students, student_ids, embedding_ids
 

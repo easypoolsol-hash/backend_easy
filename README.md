@@ -43,7 +43,6 @@ backend_easy/
 ├── config/                 # Configuration files
 │   ├── pyproject.toml     # Python project config
 │   ├── mypy.ini          # Type checking config
-│   ├── .pre-commit-config.yaml
 │   └── Makefile           # Build tasks
 ├── doc/                    # Documentation
 │   ├── ai.md             # AI/ML documentation

@@ -30,15 +30,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "kiosk_id",
-                    models.CharField(
-                        help_text="Reference to kiosk device", max_length=100
-                    ),
+                    models.CharField(help_text="Reference to kiosk device", max_length=100),
                 ),
                 (
                     "key_hash",
-                    models.CharField(
-                        help_text="Hashed API key", max_length=255, unique=True
-                    ),
+                    models.CharField(help_text="Hashed API key", max_length=255, unique=True),
                 ),
                 (
                     "name",
@@ -100,9 +96,7 @@ class Migration(migrations.Migration):
                 ("description", models.TextField(blank=True)),
                 (
                     "permissions",
-                    models.JSONField(
-                        default=dict, help_text="JSON object defining role permissions"
-                    ),
+                    models.JSONField(default=dict, help_text="JSON object defining role permissions"),
                 ),
                 ("is_active", models.BooleanField(default=True)),
                 ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
@@ -217,9 +211,7 @@ class Migration(migrations.Migration):
                 ("resource_id", models.CharField(blank=True, max_length=100)),
                 (
                     "changes",
-                    models.JSONField(
-                        blank=True, help_text="JSON object of changes made", null=True
-                    ),
+                    models.JSONField(blank=True, help_text="JSON object of changes made", null=True),
                 ),
                 ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
                 ("user_agent", models.TextField(blank=True)),
@@ -238,9 +230,7 @@ class Migration(migrations.Migration):
                 "db_table": "audit_log",
                 "ordering": ["-timestamp"],
                 "indexes": [
-                    models.Index(
-                        fields=["user", "-timestamp"], name="idx_audit_user_time"
-                    ),
+                    models.Index(fields=["user", "-timestamp"], name="idx_audit_user_time"),
                     models.Index(
                         fields=["resource_type", "resource_id"],
                         name="idx_audit_resource",

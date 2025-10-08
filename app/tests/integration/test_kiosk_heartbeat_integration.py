@@ -1,4 +1,4 @@
-﻿"""
+"""
 Industry-Standard Integration Tests: Kiosk Lifecycle and Heartbeat Functionality
 
 Fortune 500 Testing Standards:
@@ -10,8 +10,8 @@ Fortune 500 Testing Standards:
 - Real-world scenario simulation
 """
 
-import pytest
 from django.utils import timezone
+import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -121,9 +121,7 @@ class TestKioskHeartbeatIntegration:
             (15, True, "ok"),
         ],
     )
-    def test_heartbeat_status_determination_integration(
-        self, api_client, test_kiosk, battery_level, is_charging, expected_status
-    ):
+    def test_heartbeat_status_determination_integration(self, api_client, test_kiosk, battery_level, is_charging, expected_status):
         """
         Test that heartbeat correctly determines kiosk status based on battery.
 
@@ -522,9 +520,7 @@ class TestKioskHeartbeatPerformance:
         assert not errors
         assert len(results) == 5
         for kiosk_id, status_code in results:
-            assert (
-                status_code == status.HTTP_204_NO_CONTENT
-            ), f"Heartbeat failed for {kiosk_id} with status {status_code}"
+            assert status_code == status.HTTP_204_NO_CONTENT, f"Heartbeat failed for {kiosk_id} with status {status_code}"
 
         # Verify all kiosks have status records
         for kiosk in kiosks:

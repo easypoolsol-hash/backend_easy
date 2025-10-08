@@ -100,15 +100,17 @@ print("TEST SETTINGS LOADED - REST_FRAMEWORK:", REST_FRAMEWORK)
 # environments a shadowed or incomplete `django` module can cause
 # AttributeError: module 'django' has no attribute 'apps'. Use a safe
 # import/getattr pattern so tests don't crash at import time.
+from typing import Any
+
 try:
     # Try to import the apps registry the normal way. This will fail
     # cleanly if Django isn't properly installed or if a local module
     # is shadowing the real package.
-    from django.apps import apps as django_apps  # type: ignore
+    from django.apps import apps as _django_apps_module
 except Exception:  # pragma: no cover - defensive for CI
-    django_apps = None
+    django_apps: Any | None = None
 
-if getattr(django_apps, "ready", False):
+if getattr(_django_apps_module, "ready", False):
     from django.conf import settings
 
     print("RUNTIME REST_FRAMEWORK:", settings.REST_FRAMEWORK)

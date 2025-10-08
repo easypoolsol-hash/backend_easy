@@ -16,12 +16,13 @@ Example:
 
 from datetime import date
 
-import factory
-from buses.models import Bus, Route
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.utils import timezone
+import factory
 from factory.django import DjangoModelFactory
+
+from buses.models import Bus, Route
 from kiosks.models import Kiosk
 from students.models import (
     FaceEmbeddingMetadata,
@@ -146,9 +147,7 @@ class StudentFactory(DjangoModelFactory):
         """Store plaintext name for test access after creation"""
         if not create:
             return
-        self._plaintext_name = (
-            self.plaintext_name if hasattr(self, "plaintext_name") else "Test Student"
-        )
+        self._plaintext_name = self.plaintext_name if hasattr(self, "plaintext_name") else "Test Student"
 
 
 class ParentFactory(DjangoModelFactory):
@@ -206,15 +205,9 @@ class ParentFactory(DjangoModelFactory):
         """Store plaintext PII for test access after creation"""
         if not create:
             return
-        self._plaintext_name = (
-            self.plaintext_name if hasattr(self, "plaintext_name") else "Test Parent"
-        )
-        self._plaintext_email = (
-            self.plaintext_email if hasattr(self, "plaintext_email") else "test@example.com"
-        )
-        self._plaintext_phone = (
-            self.plaintext_phone if hasattr(self, "plaintext_phone") else "+919876543210"
-        )
+        self._plaintext_name = self.plaintext_name if hasattr(self, "plaintext_name") else "Test Parent"
+        self._plaintext_email = self.plaintext_email if hasattr(self, "plaintext_email") else "test@example.com"
+        self._plaintext_phone = self.plaintext_phone if hasattr(self, "plaintext_phone") else "+919876543210"
 
 
 class StudentParentFactory(DjangoModelFactory):

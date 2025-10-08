@@ -1,12 +1,14 @@
 import time
 
-from bus_kiosk_backend.permissions import IsSchoolAdmin
-from buses.models import Bus
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from bus_kiosk_backend.permissions import IsSchoolAdmin
+from buses.models import Bus
 
 from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
     Parent,
@@ -15,7 +17,9 @@ from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
     StudentParent,
     StudentPhoto,
 )
-from .serializers import (  # FaceEmbeddingMetadataSerializer removed - no API endpoint needed; BusSerializer removed - Use buses.serializers.BusSerializer instead
+from .serializers import (
+    # FaceEmbeddingMetadataSerializer removed - no API endpoint needed
+    # BusSerializer removed - Use buses.serializers.BusSerializer instead
     ParentSerializer,
     SchoolSerializer,
     StudentParentSerializer,
@@ -23,7 +27,6 @@ from .serializers import (  # FaceEmbeddingMetadataSerializer removed - no API e
     StudentSerializer,
 )
 from .tasks import process_student_attendance
-from drf_spectacular.utils import extend_schema
 
 # pylint: disable=no-member
 
@@ -94,12 +97,18 @@ class StudentViewSet(viewsets.ModelViewSet):
         bus_id = request.data.get("bus_id")
 
         if not bus_id:
-            return Response({"error": "bus_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "bus_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             bus = Bus.objects.get(bus_id=bus_id, status="active")
         except Bus.DoesNotExist:
-            return Response({"error": "Active bus not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Active bus not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         student.assigned_bus = bus
         student.save()
@@ -170,9 +179,7 @@ class StudentParentViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         # Ensure only one primary parent per student
         if request.data.get("is_primary"):
-            existing_primary = StudentParent.objects.filter(
-                student_id=request.data["student"], is_primary=True
-            )
+            existing_primary = StudentParent.objects.filter(student_id=request.data["student"], is_primary=True)
             if existing_primary.exists():
                 return Response(
                     {"error": "Student already has a primary parent"},
@@ -207,9 +214,7 @@ class StudentPhotoViewSet(viewsets.ModelViewSet):
         photo = self.get_object()
 
         # Set all other photos for this student to non-primary
-        StudentPhoto.objects.filter(student=photo.student).exclude(pk=photo.pk).update(
-            is_primary=False
-        )
+        StudentPhoto.objects.filter(student=photo.student).exclude(pk=photo.pk).update(is_primary=False)
 
         # Set this photo as primary
         photo.is_primary = True
@@ -240,10 +245,13 @@ class KioskBoardingView(APIView):
         responses={
             200: {
                 "type": "object",
-                "properties": {"status": {"type": "string"}, "message": {"type": "string"}},
+                "properties": {
+                    "status": {"type": "string"},
+                    "message": {"type": "string"},
+                },
             }
         },
-        description="Student boarding endpoint - returns immediate approval and schedules background processing",
+        description=("Student boarding endpoint - returns immediate approval and schedules background processing"),
     )
     def post(self, request):
         """
@@ -257,7 +265,10 @@ class KioskBoardingView(APIView):
 
         # Quick validation (0.01 seconds)
         if not student_name:
-            return Response({"error": "Student name required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Student name required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # ⚡ INSTANT RESPONSE - Don't wait for processing!
         # Send boarding data to background worker for database/storage
@@ -274,7 +285,7 @@ class KioskBoardingView(APIView):
         return Response(
             {
                 "status": "boarding_allowed",
-                "message": f"✅ Welcome, {student_name}! Please board the bus.",
+                "message": (f"✅ Welcome, {student_name}! Please board the bus."),
                 "boarding_time": boarding_time,
                 "response_time_seconds": round(response_time, 3),
                 "background_task_id": task.id,

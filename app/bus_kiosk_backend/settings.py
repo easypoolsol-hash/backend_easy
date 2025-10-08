@@ -18,8 +18,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os
 from datetime import timedelta
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -47,12 +47,15 @@ try:
     _test_file.unlink()
 except Exception:
     try:
-        # Try to make the directory writable by everyone (best-effort).
-        os.chmod(LOGS_DIR, 0o777)
-    except Exception:
-        # Ignore failures — we'll still try to start and let the logging
-        # configuration either succeed or raise a clear error.
-        pass
+        # Only attempt chmod on POSIX-like systems; avoid on Windows
+        if os.name == "posix":
+            os.chmod(LOGS_DIR, 0o770)
+    except Exception as e:
+        # Log a warning so failures aren't silently ignored by security tools
+        # Import here to avoid top-level logging config issues during startup
+        import logging
+
+        logging.getLogger(__name__).warning("Failed to relax logs dir permissions: %s", e)
 
 
 # Quick-start development settings - unsuitable for production
@@ -316,10 +319,7 @@ SPECTACULAR_SETTINGS = {
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": (
-                "JWT Authorization header using the Bearer scheme. "
-                "Example: 'Authorization: Bearer {token}'"
-            ),
+            "description": ("JWT Authorization header using the Bearer scheme. Example: 'Authorization: Bearer {token}'"),
         }
     },
     # Self-hosted Swagger UI (no CDN)

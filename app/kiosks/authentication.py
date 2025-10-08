@@ -5,8 +5,8 @@ Provides JWT-based authentication for kiosk devices.
 Supports both access tokens and refresh tokens with rotation.
 """
 
-import hmac
 from hashlib import sha256
+import hmac
 
 from django.conf import settings
 from django.utils import timezone
@@ -35,12 +35,12 @@ class KioskJWTAuthentication(JWTAuthentication):
         try:
             kiosk_id = validated_token["kiosk_id"]
         except KeyError:
-            raise exceptions.AuthenticationFailed("Token missing kiosk_id claim")
+            raise exceptions.AuthenticationFailed("Token missing kiosk_id claim") from None
 
         try:
             kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
         except Kiosk.DoesNotExist:
-            raise exceptions.AuthenticationFailed("Kiosk not found")
+            raise exceptions.AuthenticationFailed("Kiosk not found") from None
 
         # Check if kiosk is active
         if not kiosk.is_active:
@@ -96,24 +96,20 @@ def activate_kiosk(kiosk_id, activation_token):
         # Find kiosk
         kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
     except Kiosk.DoesNotExist:
-        raise ValueError("Invalid kiosk_id")
+        raise ValueError("Invalid kiosk_id") from None
 
     # Fortune 500 security: explicit check for active status
     if not kiosk.is_active:
         raise ValueError("Kiosk is not active. Please contact an administrator.")
 
     # Hash submitted token
-    submitted_hash = hmac.new(
-        settings.SECRET_KEY.encode(), activation_token.encode(), sha256
-    ).hexdigest()
+    submitted_hash = hmac.new(settings.SECRET_KEY.encode(), activation_token.encode(), sha256).hexdigest()
 
     # Find matching activation token
     try:
-        activation = KioskActivationToken.objects.get(
-            kiosk=kiosk, token_hash=submitted_hash, is_used=False
-        )
+        activation = KioskActivationToken.objects.get(kiosk=kiosk, token_hash=submitted_hash, is_used=False)
     except KioskActivationToken.DoesNotExist:
-        raise ValueError("Invalid or already used activation token")
+        raise ValueError("Invalid or already used activation token") from None
 
     # Validate token
     if not activation.is_valid():
@@ -136,7 +132,7 @@ def activate_kiosk(kiosk_id, activation_token):
         "refresh_token": str(refresh),
         "access_token": str(refresh.access_token),
         "kiosk": kiosk,
-        "message": "Kiosk activated successfully. Activation token is now garbage.",
+        "message": ("Kiosk activated successfully. Activation token is now garbage."),
     }
 
 
@@ -151,5 +147,5 @@ class KioskJWTAuthenticationScheme(OpenApiAuthenticationExtension):
             "type": "http",
             "scheme": "bearer",
             "bearerFormat": "JWT",
-            "description": "JWT auth for kiosks. Use 'Authorization: Bearer <token>'.",
+            "description": ("JWT auth for kiosks. Use 'Authorization: Bearer <token>'."),
         }

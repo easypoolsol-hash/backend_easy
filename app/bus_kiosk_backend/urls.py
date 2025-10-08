@@ -15,13 +15,9 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from typing import List
+from collections.abc import Iterable
+from typing import Any, cast
 
-from bus_kiosk_backend.health import (
-    detailed_health_check,
-    health_check,
-    prometheus_metrics,
-)
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls.static import static
@@ -40,6 +36,12 @@ from drf_spectacular.views import (
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from bus_kiosk_backend.health import (
+    detailed_health_check,
+    health_check,
+    prometheus_metrics,
+)
+
 
 @csrf_exempt
 def auth_status(request):
@@ -52,7 +54,7 @@ def auth_status(request):
 class NoThrottleSpectacularSwaggerView(SpectacularSwaggerView):
     """SpectacularSwaggerView without throttling, requires admin session."""
 
-    throttle_classes: List = []
+    throttle_classes: list = []
 
     @method_decorator(login_required(login_url="/admin/login/"))
     def dispatch(self, *args, **kwargs):
@@ -62,7 +64,7 @@ class NoThrottleSpectacularSwaggerView(SpectacularSwaggerView):
 class NoThrottleSpectacularAPIView(SpectacularAPIView):
     """SpectacularAPIView without throttling, requires admin session."""
 
-    throttle_classes: List = []
+    throttle_classes: list = []
 
     @method_decorator(login_required(login_url="/admin/login/"))
     def dispatch(self, *args, **kwargs):
@@ -72,7 +74,7 @@ class NoThrottleSpectacularAPIView(SpectacularAPIView):
 class NoThrottleSpectacularRedocView(SpectacularRedocView):
     """SpectacularRedocView without throttling, requires admin session."""
 
-    throttle_classes: List = []
+    throttle_classes: list = []
 
     @method_decorator(login_required(login_url="/admin/login/"))
     def dispatch(self, *args, **kwargs):
@@ -132,65 +134,64 @@ if apps.is_installed("django.contrib.admin"):
     urlpatterns.append(path("admin/", admin.site.urls))
 
 # Add other URLs
-urlpatterns.extend(
-    [
-        # Home page for schools (root URL)
-        path("", home, name="home"),  # type: ignore[list-item]
-        # API info endpoint
-        path("api/", api_root, name="api_root"),  # type: ignore[list-item]
-        # Authentication status check (for client-side polling)
-        path("auth-status/", auth_status, name="auth_status"),  # type: ignore[list-item]
-        # Health checks (no auth required)
-        path("health/", health_check, name="health_check"),  # type: ignore[list-item]
-        path(
-            "health/detailed/",
-            detailed_health_check,
-            name="detailed_health_check",
-        ),  # type: ignore[list-item]
-        path("metrics/", prometheus_metrics, name="prometheus_metrics"),  # type: ignore[list-item]
-        # API documentation - drf-spectacular with no throttling
-        path(  # type: ignore[list-item]
-            "docs/",
-            NoThrottleSpectacularSwaggerView.as_view(url_name="schema"),
-            name="swagger-ui",
+urlpatterns += [
+    # Home page for schools (root URL)
+    path("", home, name="home"),  # type: ignore[list-item]
+    # API info endpoint
+    path("api/", api_root, name="api_root"),  # type: ignore[list-item]
+    # Authentication status check (for client-side polling)
+    path("auth-status/", auth_status, name="auth_status"),  # type: ignore[list-item]
+    # Health checks (no auth required)
+    path("health/", health_check, name="health_check"),  # type: ignore[list-item]
+    path(
+        "health/detailed/",
+        detailed_health_check,
+        name="detailed_health_check",
+    ),  # type: ignore[list-item]
+    path("metrics/", prometheus_metrics, name="prometheus_metrics"),  # type: ignore[list-item]
+    # API documentation - drf-spectacular with no throttling
+    path(  # type: ignore[list-item]
+        "docs/",
+        NoThrottleSpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path(
+        "docs/schema/",
+        NoThrottleSpectacularAPIView.as_view(),
+        name="schema",
+    ),  # type: ignore[list-item]
+    path(  # type: ignore[list-item]
+        "docs/redoc/",
+        NoThrottleSpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
+    ),
+    path(
+        "api/v1/",
+        include(
+            [
+                path(
+                    "auth/token/",
+                    TokenObtainPairView.as_view(),
+                    name="token_obtain_pair",
+                ),
+                path(
+                    "auth/token/refresh/",
+                    TokenRefreshView.as_view(),
+                    name="token_refresh",
+                ),
+                path("", include("users.urls")),
+                path("", include("students.urls")),
+                path("", include("buses.urls")),
+                path("", include("kiosks.urls")),
+                path("", include("events.urls")),
+            ]
         ),
-        path(
-            "docs/schema/",
-            NoThrottleSpectacularAPIView.as_view(),
-            name="schema",
-        ),  # type: ignore[list-item]
-        path(  # type: ignore[list-item]
-            "docs/redoc/",
-            NoThrottleSpectacularRedocView.as_view(url_name="schema"),
-            name="redoc",
-        ),
-        path(
-            "api/v1/",
-            include(
-                [
-                    path(
-                        "auth/token/",
-                        TokenObtainPairView.as_view(),
-                        name="token_obtain_pair",
-                    ),
-                    path(
-                        "auth/token/refresh/",
-                        TokenRefreshView.as_view(),
-                        name="token_refresh",
-                    ),
-                    path("", include("users.urls")),
-                    path("", include("students.urls")),
-                    path("", include("buses.urls")),
-                    path("", include("kiosks.urls")),
-                    path("", include("events.urls")),
-                ]
-            ),
-        ),
-        # Authentication status endpoint
-        path("api/auth/status/", auth_status, name="auth_status"),  # type: ignore[list-item]
-    ]
-)
+    ),
+    # Authentication status endpoint
+    path("api/auth/status/", auth_status, name="auth_status"),  # type: ignore[list-item]
+]
 
 # Serve media files in development
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # static() returns list[URLPattern]; cast to a generic iterable to satisfy mypy
+    urlpatterns += cast(Iterable[Any], static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT))

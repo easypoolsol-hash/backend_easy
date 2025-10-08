@@ -4,8 +4,8 @@ End-to-end tests for complete kiosk workflow (Essential tests only)
 Tests the full flow: Auth → Heartbeat → Log
 """
 
-import pytest
 from django.utils import timezone
+import pytest
 from rest_framework import status
 
 
@@ -36,6 +36,7 @@ class TestKioskWorkflow:
 
         # Step 2: Send heartbeat with token
         from django.utils import timezone
+
         from kiosks.models import KioskStatus
 
         # Create KioskStatus for heartbeat
@@ -67,7 +68,10 @@ class TestKioskWorkflow:
                     {
                         "level": "INFO",
                         "message": "Kiosk started successfully",
-                        "metadata": {"version": "1.0.0", "kiosk_id": str(kiosk.kiosk_id)},
+                        "metadata": {
+                            "version": "1.0.0",
+                            "kiosk_id": str(kiosk.kiosk_id),
+                        },
                     }
                 ]
             },

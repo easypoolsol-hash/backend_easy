@@ -27,9 +27,10 @@ class IsKiosk(BasePermission):
         jwt_authenticator = JWTAuthentication()
 
         try:
-            validated_token = jwt_authenticator.get_validated_token(
-                jwt_authenticator.get_raw_token(jwt_authenticator.get_header(request))
-            )
+            raw = jwt_authenticator.get_raw_token(jwt_authenticator.get_header(request))
+            if raw is None:
+                return False
+            validated_token = jwt_authenticator.get_validated_token(raw)
         except (InvalidToken, AttributeError, TypeError):
             return False
 

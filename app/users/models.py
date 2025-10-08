@@ -144,9 +144,7 @@ class APIKey(models.Model):
     kiosk_id = models.CharField(max_length=100, help_text="Reference to kiosk device")
     key_hash = models.CharField(max_length=255, unique=True, help_text="Hashed API key")
     name = models.CharField(max_length=100, blank=True, help_text="Human-readable name for the key")
-    permissions = models.JSONField(
-        default=dict, help_text="JSON object defining scoped permissions"
-    )
+    permissions = models.JSONField(default=dict, help_text="JSON object defining scoped permissions")
     is_active = models.BooleanField(default=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used = models.DateTimeField(null=True, blank=True)

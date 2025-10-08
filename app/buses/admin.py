@@ -71,9 +71,4 @@ class BusAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Optimize queryset with annotations"""
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("route")
-            .prefetch_related("assigned_students")
-        )
+        return super().get_queryset(request).select_related("route").prefetch_related("assigned_students")

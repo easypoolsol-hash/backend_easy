@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("students", "0003_alter_student_assigned_bus_delete_bus"),
     ]
@@ -35,9 +34,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="parent",
             name="name",
-            field=models.TextField(
-                help_text="Encrypted name (plaintext validated max 100 chars)"
-            ),
+            field=models.TextField(help_text="Encrypted name (plaintext validated max 100 chars)"),
         ),
         migrations.AlterField(
             model_name="parent",

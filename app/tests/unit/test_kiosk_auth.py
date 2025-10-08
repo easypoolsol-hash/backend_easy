@@ -4,8 +4,8 @@ Unit tests for kiosk activation (Secure authentication only)
 Tests the core activation logic without external dependencies.
 """
 
-import pytest
 from django.test import Client, override_settings
+import pytest
 from rest_framework import status
 
 
@@ -77,14 +77,14 @@ class TestKioskActivation:
     def test_kiosk_activation_missing_fields(self, api_client):
         """Test activation with missing fields"""
         # Missing activation_token
-        response = api_client.post(
-            "/api/v1/kiosks/activate/", {"kiosk_id": "TEST-KIOSK-001"}, format="json"
-        )
+        response = api_client.post("/api/v1/kiosks/activate/", {"kiosk_id": "TEST-KIOSK-001"}, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
         # Missing kiosk_id
         response = api_client.post(
-            "/api/v1/kiosks/activate/", {"activation_token": "some-token"}, format="json"
+            "/api/v1/kiosks/activate/",
+            {"activation_token": "some-token"},
+            format="json",
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
