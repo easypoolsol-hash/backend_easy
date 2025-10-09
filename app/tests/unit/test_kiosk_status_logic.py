@@ -359,7 +359,7 @@ class TestKioskStatusModelMethods:
         """
         Test string representation of KioskStatus.
         """
-        expected = f"{kiosk_status.kiosk.kiosk_id} - OK"
+        expected = f"{kiosk_status.kiosk.kiosk_id} - {kiosk_status.status.upper()}"
         assert str(kiosk_status) == expected
 
 
