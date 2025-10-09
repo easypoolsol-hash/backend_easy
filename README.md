@@ -62,7 +62,6 @@ backend_easy/
 ├── imperial_governance/    # Architecture & governance docs
 ├── tools/                  # Development utilities (future)
 ├── docker-compose.yml      # Local development
-├── docker-compose.test.yml # CI testing (unit tests + image tests)
 └── Dockerfile             # Container build
 ```
 

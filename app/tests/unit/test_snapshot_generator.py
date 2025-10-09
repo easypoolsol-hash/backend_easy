@@ -27,7 +27,7 @@ class TestSnapshotGenerator:
 
         # Generate snapshot for bus1
         generator = SnapshotGenerator(bus_id=str(bus1.bus_id))
-        snapshot_bytes, metadata = generator.generate()
+        snapshot_bytes, _metadata = generator.generate()
 
         # Write to temp file and verify
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
