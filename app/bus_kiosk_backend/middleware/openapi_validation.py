@@ -19,7 +19,6 @@ from openapi_core.contrib.django import (
 from openapi_core.validation.request.validators import APICallRequestValidator
 from openapi_core.validation.response.validators import APICallResponseValidator
 from prance import ResolvingParser  # type: ignore
-from prance.util.url import ResolutionError  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ class OpenAPIValidationMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self._spec = None
+        self._validation_disabled = False
 
         self.validate_requests = getattr(settings, "OPENAPI_VALIDATE_REQUESTS", True)
         self.validate_responses = getattr(settings, "OPENAPI_VALIDATE_RESPONSES", True)
@@ -56,12 +56,21 @@ class OpenAPIValidationMiddleware:
                 parser = ResolvingParser(schema_path)
                 schema_dict = parser.specification
                 self._spec = Spec.from_dict(schema_dict)
-            except (ResolutionError, FileNotFoundError) as e:
+            except Exception as e:
                 logger.error(f"Failed to load OpenAPI schema: {e}")
-                raise RuntimeError(f"Failed to load OpenAPI schema: {e}") from e
+                logger.warning(
+                    "OpenAPI validation will be disabled due to schema loading failure"
+                )
+                # Set a flag to disable validation instead of crashing
+                self._validation_disabled = True
+                self._spec = None  # Keep as None to indicate failure
         return self._spec
 
     def __call__(self, request):
+        # Skip validation if disabled due to schema loading failure
+        if self._validation_disabled:
+            return self.get_response(request)
+
         # Validate request if enabled
         if self.validate_requests and self._should_validate_request(request):
             validation_result = self._validate_request(request)
