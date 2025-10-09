@@ -64,6 +64,9 @@ dependencies = [
     # Removed drf-flex-fields - overkill for our use case
     # Removed drf-nested-routers - not needed yet
 
+    # OpenAPI and Schema Validation
+    "openapi-core>=0.18.0,<1.0",  # OpenAPI validation middleware
+
     # Utilities
     "python-decouple>=3.8,<4.0",
     "requests>=2.31.0,<3.0",
