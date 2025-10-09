@@ -1,5 +1,6 @@
 from datetime import timedelta
 import hashlib
+import logging
 
 from django.db.models import Count
 from django.http import HttpResponse
@@ -44,6 +45,7 @@ def calculate_checksum(data: bytes) -> str:
         200: KioskActivationResponseSerializer,
         400: {"description": "Invalid activation token or kiosk not found"},
     },
+    operation_id="kiosk_activate",
     description="""
     **Fortune 500 Standard: One-time Device Activation**
 
@@ -106,15 +108,22 @@ def activate_kiosk_view(request):
     }
 
     # Log successful activation (Fortune 500: audit trail)
-    DeviceLog.log(
-        kiosk=result["kiosk"],
-        level="INFO",
-        message="Kiosk activated successfully",
-        metadata={
-            "ip_address": request.META.get("REMOTE_ADDR"),
-            "user_agent": request.META.get("HTTP_USER_AGENT"),
-        },
-    )
+    # Be defensive: logging/audit may touch external systems (cache, etc.).
+    # If audit logging fails, don't fail the activation request.
+    logger = logging.getLogger(__name__)
+    try:
+        DeviceLog.log(
+            kiosk=result["kiosk"],
+            level="INFO",
+            message="Kiosk activated successfully",
+            metadata={
+                "ip_address": request.META.get("REMOTE_ADDR"),
+                "user_agent": request.META.get("HTTP_USER_AGENT"),
+            },
+        )
+    except Exception as exc:  # pragma: no cover - defensive safety net
+        # Log the failure to the application logger, but don't surface to client
+        logger.exception("Failed to record DeviceLog for kiosk activation: %s", exc)
 
     # Return DRF Response (not JsonResponse)
     return Response(response_data, status=status.HTTP_200_OK)
@@ -127,6 +136,7 @@ class KioskViewSet(viewsets.ModelViewSet):
 @extend_schema(
     request=DeviceLogSerializer,
     responses={200: {"type": "object", "properties": {"status": {"type": "string"}}}},
+    operation_id="kiosk_log",
     description="Kiosk logging endpoint for device log submission",
 )
 @api_view(["POST"])
@@ -214,6 +224,7 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
 @extend_schema(
     parameters=[CheckUpdatesSerializer],
     responses={200: CheckUpdatesResponseSerializer},
+    operation_id="kiosk_check_updates",
     description="Check if kiosk needs database update",
 )
 @api_view(["GET"])
@@ -277,6 +288,7 @@ def check_updates(request, kiosk_id):
 
 @extend_schema(
     responses={200: OpenApiTypes.BINARY},
+    operation_id="kiosk_download_snapshot",
     description="Generate and download a kiosk database snapshot.",
 )
 @api_view(["GET"])
@@ -331,6 +343,7 @@ def download_snapshot(request, kiosk_id):
 @extend_schema(
     request=HeartbeatSerializer,
     responses={204: None},
+    operation_id="kiosk_heartbeat",
     description="Report kiosk health and sync status",
 )
 @api_view(["POST"])

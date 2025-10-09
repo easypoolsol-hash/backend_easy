@@ -33,7 +33,7 @@ LOGS_DIR = BASE_DIR / "logs"
 # a last resort to reduce permission errors when logging handlers open files.
 try:
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
-except Exception:
+except Exception:  # nosec B110
     # If this fails, we continue — dictConfig will raise later if unwritable.
     pass
 
@@ -49,7 +49,7 @@ except Exception:
     try:
         # Only attempt chmod on POSIX-like systems; avoid on Windows
         if os.name == "posix":
-            os.chmod(LOGS_DIR, 0o770)
+            os.chmod(LOGS_DIR, 0o770)  # nosec B103
     except Exception as e:
         # Log a warning so failures aren't silently ignored by security tools
         # Import here to avoid top-level logging config issues during startup
@@ -314,6 +314,11 @@ SPECTACULAR_SETTINGS = {
     "PREPROCESSING_HOOKS": [
         "bus_kiosk_backend.schema_hooks.exclude_health_endpoints",
     ],
+    # Postprocessing hooks are applied after schema generation. We ensure the
+    # kiosk activation endpoint is public via a postprocessing hook.
+    "POSTPROCESSING_HOOKS": [
+        "bus_kiosk_backend.schema_hooks.mark_activation_public",
+    ],
     "SERVERS": [
         {"url": "http://localhost:8000", "description": "Development server"},
     ],
@@ -334,8 +339,15 @@ SPECTACULAR_SETTINGS = {
     "REDOC_DIST": "SIDECAR",
 }
 
+# OpenAPI Validation Settings
+OPENAPI_VALIDATE_REQUESTS = True  # Enable request validation
+OPENAPI_VALIDATE_RESPONSES = False  # Disable response validation for now
+OPENAPI_FAIL_ON_ERROR = False  # Log warnings instead of failing requests
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # OpenAPI validation middleware (must be early in the pipeline)
+    "bus_kiosk_backend.middleware.openapi_validation.OpenAPIValidationMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

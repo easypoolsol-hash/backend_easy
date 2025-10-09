@@ -64,6 +64,11 @@ dependencies = [
     # Removed drf-flex-fields - overkill for our use case
     # Removed drf-nested-routers - not needed yet
 
+    # OpenAPI Validation (Industry Standard)
+    "openapi-core[django]>=0.18.0,<0.19",  # Production-ready OpenAPI validation
+    "openapi-schema-validator>=0.6.3,<0.7",  # OpenAPI schema validation
+    "openapi-spec-validator>=0.7.2,<0.8",  # OpenAPI spec validation
+
     # Utilities
     "python-decouple>=3.8,<4.0",
     "requests>=2.31.0,<3.0",

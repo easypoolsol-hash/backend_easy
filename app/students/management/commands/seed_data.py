@@ -15,6 +15,7 @@ from datetime import datetime
 from datetime import timezone as dt_timezone
 import json
 from pathlib import Path
+import random
 from typing import Any, cast
 
 from django.core.files import File
@@ -235,7 +236,9 @@ class Command(BaseCommand):
                 # Extract fields from fixture
                 model_name_field = fields.get("model_name", "unknown")
                 model_version = fields.get("model_version", "v1")
-                embedding = fields.get("embedding", [])
+                embedding = [
+                    random.uniform(-1, 1) for _ in range(128)  # nosec B311
+                ]  # Generate random 128-dim embedding
                 quality_score = fields.get("quality_score", 0.0)
                 is_primary = fields.get("is_primary", False)
                 captured_at_raw = fields.get("captured_at")

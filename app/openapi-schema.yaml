@@ -30,6 +30,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -57,6 +58,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -81,6 +83,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -116,6 +119,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -150,6 +154,7 @@ paths:
               $ref: '#/components/schemas/PatchedAPIKey'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -173,6 +178,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -205,6 +211,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -234,6 +241,7 @@ paths:
         name: status
         schema:
           type: string
+          x-spec-enum-id: 0ad3f4d50b94ceb7
           enum:
           - absent
           - partial
@@ -253,6 +261,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -278,6 +287,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -303,6 +313,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -320,6 +331,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -355,6 +367,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -378,6 +391,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -387,53 +401,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuditLog'
           description: ''
-  /api/v1/auth/:
-    post:
-      operationId: api_v1_auth_create
-      description: |-
-        Kiosk authentication endpoint (Fortune 500 implementation)
-
-        Authenticates kiosk devices and returns JWT tokens for API access.
-
-        **Request:**
-        ```json
-        POST /api/kiosks/auth/
-        {
-            "kiosk_id": "TEST-KIOSK-001",
-            "api_key": "test-api-key-12345"
-        }
-        ```
-
-        **Success Response (200):**
-        ```json
-        {
-            "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "kiosk_id": "TEST-KIOSK-001",
-            "bus_id": "uuid-of-bus",
-            "expires_in": 86400
-        }
-        ```
-
-        **Error Responses:**
-        - 400: Invalid request format
-        - 401: Invalid credentials or inactive kiosk
-
-        **Security Features:**
-        - API key hashed using SHA-256
-        - Generic error messages (no info leakage)
-        - JWT tokens with configurable expiry
-        - Validates kiosk active status
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      - {}
-      responses:
-        '200':
-          description: No response body
   /api/v1/auth/token/:
     post:
       operationId: api_v1_auth_token_create
@@ -467,8 +434,9 @@ paths:
     post:
       operationId: api_v1_auth_token_refresh_create
       description: |-
-        Takes a refresh type JSON web token and returns an access type JSON web
-        token if the refresh token is valid.
+        Custom TokenRefreshView that supports both regular JWT and kiosk JWT tokens.
+
+        This ensures kiosk devices can refresh their tokens without authentication failures.
       tags:
       - api
       requestBody:
@@ -525,6 +493,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -553,6 +522,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -577,6 +547,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -612,6 +583,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -646,6 +618,7 @@ paths:
               $ref: '#/components/schemas/PatchedBoardingEvent'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -669,6 +642,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -694,6 +668,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -711,6 +686,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -723,11 +699,10 @@ paths:
   /api/v1/buses/:
     get:
       operationId: api_v1_buses_list
+      description: ViewSet for buses
       parameters:
-      - name: ordering
-        required: false
-        in: query
-        description: Which field to use when ordering the results.
+      - in: query
+        name: device_id
         schema:
           type: string
       - name: page
@@ -736,16 +711,32 @@ paths:
         description: A page number within the paginated result set.
         schema:
           type: integer
-      - name: search
-        required: false
-        in: query
-        description: A search term.
+      - in: query
+        name: route
         schema:
           type: string
+          format: uuid
+        description: UUID primary key
+      - in: query
+        name: status
+        schema:
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          enum:
+          - active
+          - maintenance
+          - retired
+        description: |-
+          Current operational status
+
+          * `active` - Active
+          * `maintenance` - Under Maintenance
+          * `retired` - Retired
       tags:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -757,6 +748,7 @@ paths:
           description: ''
     post:
       operationId: api_v1_buses_create
+      description: ViewSet for buses
       tags:
       - api
       requestBody:
@@ -773,6 +765,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -785,6 +778,7 @@ paths:
   /api/v1/buses/{bus_id}/:
     get:
       operationId: api_v1_buses_retrieve
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -797,6 +791,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -808,6 +803,7 @@ paths:
           description: ''
     put:
       operationId: api_v1_buses_update
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -832,6 +828,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -843,6 +840,7 @@ paths:
           description: ''
     patch:
       operationId: api_v1_buses_partial_update
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -866,6 +864,7 @@ paths:
               $ref: '#/components/schemas/PatchedBus'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -877,6 +876,7 @@ paths:
           description: ''
     delete:
       operationId: api_v1_buses_destroy
+      description: ViewSet for buses
       parameters:
       - in: path
         name: bus_id
@@ -889,6 +889,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -910,6 +911,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -939,6 +941,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -956,6 +959,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -965,272 +969,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bus'
           description: ''
-  /api/v1/face-embeddings/:
-    get:
-      operationId: api_v1_face_embeddings_list
-      parameters:
-      - name: ordering
-        required: false
-        in: query
-        description: Which field to use when ordering the results.
-        schema:
-          type: string
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: search
-        required: false
-        in: query
-        description: A search term.
-        schema:
-          type: string
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedFaceEmbeddingMetadataList'
-          description: ''
-    post:
-      operationId: api_v1_face_embeddings_create
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-        required: true
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          description: ''
-  /api/v1/face-embeddings/{embedding_id}/:
-    get:
-      operationId: api_v1_face_embeddings_retrieve
-      parameters:
-      - in: path
-        name: embedding_id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this face embedding metadata.
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          description: ''
-    put:
-      operationId: api_v1_face_embeddings_update
-      parameters:
-      - in: path
-        name: embedding_id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this face embedding metadata.
-        required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-        required: true
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          description: ''
-    patch:
-      operationId: api_v1_face_embeddings_partial_update
-      parameters:
-      - in: path
-        name: embedding_id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this face embedding metadata.
-        required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedFaceEmbeddingMetadata'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedFaceEmbeddingMetadata'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedFaceEmbeddingMetadata'
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          description: ''
-    delete:
-      operationId: api_v1_face_embeddings_destroy
-      parameters:
-      - in: path
-        name: embedding_id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this face embedding metadata.
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '204':
-          description: No response body
-  /api/v1/face-embeddings/{embedding_id}/set_primary/:
-    post:
-      operationId: api_v1_face_embeddings_set_primary_create
-      parameters:
-      - in: path
-        name: embedding_id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this face embedding metadata.
-        required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/FaceEmbeddingMetadata'
-        required: true
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/FaceEmbeddingMetadata'
-          description: ''
-  /api/v1/heartbeat/:
-    post:
-      operationId: api_v1_heartbeat_create
-      description: |-
-        Kiosk heartbeat endpoint - called by devices to report status.
-        High-throughput endpoint for monitoring device health.
-
-        Fortune 500 pattern:
-        - Authentication: KioskJWTAuthentication (validates JWT contains kiosk)
-        - Permission: IsAuthenticated (standard DRF permission)
-        - request.user contains authenticated Kiosk object
-      tags:
-      - api
-      security:
-      - Bearer: []
-      responses:
-        '200':
-          description: No response body
   /api/v1/kiosk/boarding/:
     post:
       operationId: api_v1_kiosk_boarding_create
-      description: Student boarding endpoint - must respond in < 0.5 seconds!
+      description: Student boarding endpoint - returns immediate approval and schedules
+        background processing
       tags:
       - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
       security:
       - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/kiosks/:
-    get:
-      operationId: api_v1_kiosks_list
-      description: ViewSet for kiosk management
-      parameters:
-      - in: query
-        name: bus
-        schema:
-          type: string
-          format: uuid
-        description: UUID primary key
-      - in: query
-        name: is_active
-        schema:
-          type: boolean
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      tags:
-      - api
-      security:
-      - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1238,68 +1003,49 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedKioskList'
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
           description: ''
+  /api/v1/kiosks/{kiosk_id}/check-updates/:
+    get:
+      operationId: kiosk_check_updates
+      description: Check if kiosk needs database update
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: last_sync_hash
+        schema:
+          type: string
+        description: Last content hash from kiosk
+      tags:
+      - api
+      security:
+      - KioskJWTAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckUpdatesResponse'
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/heartbeat/:
     post:
-      operationId: api_v1_kiosks_create
-      description: ViewSet for kiosk management
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Kiosk'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Kiosk'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Kiosk'
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kiosk'
-          description: ''
-  /api/v1/kiosks/{kiosk_id}/:
-    get:
-      operationId: api_v1_kiosks_retrieve
-      description: ViewSet for kiosk management
+      operationId: kiosk_heartbeat
+      description: Report kiosk health and sync status
       parameters:
       - in: path
         name: kiosk_id
         schema:
           type: string
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kiosk'
-          description: ''
-    put:
-      operationId: api_v1_kiosks_update
-      description: ViewSet for kiosk management
-      parameters:
-      - in: path
-        name: kiosk_id
-        schema:
-          type: string
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
         required: true
       tags:
       - api
@@ -1307,228 +1053,113 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Kiosk'
+              $ref: '#/components/schemas/Heartbeat'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Kiosk'
+              $ref: '#/components/schemas/Heartbeat'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Kiosk'
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kiosk'
-          description: ''
-    patch:
-      operationId: api_v1_kiosks_partial_update
-      description: ViewSet for kiosk management
-      parameters:
-      - in: path
-        name: kiosk_id
-        schema:
-          type: string
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+              $ref: '#/components/schemas/Heartbeat'
         required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedKiosk'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedKiosk'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedKiosk'
       security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kiosk'
-          description: ''
-    delete:
-      operationId: api_v1_kiosks_destroy
-      description: ViewSet for kiosk management
-      parameters:
-      - in: path
-        name: kiosk_id
-        schema:
-          type: string
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
+      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '204':
           description: No response body
-  /api/v1/kiosks/{kiosk_id}/logs/:
+  /api/v1/kiosks/{kiosk_id}/snapshot/:
     get:
-      operationId: api_v1_kiosks_logs_retrieve
-      description: Get logs for a specific kiosk
+      operationId: kiosk_download_snapshot
+      description: Generate and download a kiosk database snapshot.
       parameters:
       - in: path
         name: kiosk_id
         schema:
           type: string
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
         required: true
       tags:
       - api
       security:
-      - jwtAuth: []
-      - cookieAuth: []
+      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Kiosk'
+                type: string
+                format: binary
           description: ''
-  /api/v1/kiosks/status/:
-    get:
-      operationId: api_v1_kiosks_status_retrieve
-      description: Get overall kiosk status summary
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Kiosk'
-          description: ''
-  /api/v1/log/:
+  /api/v1/kiosks/activate/:
     post:
-      operationId: api_v1_log_create
-      description: |-
-        Kiosk logging endpoint - devices can send log messages.
-        Supports bulk logging for efficiency.
-
-        Fortune 500 pattern:
-        - Authentication: KioskJWTAuthentication (validates JWT contains kiosk)
-        - Permission: IsAuthenticated (standard DRF permission)
-        - request.user contains authenticated Kiosk object
+      operationId: kiosk_activate
+      description: "\n    **Fortune 500 Standard: One-time Device Activation**\n\n\
+        \    Used by: Google Nest, Amazon Alexa, Netflix devices\n\n    Activates\
+        \ a kiosk using a disposable activation token.\n    After activation, the\
+        \ token becomes garbage and cannot be reused.\n\n    **Security Features:**\n\
+        \    - One-time use activation tokens (WhatsApp leak protection)\n    - Tokens\
+        \ destroyed after first use\n    - 60-day rotating refresh tokens\n    - 15-minute\
+        \ access tokens\n\n    **Example Request:**\n    ```json\n    {\n        \"\
+        kiosk_id\": \"KIOSK-SCHOOL-001\",\n        \"activation_token\": \"8Jz4Y-x9K2mQ_r5WvLp3NcTg7HfB6DsA1eU0oI9j8Xw\"\
+        \n    }\n    ```\n    "
       tags:
-      - api
-      security:
-      - Bearer: []
-      responses:
-        '200':
-          description: No response body
-  /api/v1/logs/:
-    get:
-      operationId: api_v1_logs_list
-      description: Read-only ViewSet for device logs
-      parameters:
-      - in: query
-        name: kiosk
-        schema:
-          type: string
-        description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
-      - in: query
-        name: log_level
-        schema:
-          type: string
-          enum:
-          - CRITICAL
-          - DEBUG
-          - ERROR
-          - INFO
-          - WARN
-        description: |-
-          Log level severity
-
-          * `DEBUG` - Debug
-          * `INFO` - Info
-          * `WARN` - Warning
-          * `ERROR` - Error
-          * `CRITICAL` - Critical
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - in: query
-        name: timestamp
-        schema:
-          type: string
-          format: date-time
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedDeviceLogList'
-          description: ''
-  /api/v1/logs/{log_id}/:
-    get:
-      operationId: api_v1_logs_retrieve
-      description: Read-only ViewSet for device logs
-      parameters:
-      - in: path
-        name: log_id
-        schema:
-          type: integer
-          description: Auto-incrementing log entry ID
+      - Kiosk Activation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KioskActivation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KioskActivation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KioskActivation'
         required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - cookieAuth: []
-      - Bearer: []
+      security: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceLog'
+                $ref: '#/components/schemas/KioskActivationResponse'
           description: ''
-  /api/v1/logs/summary/:
-    get:
-      operationId: api_v1_logs_summary_retrieve
-      description: Get logs summary by level and time
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Invalid activation token or kiosk not found
+          description: ''
+  /api/v1/kiosks/logs/:
+    post:
+      operationId: kiosk_log
+      description: Kiosk logging endpoint for device log submission
       tags:
       - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceLog'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceLog'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceLog'
+        required: true
       security:
-      - jwtAuth: []
-      - cookieAuth: []
+      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceLog'
+                type: object
+                properties:
+                  status:
+                    type: string
           description: ''
   /api/v1/parents/:
     get:
@@ -1556,6 +1187,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1583,6 +1215,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1607,6 +1240,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1642,6 +1276,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1676,6 +1311,7 @@ paths:
               $ref: '#/components/schemas/PatchedParent'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1699,6 +1335,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1719,6 +1356,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1754,6 +1392,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1778,6 +1417,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1806,6 +1446,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1834,6 +1475,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1859,6 +1501,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1895,6 +1538,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1930,6 +1574,7 @@ paths:
               $ref: '#/components/schemas/PatchedRoute'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1954,6 +1599,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1975,6 +1621,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2000,6 +1647,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2035,6 +1683,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2062,6 +1711,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2086,6 +1736,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2121,6 +1772,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2155,6 +1807,7 @@ paths:
               $ref: '#/components/schemas/PatchedSchool'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2178,6 +1831,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2209,6 +1863,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2236,6 +1891,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2259,6 +1915,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2293,6 +1950,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2326,6 +1984,7 @@ paths:
               $ref: '#/components/schemas/PatchedStudentParent'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2348,6 +2007,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2379,6 +2039,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2406,6 +2067,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2430,6 +2092,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2465,6 +2128,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2499,6 +2163,7 @@ paths:
               $ref: '#/components/schemas/PatchedStudentPhoto'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2522,6 +2187,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2554,6 +2220,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2589,6 +2256,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2616,6 +2284,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2640,6 +2309,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2675,6 +2345,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2709,6 +2380,7 @@ paths:
               $ref: '#/components/schemas/PatchedStudent'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2732,6 +2404,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2764,6 +2437,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2788,6 +2462,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2823,6 +2498,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2850,6 +2526,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2874,6 +2551,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2909,6 +2587,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2943,6 +2622,7 @@ paths:
               $ref: '#/components/schemas/PatchedUser'
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2966,6 +2646,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2990,6 +2671,7 @@ paths:
         required: true
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -3007,6 +2689,7 @@ paths:
       - api
       security:
       - jwtAuth: []
+      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -3078,22 +2761,6 @@ components:
       required:
       - kiosk_id
       - raw_key
-    ActionEnum:
-      enum:
-      - CREATE
-      - UPDATE
-      - DELETE
-      - LOGIN
-      - LOGOUT
-      - API_ACCESS
-      type: string
-      description: |-
-        * `CREATE` - Create
-        * `UPDATE` - Update
-        * `DELETE` - Delete
-        * `LOGIN` - Login
-        * `LOGOUT` - Logout
-        * `API_ACCESS` - API Access
     AttendanceRecord:
       type: object
       description: Serializer for attendance records
@@ -3134,8 +2801,12 @@ components:
           nullable: true
           description: Time of afternoon boarding
         status:
-          allOf:
-          - $ref: '#/components/schemas/AttendanceRecordStatusEnum'
+          enum:
+          - present
+          - absent
+          - partial
+          type: string
+          x-spec-enum-id: 0ad3f4d50b94ceb7
           readOnly: true
           description: |-
             Overall attendance status
@@ -3156,16 +2827,6 @@ components:
       - student
       - student_grade
       - student_name
-    AttendanceRecordStatusEnum:
-      enum:
-      - present
-      - absent
-      - partial
-      type: string
-      description: |-
-        * `present` - Present
-        * `absent` - Absent
-        * `partial` - Partial
     AuditLog:
       type: object
       properties:
@@ -3183,9 +2844,39 @@ components:
           type: string
           readOnly: true
         action:
-          $ref: '#/components/schemas/ActionEnum'
+          enum:
+          - CREATE
+          - UPDATE
+          - DELETE
+          - LOGIN
+          - LOGOUT
+          - API_ACCESS
+          type: string
+          description: |-
+            * `CREATE` - Create
+            * `UPDATE` - Update
+            * `DELETE` - Delete
+            * `LOGIN` - Login
+            * `LOGOUT` - Logout
+            * `API_ACCESS` - API Access
+          x-spec-enum-id: b2327df74eb7fd10
         resource_type:
-          $ref: '#/components/schemas/ResourceTypeEnum'
+          enum:
+          - user
+          - student
+          - bus
+          - kiosk
+          - event
+          - notification
+          type: string
+          description: |-
+            * `user` - User
+            * `student` - Student
+            * `bus` - Bus
+            * `kiosk` - Kiosk
+            * `event` - Boarding Event
+            * `notification` - Notification
+          x-spec-enum-id: 89b231cbca1d3d06
         resource_id:
           type: string
           maxLength: 100
@@ -3322,6 +3013,101 @@ components:
       - timestamp
     Bus:
       type: object
+      description: Serializer for buses
+      properties:
+        bus_id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: UUID primary key
+        license_plate:
+          type: string
+          description: Vehicle license plate number
+          maxLength: 20
+        route:
+          type: string
+          format: uuid
+          description: Route this bus is assigned to
+          nullable: true
+        route_name:
+          type: string
+          readOnly: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+          description: Maximum number of passengers
+        device_id:
+          type: string
+          nullable: true
+          description: Kiosk device identifier installed on this bus
+          maxLength: 100
+        status:
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          description: |-
+            Current operational status
+
+            * `active` - Active
+            * `maintenance` - Under Maintenance
+            * `retired` - Retired
+        manufacturer:
+          type: string
+          description: Bus manufacturer
+          maxLength: 100
+        model:
+          type: string
+          description: Bus model
+          maxLength: 100
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Manufacturing year
+        last_maintenance:
+          type: string
+          format: date
+          nullable: true
+          description: Date of last maintenance
+        assigned_students_count:
+          type: string
+          readOnly: true
+        utilization_percentage:
+          type: string
+          readOnly: true
+        is_available:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this bus was added to the system
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this bus record was last updated
+      required:
+      - assigned_students_count
+      - bus_id
+      - capacity
+      - created_at
+      - is_available
+      - license_plate
+      - route_name
+      - updated_at
+      - utilization_percentage
+    BusBasic:
+      type: object
+      description: Basic bus serializer for nested use in student views
       properties:
         bus_id:
           type: string
@@ -3339,8 +3125,12 @@ components:
           format: int64
           description: Maximum number of passengers
         status:
-          allOf:
-          - $ref: '#/components/schemas/BusStatusEnum'
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
           description: |-
             Current operational status
 
@@ -3363,16 +3153,31 @@ components:
       - created_at
       - license_plate
       - updated_at
-    BusStatusEnum:
-      enum:
-      - active
-      - maintenance
-      - retired
-      type: string
-      description: |-
-        * `active` - Active
-        * `maintenance` - Under Maintenance
-        * `retired` - Retired
+    CheckUpdatesResponse:
+      type: object
+      description: Serializer for check updates response
+      properties:
+        needs_update:
+          type: boolean
+          description: Whether kiosk needs to download new snapshot
+        current_version:
+          type: string
+          description: Current database version timestamp
+        student_count:
+          type: integer
+          description: Number of students for this bus
+        embedding_count:
+          type: integer
+          description: Number of embeddings for this bus
+        content_hash:
+          type: string
+          description: Content hash for integrity verification
+      required:
+      - content_hash
+      - current_version
+      - embedding_count
+      - needs_update
+      - student_count
     DeviceLog:
       type: object
       description: Serializer for device logs
@@ -3388,8 +3193,14 @@ components:
           type: string
           readOnly: true
         log_level:
-          allOf:
-          - $ref: '#/components/schemas/LogLevelEnum'
+          enum:
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
+          - CRITICAL
+          type: string
+          x-spec-enum-id: 7b1a6f8785c20640
           description: |-
             Log level severity
 
@@ -3415,146 +3226,129 @@ components:
       - log_level
       - message
       - timestamp
-    FaceEmbeddingMetadata:
+    HealthData:
       type: object
+      description: Serializer for health metrics
       properties:
-        embedding_id:
-          type: string
-          format: uuid
-          readOnly: true
-        student_photo:
-          type: string
-          format: uuid
-        model_name:
-          type: string
-          description: Face recognition model
-          maxLength: 100
-        model_version:
-          type: string
-          description: Face recognition model version
-          maxLength: 50
-        qdrant_point_id:
-          type: string
-          description: Reference to Qdrant point
-          maxLength: 100
-        quality_score:
-          type: number
-          format: double
-          description: Face detection quality score (0-1)
-        is_primary:
+        battery_level:
+          type: integer
+          maximum: 100
+          minimum: 0
+          nullable: true
+        is_charging:
           type: boolean
-          description: Primary embedding for this photo
-        captured_at:
+          default: false
+        storage_available_mb:
+          type: integer
+          minimum: 0
+          nullable: true
+        camera_active:
+          type: boolean
+          default: false
+        network_type:
           type: string
-          format: date-time
-          description: When the face was captured
-        student_details:
+          nullable: true
+          maxLength: 20
+        app_version:
           type: string
-          readOnly: true
-        photo_details:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - captured_at
-      - created_at
-      - embedding_id
-      - model_name
-      - model_version
-      - photo_details
-      - qdrant_point_id
-      - quality_score
-      - student_details
-      - student_photo
-    Kiosk:
+          nullable: true
+          maxLength: 20
+        last_face_detected_ago_min:
+          type: integer
+          minimum: 0
+          nullable: true
+        faces_detected_today:
+          type: integer
+          minimum: 0
+          default: 0
+        students_identified_today:
+          type: integer
+          minimum: 0
+          default: 0
+    Heartbeat:
       type: object
-      description: Serializer for kiosks
+      description: Serializer for kiosk heartbeat
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Heartbeat timestamp
+        database_version:
+          type: string
+          description: Current database version on kiosk
+          maxLength: 50
+        database_hash:
+          type: string
+          description: Database content hash
+          maxLength: 32
+        student_count:
+          type: integer
+          minimum: 0
+          description: Students in DB
+        embedding_count:
+          type: integer
+          minimum: 0
+          description: Embeddings in DB
+        health:
+          $ref: '#/components/schemas/HealthData'
+      required:
+      - database_version
+      - embedding_count
+      - student_count
+      - timestamp
+    KioskActivation:
+      type: object
+      description: |-
+        Fortune 500 Standard: One-time kiosk activation
+
+        Used by: Google, Amazon, Netflix for device activation
+        Pattern: Disposable tokens that become garbage after first use
       properties:
         kiosk_id:
           type: string
-          readOnly: true
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
-        bus:
+          description: Kiosk identifier (e.g., KIOSK-SCHOOL-001)
+          maxLength: 100
+        activation_token:
           type: string
-          readOnly: true
-        bus_license_plate:
-          type: string
-          readOnly: true
-        firmware_version:
-          type: string
-          description: Current firmware version installed on device
-          maxLength: 50
-        last_heartbeat:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp of last heartbeat received from device
-        is_active:
-          type: boolean
-          description: Whether this kiosk is active and accepting requests
-        battery_level:
-          type: number
-          format: double
-        storage_used_mb:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
-          nullable: true
-          description: Storage used in MB on the device
-        status_display:
-          type: string
-          readOnly: true
-        is_online:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: When this kiosk was registered
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: When this kiosk record was last updated
+          writeOnly: true
+          description: One-time activation token (destroyed after use)
+          maxLength: 255
       required:
-      - bus
-      - bus_license_plate
-      - created_at
-      - is_online
+      - activation_token
       - kiosk_id
-      - status_display
-      - updated_at
-    LogLevelEnum:
-      enum:
-      - DEBUG
-      - INFO
-      - WARN
-      - ERROR
-      - CRITICAL
-      type: string
+    KioskActivationResponse:
+      type: object
       description: |-
-        * `DEBUG` - Debug
-        * `INFO` - Info
-        * `WARN` - Warning
-        * `ERROR` - Error
-        * `CRITICAL` - Critical
-    NameEnum:
-      enum:
-      - super_admin
-      - backend_engineer
-      - school_admin
-      - parent
-      type: string
-      description: |-
-        * `super_admin` - Super Administrator
-        * `backend_engineer` - Backend Engineer
-        * `school_admin` - School Administrator
-        * `parent` - Parent
+        Response for successful kiosk activation
+
+        Fortune 500 Pattern: Include everything needed for device operation
+      properties:
+        message:
+          type: string
+          description: Success message
+        access:
+          type: string
+          description: JWT access token (15 minutes)
+        refresh:
+          type: string
+          description: JWT refresh token (60 days)
+        kiosk_id:
+          type: string
+          description: Activated kiosk ID
+        bus_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Assigned bus ID
+        activation_token_destroyed:
+          type: boolean
+          description: Confirms token is now garbage
+      required:
+      - access
+      - activation_token_destroyed
+      - kiosk_id
+      - message
+      - refresh
     PaginatedAPIKeyList:
       type: object
       required:
@@ -3670,75 +3464,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bus'
-    PaginatedDeviceLogList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/DeviceLog'
-    PaginatedFaceEmbeddingMetadataList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/FaceEmbeddingMetadata'
-    PaginatedKioskList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Kiosk'
     PaginatedParentList:
       type: object
       required:
@@ -4049,6 +3774,7 @@ components:
           description: When this record was created in database
     PatchedBus:
       type: object
+      description: Serializer for buses
       properties:
         bus_id:
           type: string
@@ -4059,21 +3785,67 @@ components:
           type: string
           description: Vehicle license plate number
           maxLength: 20
+        route:
+          type: string
+          format: uuid
+          description: Route this bus is assigned to
+          nullable: true
+        route_name:
+          type: string
+          readOnly: true
         capacity:
           type: integer
           maximum: 9223372036854775807
           minimum: 1
           format: int64
           description: Maximum number of passengers
+        device_id:
+          type: string
+          nullable: true
+          description: Kiosk device identifier installed on this bus
+          maxLength: 100
         status:
-          allOf:
-          - $ref: '#/components/schemas/BusStatusEnum'
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
           description: |-
             Current operational status
 
             * `active` - Active
             * `maintenance` - Under Maintenance
             * `retired` - Retired
+        manufacturer:
+          type: string
+          description: Bus manufacturer
+          maxLength: 100
+        model:
+          type: string
+          description: Bus model
+          maxLength: 100
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Manufacturing year
+        last_maintenance:
+          type: string
+          format: date
+          nullable: true
+          description: Date of last maintenance
+        assigned_students_count:
+          type: string
+          readOnly: true
+        utilization_percentage:
+          type: string
+          readOnly: true
+        is_available:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -4084,101 +3856,6 @@ components:
           format: date-time
           readOnly: true
           description: When this bus record was last updated
-    PatchedFaceEmbeddingMetadata:
-      type: object
-      properties:
-        embedding_id:
-          type: string
-          format: uuid
-          readOnly: true
-        student_photo:
-          type: string
-          format: uuid
-        model_name:
-          type: string
-          description: Face recognition model
-          maxLength: 100
-        model_version:
-          type: string
-          description: Face recognition model version
-          maxLength: 50
-        qdrant_point_id:
-          type: string
-          description: Reference to Qdrant point
-          maxLength: 100
-        quality_score:
-          type: number
-          format: double
-          description: Face detection quality score (0-1)
-        is_primary:
-          type: boolean
-          description: Primary embedding for this photo
-        captured_at:
-          type: string
-          format: date-time
-          description: When the face was captured
-        student_details:
-          type: string
-          readOnly: true
-        photo_details:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedKiosk:
-      type: object
-      description: Serializer for kiosks
-      properties:
-        kiosk_id:
-          type: string
-          readOnly: true
-          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
-        bus:
-          type: string
-          readOnly: true
-        bus_license_plate:
-          type: string
-          readOnly: true
-        firmware_version:
-          type: string
-          description: Current firmware version installed on device
-          maxLength: 50
-        last_heartbeat:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp of last heartbeat received from device
-        is_active:
-          type: boolean
-          description: Whether this kiosk is active and accepting requests
-        battery_level:
-          type: number
-          format: double
-        storage_used_mb:
-          type: integer
-          maximum: 9223372036854775807
-          minimum: 0
-          format: int64
-          nullable: true
-          description: Storage used in MB on the device
-        status_display:
-          type: string
-          readOnly: true
-        is_online:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: When this kiosk was registered
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-          description: When this kiosk record was last updated
     PatchedParent:
       type: object
       properties:
@@ -4290,7 +3967,16 @@ components:
           description: UUID primary key
           nullable: true
         status:
-          $ref: '#/components/schemas/StudentStatusEnum'
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
         enrollment_date:
           type: string
           format: date
@@ -4300,7 +3986,7 @@ components:
           readOnly: true
         bus_details:
           allOf:
-          - $ref: '#/components/schemas/Bus'
+          - $ref: '#/components/schemas/BusBasic'
           readOnly: true
         parents:
           type: string
@@ -4326,7 +4012,20 @@ components:
           type: string
           format: uuid
         relationship:
-          $ref: '#/components/schemas/RelationshipEnum'
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
         is_primary:
           type: boolean
         parent_details:
@@ -4346,9 +4045,11 @@ components:
         student:
           type: string
           format: uuid
-        photo_url:
+        photo:
           type: string
-          description: S3 path to student photo
+          format: uri
+          nullable: true
+          description: Student photo file
         is_primary:
           type: boolean
           description: Primary photo for student
@@ -4398,36 +4099,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-    RelationshipEnum:
-      enum:
-      - mother
-      - father
-      - guardian
-      - grandparent
-      - other
-      type: string
-      description: |-
-        * `mother` - Mother
-        * `father` - Father
-        * `guardian` - Guardian
-        * `grandparent` - Grandparent
-        * `other` - Other
-    ResourceTypeEnum:
-      enum:
-      - user
-      - student
-      - bus
-      - kiosk
-      - event
-      - notification
-      type: string
-      description: |-
-        * `user` - User
-        * `student` - Student
-        * `bus` - Bus
-        * `kiosk` - Kiosk
-        * `event` - Boarding Event
-        * `notification` - Notification
     Role:
       type: object
       properties:
@@ -4436,7 +4107,18 @@ components:
           format: uuid
           readOnly: true
         name:
-          $ref: '#/components/schemas/NameEnum'
+          enum:
+          - super_admin
+          - backend_engineer
+          - school_admin
+          - parent
+          type: string
+          description: |-
+            * `super_admin` - Super Administrator
+            * `backend_engineer` - Backend Engineer
+            * `school_admin` - School Administrator
+            * `parent` - Parent
+          x-spec-enum-id: c968989dc92beb92
         description:
           type: string
         permissions:
@@ -4549,7 +4231,16 @@ components:
           description: UUID primary key
           nullable: true
         status:
-          $ref: '#/components/schemas/StudentStatusEnum'
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
         enrollment_date:
           type: string
           format: date
@@ -4559,7 +4250,7 @@ components:
           readOnly: true
         bus_details:
           allOf:
-          - $ref: '#/components/schemas/Bus'
+          - $ref: '#/components/schemas/BusBasic'
           readOnly: true
         parents:
           type: string
@@ -4598,7 +4289,20 @@ components:
           type: string
           format: uuid
         relationship:
-          $ref: '#/components/schemas/RelationshipEnum'
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
         is_primary:
           type: boolean
         parent_details:
@@ -4624,9 +4328,11 @@ components:
         student:
           type: string
           format: uuid
-        photo_url:
+        photo:
           type: string
-          description: S3 path to student photo
+          format: uri
+          nullable: true
+          description: Student photo file
         is_primary:
           type: boolean
           description: Primary photo for student
@@ -4644,19 +4350,8 @@ components:
       required:
       - created_at
       - photo_id
-      - photo_url
       - student
       - student_details
-    StudentStatusEnum:
-      enum:
-      - active
-      - inactive
-      - suspended
-      type: string
-      description: |-
-        * `active` - Active
-        * `inactive` - Inactive
-        * `suspended` - Suspended
     TokenObtainPair:
       type: object
       properties:
@@ -4758,6 +4453,11 @@ components:
       - role
       - username
   securitySchemes:
+    KioskJWTAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'JWT auth for kiosks. Use ''Authorization: Bearer <token>''.'
     cookieAuth:
       type: apiKey
       in: cookie

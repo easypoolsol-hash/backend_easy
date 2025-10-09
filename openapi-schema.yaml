@@ -531,6 +531,7 @@ paths:
               $ref: '#/components/schemas/TokenRefresh'
         required: true
       security:
+      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -1069,8 +1070,7 @@ paths:
             schema:
               $ref: '#/components/schemas/KioskActivation'
         required: true
-      security:
-      - Bearer: []
+      security: []
       responses:
         '200':
           content:

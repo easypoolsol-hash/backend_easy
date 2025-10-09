@@ -5,6 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 
 from .models import APIKey, AuditLog, Role, User
 from .serializers import (
@@ -15,6 +16,8 @@ from .serializers import (
     UserCreateSerializer,
     UserSerializer,
 )
+
+# pylint: disable=no-member
 
 
 class RoleViewSet(viewsets.ReadOnlyModelViewSet):
@@ -164,3 +167,13 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(resource_type=resource_type)
 
         return queryset
+
+
+class KioskTokenRefreshView(TokenRefreshView):
+    """
+    Custom TokenRefreshView that supports both regular JWT and kiosk JWT tokens.
+
+    This ensures kiosk devices can refresh their tokens without authentication failures.
+    """
+
+    pass

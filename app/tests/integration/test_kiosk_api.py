@@ -8,6 +8,8 @@ from django.utils import timezone
 import pytest
 from rest_framework import status
 
+from tests.utils.openapi_paths import get_path_by_operation as openapi_helper
+
 
 @pytest.mark.django_db
 class TestKioskAPIAuthentication:
@@ -19,7 +21,7 @@ class TestKioskAPIAuthentication:
 
         # 1. Activate kiosk and get token
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -38,7 +40,7 @@ class TestKioskAPIAuthentication:
             "embedding_count": 1,
         }
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             data=heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -51,7 +53,7 @@ class TestKioskAPIAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            f"/api/v1/kiosks/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id, "battery_level": 85},
             format="json",
         )
@@ -66,7 +68,7 @@ class TestKioskAPIAuthentication:
         kiosk, _ = test_kiosk
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            f"/api/v1/kiosks/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id},
             HTTP_AUTHORIZATION="Bearer invalid-token-format",
             format="json",
@@ -83,7 +85,7 @@ class TestKioskAPIAuthentication:
 
         # authenticated_client has a USER token, not kiosk token
         response = authenticated_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            f"/api/v1/kiosks/{kiosk.kiosk_id}/heartbeat/",
             {"kiosk_id": kiosk.kiosk_id, "battery_level": 85},
             format="json",
         )

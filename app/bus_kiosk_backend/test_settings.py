@@ -3,7 +3,9 @@ Test settings for Django project.
 Uses SQLite for faster testing instead of PostgreSQL.
 """
 
+from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,6 +22,7 @@ INSTALLED_APPS = [
     # Third-party apps
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",  # For token rotation security
     "drf_spectacular",
     "corsheaders",
     "django_filters",
@@ -79,7 +82,11 @@ PASSWORD_HASHERS = [
 
 # REST Framework settings for tests - OVERRIDE global authentication
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "kiosks.authentication.KioskJWTAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [],  # No global authentication for tests
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -88,6 +95,26 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.JSONParser",
     ],
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+}
+
+# JWT settings for Secure Kiosk Authentication (test configuration)
+SIMPLE_JWT = {
+    # Access Token (Short-lived for security - if stolen, only works 15 min)
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    # Refresh Token (60 days for 2-month holidays - kiosk autonomy)
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
+    # Token Rotation (Security - old tokens become garbage every 14 min)
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    # Algorithm and signing
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    # Token claims
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "USER_ID_FIELD": "user_id",  # Custom User model uses user_id instead of id
+    "USER_ID_CLAIM": "user_id",  # Include user_id in JWT payload
+    # Blacklist checks (detects token reuse attacks)
+    "BLACKLIST_TOKEN_CHECKS": ["refresh"],
 }
 
 # Encryption key for PII data (test key)
@@ -100,7 +127,7 @@ print("TEST SETTINGS LOADED - REST_FRAMEWORK:", REST_FRAMEWORK)
 # environments a shadowed or incomplete `django` module can cause
 # AttributeError: module 'django' has no attribute 'apps'. Use a safe
 # import/getattr pattern so tests don't crash at import time.
-from typing import Any
+# from typing import Any  # Already imported at top
 
 try:
     # Try to import the apps registry the normal way. This will fail
@@ -128,6 +155,14 @@ CACHES = {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
     },
 }
+
+# Disable OpenAPI request/response validation during unit/non-heavy tests to
+# avoid noisy validation warnings and external schema loading in test runs.
+# Heavy/integration tests that run against docker-compose should opt-in to
+# validation by setting these to True in their environment.
+OPENAPI_VALIDATE_REQUESTS = False
+OPENAPI_VALIDATE_RESPONSES = False
+OPENAPI_FAIL_ON_ERROR = False
 
 # Basic logging for tests
 LOGGING = {

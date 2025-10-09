@@ -4,86 +4,6 @@ info:
   version: 1.0.0
   description: Industrial REST API for Bus Kiosk face recognition system
 paths:
-  /api/v1/{kiosk_id}/check-updates/:
-    get:
-      operationId: api_v1_check_updates_retrieve
-      description: Check if kiosk needs database update
-      parameters:
-      - in: path
-        name: kiosk_id
-        schema:
-          type: string
-        required: true
-      - in: query
-        name: last_sync_hash
-        schema:
-          type: string
-        description: Last content hash from kiosk
-      tags:
-      - api
-      security:
-      - KioskJWTAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CheckUpdatesResponse'
-          description: ''
-  /api/v1/{kiosk_id}/heartbeat/:
-    post:
-      operationId: api_v1_heartbeat_create
-      description: Report kiosk health and sync status
-      parameters:
-      - in: path
-        name: kiosk_id
-        schema:
-          type: string
-        required: true
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Heartbeat'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Heartbeat'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Heartbeat'
-        required: true
-      security:
-      - KioskJWTAuth: []
-      - Bearer: []
-      responses:
-        '204':
-          description: No response body
-  /api/v1/{kiosk_id}/snapshot/:
-    get:
-      operationId: api_v1_snapshot_retrieve
-      description: Generate and download a kiosk database snapshot.
-      parameters:
-      - in: path
-        name: kiosk_id
-        schema:
-          type: string
-        required: true
-      tags:
-      - api
-      security:
-      - KioskJWTAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: string
-                format: binary
-          description: ''
   /api/v1/api-keys/:
     get:
       operationId: api_v1_api_keys_list
@@ -321,6 +241,7 @@ paths:
         name: status
         schema:
           type: string
+          x-spec-enum-id: 0ad3f4d50b94ceb7
           enum:
           - absent
           - partial
@@ -513,8 +434,9 @@ paths:
     post:
       operationId: api_v1_auth_token_refresh_create
       description: |-
-        Takes a refresh type JSON web token and returns an access type JSON web
-        token if the refresh token is valid.
+        Custom TokenRefreshView that supports both regular JWT and kiosk JWT tokens.
+
+        This ensures kiosk devices can refresh their tokens without authentication failures.
       tags:
       - api
       requestBody:
@@ -799,6 +721,7 @@ paths:
         name: status
         schema:
           type: string
+          x-spec-enum-id: 7cfb8829cc47c499
           enum:
           - active
           - maintenance
@@ -1087,9 +1010,89 @@ paths:
                   message:
                     type: string
           description: ''
+  /api/v1/kiosks/{kiosk_id}/check-updates/:
+    get:
+      operationId: kiosk_check_updates
+      description: Check if kiosk needs database update
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: last_sync_hash
+        schema:
+          type: string
+        description: Last content hash from kiosk
+      tags:
+      - api
+      security:
+      - KioskJWTAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckUpdatesResponse'
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/heartbeat/:
+    post:
+      operationId: kiosk_heartbeat
+      description: Report kiosk health and sync status
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Heartbeat'
+        required: true
+      security:
+      - KioskJWTAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/kiosks/{kiosk_id}/snapshot/:
+    get:
+      operationId: kiosk_download_snapshot
+      description: Generate and download a kiosk database snapshot.
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - KioskJWTAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/kiosks/activate/:
     post:
-      operationId: api_v1_kiosks_activate_create
+      operationId: kiosk_activate
       description: "\n    **Fortune 500 Standard: One-time Device Activation**\n\n\
         \    Used by: Google Nest, Amazon Alexa, Netflix devices\n\n    Activates\
         \ a kiosk using a disposable activation token.\n    After activation, the\
@@ -1113,8 +1116,7 @@ paths:
             schema:
               $ref: '#/components/schemas/KioskActivation'
         required: true
-      security:
-      - Bearer: []
+      security: []
       responses:
         '200':
           content:
@@ -1128,9 +1130,9 @@ paths:
               schema:
                 description: Invalid activation token or kiosk not found
           description: ''
-  /api/v1/logs/:
+  /api/v1/kiosks/logs/:
     post:
-      operationId: api_v1_logs_create
+      operationId: kiosk_log
       description: Kiosk logging endpoint for device log submission
       tags:
       - api
@@ -2759,22 +2761,6 @@ components:
       required:
       - kiosk_id
       - raw_key
-    ActionEnum:
-      enum:
-      - CREATE
-      - UPDATE
-      - DELETE
-      - LOGIN
-      - LOGOUT
-      - API_ACCESS
-      type: string
-      description: |-
-        * `CREATE` - Create
-        * `UPDATE` - Update
-        * `DELETE` - Delete
-        * `LOGIN` - Login
-        * `LOGOUT` - Logout
-        * `API_ACCESS` - API Access
     AttendanceRecord:
       type: object
       description: Serializer for attendance records
@@ -2815,8 +2801,12 @@ components:
           nullable: true
           description: Time of afternoon boarding
         status:
-          allOf:
-          - $ref: '#/components/schemas/AttendanceRecordStatusEnum'
+          enum:
+          - present
+          - absent
+          - partial
+          type: string
+          x-spec-enum-id: 0ad3f4d50b94ceb7
           readOnly: true
           description: |-
             Overall attendance status
@@ -2837,16 +2827,6 @@ components:
       - student
       - student_grade
       - student_name
-    AttendanceRecordStatusEnum:
-      enum:
-      - present
-      - absent
-      - partial
-      type: string
-      description: |-
-        * `present` - Present
-        * `absent` - Absent
-        * `partial` - Partial
     AuditLog:
       type: object
       properties:
@@ -2864,9 +2844,39 @@ components:
           type: string
           readOnly: true
         action:
-          $ref: '#/components/schemas/ActionEnum'
+          enum:
+          - CREATE
+          - UPDATE
+          - DELETE
+          - LOGIN
+          - LOGOUT
+          - API_ACCESS
+          type: string
+          description: |-
+            * `CREATE` - Create
+            * `UPDATE` - Update
+            * `DELETE` - Delete
+            * `LOGIN` - Login
+            * `LOGOUT` - Logout
+            * `API_ACCESS` - API Access
+          x-spec-enum-id: b2327df74eb7fd10
         resource_type:
-          $ref: '#/components/schemas/ResourceTypeEnum'
+          enum:
+          - user
+          - student
+          - bus
+          - kiosk
+          - event
+          - notification
+          type: string
+          description: |-
+            * `user` - User
+            * `student` - Student
+            * `bus` - Bus
+            * `kiosk` - Kiosk
+            * `event` - Boarding Event
+            * `notification` - Notification
+          x-spec-enum-id: 89b231cbca1d3d06
         resource_id:
           type: string
           maxLength: 100
@@ -3034,8 +3044,12 @@ components:
           description: Kiosk device identifier installed on this bus
           maxLength: 100
         status:
-          allOf:
-          - $ref: '#/components/schemas/Status7cfEnum'
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
           description: |-
             Current operational status
 
@@ -3111,8 +3125,12 @@ components:
           format: int64
           description: Maximum number of passengers
         status:
-          allOf:
-          - $ref: '#/components/schemas/Status7cfEnum'
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
           description: |-
             Current operational status
 
@@ -3175,8 +3193,14 @@ components:
           type: string
           readOnly: true
         log_level:
-          allOf:
-          - $ref: '#/components/schemas/LogLevelEnum'
+          enum:
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
+          - CRITICAL
+          type: string
+          x-spec-enum-id: 7b1a6f8785c20640
           description: |-
             Log level severity
 
@@ -3325,32 +3349,6 @@ components:
       - kiosk_id
       - message
       - refresh
-    LogLevelEnum:
-      enum:
-      - DEBUG
-      - INFO
-      - WARN
-      - ERROR
-      - CRITICAL
-      type: string
-      description: |-
-        * `DEBUG` - Debug
-        * `INFO` - Info
-        * `WARN` - Warning
-        * `ERROR` - Error
-        * `CRITICAL` - Critical
-    NameEnum:
-      enum:
-      - super_admin
-      - backend_engineer
-      - school_admin
-      - parent
-      type: string
-      description: |-
-        * `super_admin` - Super Administrator
-        * `backend_engineer` - Backend Engineer
-        * `school_admin` - School Administrator
-        * `parent` - Parent
     PaginatedAPIKeyList:
       type: object
       required:
@@ -3807,8 +3805,12 @@ components:
           description: Kiosk device identifier installed on this bus
           maxLength: 100
         status:
-          allOf:
-          - $ref: '#/components/schemas/Status7cfEnum'
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
           description: |-
             Current operational status
 
@@ -3965,7 +3967,16 @@ components:
           description: UUID primary key
           nullable: true
         status:
-          $ref: '#/components/schemas/StudentStatusEnum'
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
         enrollment_date:
           type: string
           format: date
@@ -4001,7 +4012,20 @@ components:
           type: string
           format: uuid
         relationship:
-          $ref: '#/components/schemas/RelationshipEnum'
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
         is_primary:
           type: boolean
         parent_details:
@@ -4075,36 +4099,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-    RelationshipEnum:
-      enum:
-      - mother
-      - father
-      - guardian
-      - grandparent
-      - other
-      type: string
-      description: |-
-        * `mother` - Mother
-        * `father` - Father
-        * `guardian` - Guardian
-        * `grandparent` - Grandparent
-        * `other` - Other
-    ResourceTypeEnum:
-      enum:
-      - user
-      - student
-      - bus
-      - kiosk
-      - event
-      - notification
-      type: string
-      description: |-
-        * `user` - User
-        * `student` - Student
-        * `bus` - Bus
-        * `kiosk` - Kiosk
-        * `event` - Boarding Event
-        * `notification` - Notification
     Role:
       type: object
       properties:
@@ -4113,7 +4107,18 @@ components:
           format: uuid
           readOnly: true
         name:
-          $ref: '#/components/schemas/NameEnum'
+          enum:
+          - super_admin
+          - backend_engineer
+          - school_admin
+          - parent
+          type: string
+          description: |-
+            * `super_admin` - Super Administrator
+            * `backend_engineer` - Backend Engineer
+            * `school_admin` - School Administrator
+            * `parent` - Parent
+          x-spec-enum-id: c968989dc92beb92
         description:
           type: string
         permissions:
@@ -4198,16 +4203,6 @@ components:
       - created_at
       - name
       - school_id
-    Status7cfEnum:
-      enum:
-      - active
-      - maintenance
-      - retired
-      type: string
-      description: |-
-        * `active` - Active
-        * `maintenance` - Under Maintenance
-        * `retired` - Retired
     Student:
       type: object
       properties:
@@ -4236,7 +4231,16 @@ components:
           description: UUID primary key
           nullable: true
         status:
-          $ref: '#/components/schemas/StudentStatusEnum'
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
         enrollment_date:
           type: string
           format: date
@@ -4285,7 +4289,20 @@ components:
           type: string
           format: uuid
         relationship:
-          $ref: '#/components/schemas/RelationshipEnum'
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
         is_primary:
           type: boolean
         parent_details:
@@ -4335,16 +4352,6 @@ components:
       - photo_id
       - student
       - student_details
-    StudentStatusEnum:
-      enum:
-      - active
-      - inactive
-      - suspended
-      type: string
-      description: |-
-        * `active` - Active
-        * `inactive` - Inactive
-        * `suspended` - Suspended
     TokenObtainPair:
       type: object
       properties:

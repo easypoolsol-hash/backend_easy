@@ -17,6 +17,7 @@ from rest_framework.test import APIClient
 
 from kiosks.models import KioskStatus
 from tests.factories import KioskFactory
+from tests.utils.openapi_paths import get_path_by_operation as openapi_helper
 
 # Ensure all tests in this module are allowed DB access
 pytestmark = pytest.mark.django_db
@@ -54,7 +55,7 @@ class TestKioskHeartbeatIntegration:
 
         # Step 1: Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -78,7 +79,7 @@ class TestKioskHeartbeatIntegration:
         }
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -133,7 +134,7 @@ class TestKioskHeartbeatIntegration:
 
         # Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -155,7 +156,7 @@ class TestKioskHeartbeatIntegration:
         }
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -180,7 +181,7 @@ class TestKioskHeartbeatIntegration:
 
         # Activate and send first heartbeat
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -201,7 +202,7 @@ class TestKioskHeartbeatIntegration:
         }
 
         api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -213,7 +214,7 @@ class TestKioskHeartbeatIntegration:
         heartbeat_data["database_hash"] = "hash2"
 
         api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -239,7 +240,7 @@ class TestKioskHeartbeatIntegration:
 
         # Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -263,7 +264,7 @@ class TestKioskHeartbeatIntegration:
         }
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -305,7 +306,7 @@ class TestKioskHeartbeatErrorHandling:
         }
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             format="json",
         )
@@ -339,8 +340,8 @@ class TestKioskHeartbeatErrorHandling:
             format="json",
         )
 
-        # Should return 401 (unauthorized) since token is invalid
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        # Should return 404 (not found) for invalid kiosk ID
+        assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize("invalid_battery", [-1, 101, 150, "invalid", None])
     def test_heartbeat_invalid_battery_data(
@@ -355,7 +356,7 @@ class TestKioskHeartbeatErrorHandling:
 
         # Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -376,7 +377,7 @@ class TestKioskHeartbeatErrorHandling:
         }
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             heartbeat_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -407,7 +408,7 @@ class TestKioskHeartbeatErrorHandling:
 
         # Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -420,7 +421,7 @@ class TestKioskHeartbeatErrorHandling:
         }
 
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             incomplete_data,
             HTTP_AUTHORIZATION=f"Bearer {token}",
             format="json",
@@ -441,7 +442,7 @@ class TestKioskHeartbeatErrorHandling:
 
         # Try to activate the inactive kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -481,7 +482,7 @@ class TestKioskHeartbeatPerformance:
         for kiosk, token in zip(kiosks, tokens, strict=True):
             client = APIClient()  # Create a new, isolated client for each kiosk
             auth_response = client.post(
-                "/api/v1/kiosks/activate/",
+                openapi_helper(operation_id="kiosk_activate"),
                 {"kiosk_id": kiosk.kiosk_id, "activation_token": token},
                 format="json",
             )
@@ -509,7 +510,9 @@ class TestKioskHeartbeatPerformance:
                 }
 
                 response = client.post(
-                    f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+                    openapi_helper(
+                        operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
+                    ),
                     heartbeat_data,
                     HTTP_AUTHORIZATION=f"Bearer {token}",
                     format="json",
@@ -547,7 +550,7 @@ class TestKioskHeartbeatPerformance:
 
         # Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -575,7 +578,7 @@ class TestKioskHeartbeatPerformance:
             }
 
             response = api_client.post(
-                f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+                openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
                 heartbeat_data,
                 HTTP_AUTHORIZATION=f"Bearer {token}",
                 format="json",

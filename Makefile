@@ -54,3 +54,6 @@ setup-dev:
 # CI/CD pipeline (fast feedback)
 ci: clean lint
 	@echo "🚀 CI/CD pipeline completed successfully!"
+
+
+#docker-compose -f /opt/backend_easy/docker-compose.prod.yml exec -w /app web python3 manage.py migrate

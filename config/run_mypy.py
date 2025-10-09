@@ -5,7 +5,7 @@ Changes to the app directory and runs mypy with proper configuration.
 """
 
 import os
-import subprocess
+import subprocess  # nosec B404
 import sys
 
 

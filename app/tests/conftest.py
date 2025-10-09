@@ -1,6 +1,22 @@
+import os
+
+import django
 import pytest
 from rest_framework.test import APIClient
 import schemathesis
+
+# Ensure Django settings module is set and apps are loaded early so that importing
+# models during test collection (some tests import models at module level) does
+# not raise AppRegistryNotReady.
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.test_settings")
+django.setup()
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup):
+    """Ensure database is set up for all tests."""
+    # pytest-django handles this automatically, but we can customize if needed
+    pass
 
 
 @pytest.fixture
@@ -37,3 +53,11 @@ def test_kiosk(db):
 def schemathesis_schema():
     # The path is relative to the root directory where pytest is run.
     return schemathesis.from_path("openapi-schema.yaml")
+
+
+@pytest.fixture(scope="session")
+def openapi_helper():
+    """Return a small helper to look up canonical paths from the OpenAPI schema."""
+    from tests.utils.openapi_paths import get_path_by_operation
+
+    return get_path_by_operation

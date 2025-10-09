@@ -25,3 +25,24 @@ def exclude_health_endpoints(endpoints):
         filtered_endpoints.append((path, path_regex, method, callback))
 
     return filtered_endpoints
+
+
+def mark_activation_public(result, generator=None, request=None, public=True):
+    """
+    Postprocessing hook for drf-spectacular that ensures the kiosk
+    activation operation is marked public (no security requirements).
+
+    This is useful when a global SECURITY setting exists but a single
+    operation (device activation) must be unauthenticated.
+    """
+    # 'result' is the schema dict returned by the generator
+    paths = result.get("paths", {})
+    activation_path = "/api/v1/kiosks/activate/"
+    post = paths.get(activation_path)
+    if post is not None:
+        post_op = post.get("post")
+        if post_op is not None:
+            # Explicitly set empty security to override any global security
+            post_op["security"] = []
+
+    return result

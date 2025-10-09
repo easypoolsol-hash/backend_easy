@@ -13,7 +13,7 @@ from rest_framework import status
 class TestKioskWorkflow:
     """Essential end-to-end kiosk workflow test"""
 
-    def test_complete_kiosk_workflow(self, api_client, test_kiosk):
+    def test_complete_kiosk_workflow(self, api_client, test_kiosk, openapi_helper):
         """
         Test complete kiosk workflow:
         1. Activate with kiosk_id + activation_token
@@ -25,7 +25,7 @@ class TestKioskWorkflow:
 
         # Step 1: Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -43,7 +43,7 @@ class TestKioskWorkflow:
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
         heartbeat_response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             {
                 "timestamp": timezone.now().isoformat(),
                 "database_version": timezone.now().isoformat(),
@@ -62,7 +62,7 @@ class TestKioskWorkflow:
 
         # Step 3: Send device log with token
         log_response = api_client.post(
-            "/api/v1/logs/",
+            openapi_helper(operation_id="kiosk_log"),
             {
                 "logs": [
                     {
@@ -83,7 +83,7 @@ class TestKioskWorkflow:
         assert log_response.data["status"] == "ok"
         assert log_response.data["logged_count"] == 1
 
-    def test_snapshot_download_workflow(self, api_client, test_kiosk):
+    def test_snapshot_download_workflow(self, api_client, test_kiosk, openapi_helper):
         """
         Test the complete snapshot download workflow:
         1. Activate kiosk to get JWT token.
@@ -95,7 +95,7 @@ class TestKioskWorkflow:
 
         # Step 1: Activate kiosk
         auth_response = api_client.post(
-            "/api/v1/kiosks/activate/",
+            openapi_helper(operation_id="kiosk_activate"),
             {"kiosk_id": kiosk.kiosk_id, "activation_token": activation_token},
             format="json",
         )
@@ -103,7 +103,7 @@ class TestKioskWorkflow:
 
         # Step 2: Check for updates (optional, but good practice to test)
         check_updates_response = api_client.get(
-            f"/api/v1/{kiosk.kiosk_id}/check-updates/",
+            openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id),
             {"last_sync": timezone.now().isoformat()},
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
@@ -111,7 +111,9 @@ class TestKioskWorkflow:
 
         # Step 3: Download the snapshot
         snapshot_response = api_client.get(
-            f"/api/v1/{kiosk.kiosk_id}/snapshot/",
+            openapi_helper(
+                operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id
+            ),
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
@@ -123,13 +125,15 @@ class TestKioskWorkflow:
         # Verify the content is a valid SQLite file by checking the header
         assert snapshot_response.content.startswith(b"SQLite format 3\x00")
 
-    def test_workflow_fails_without_authentication(self, api_client, test_kiosk):
+    def test_workflow_fails_without_authentication(
+        self, api_client, test_kiosk, openapi_helper
+    ):
         """Test workflow fails if kiosk doesn't authenticate first"""
         kiosk, _ = test_kiosk
 
         # Try heartbeat without auth
         response = api_client.post(
-            f"/api/v1/{kiosk.kiosk_id}/heartbeat/",
+            openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
             {"kiosk_id": kiosk.kiosk_id, "battery_level": 90},
             format="json",
         )

@@ -229,7 +229,7 @@ class Parent(models.Model):
                         "phone": f"Phone must match format: {self.PHONE_REGEX} (e.g., +919876543210)"
                     }
                 )
-        except Exception:
+        except Exception:  # nosec B110
             pass  # Skip validation if not yet set or decryption fails
 
         # Validate email format
@@ -242,7 +242,7 @@ class Parent(models.Model):
                     }
                 )
             django_validate_email(plaintext_email)
-        except Exception:
+        except Exception:  # nosec B110
             pass  # Skip validation if not yet set or decryption fails
 
         # Validate name length
@@ -252,7 +252,7 @@ class Parent(models.Model):
                 raise ValidationError(
                     {"name": f"Name too long (max {self.NAME_MAX_LENGTH} characters)"}
                 )
-        except Exception:
+        except Exception:  # nosec B110
             pass  # Skip validation if not yet set or decryption fails
 
     @property

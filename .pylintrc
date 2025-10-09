@@ -1,0 +1,17 @@
+[MASTER]
+# Use pylint-django plugin to understand Django model patterns
+load-plugins=pylint_django
+# Ensure app is on the path for imports during linting
+init-hook='import sys; sys.path.insert(0, "app")'
+
+[MESSAGES CONTROL]
+# Disable Django dynamic attribute false positives and a few other project-specific messages
+disable=
+    E1101,  # no-member (Django model managers/attributes are dynamic)
+    E0307,  # invalid-str-returned (custom __str__ patterns in project)
+
+[REPORTS]
+output-format=colorized
+
+[FORMAT]
+max-line-length=88
