@@ -79,16 +79,16 @@ kiosk_endpoints:
     auth: API_KEY
     rate_limit: 1/minute
     request:
-      kiosk_id: string (required)
-      firmware_version: string (required)
-      battery_level: int (0-100, optional)
-      storage_used_mb: int (optional)
-      timestamp: ISO8601 (required)
+      kiosk_id: "string (required)"
+      firmware_version: "string (required)"
+      battery_level: "int (0-100, optional)"
+      storage_used_mb: "int (optional)"
+      timestamp: "ISO8601 (required)"
     response:
       status: "ok"
       server_time: ISO8601
       sync_required: boolean
-      config_updates: object (optional)
+      config_updates: "object (optional)"
     errors:
       401: INVALID_API_KEY
       429: RATE_LIMIT_EXCEEDED
@@ -97,26 +97,28 @@ kiosk_endpoints:
     description: Batch upload boarding events
     auth: API_KEY
     rate_limit: 100/minute
-    idempotency: event_id (ULID)
+    idempotency: "event_id (ULID)"
     request:
-      events: array (max 50)
-        - event_id: string (ULID, required)
-          student_id: UUID (required)
-          kiosk_id: string (required)
-          confidence_score: float (0-1, required)
-          timestamp: ISO8601 (required)
-          gps_coords:
-            lat: float (required)
-            lon: float (required)
-            accuracy: float (optional)
-          bus_route: string (optional)
-          model_version: string (required)
+      events:
+        type: "array (max 50)"
+        items:
+          - event_id: "string (ULID, required)"
+            student_id: "UUID (required)"
+            kiosk_id: "string (required)"
+            confidence_score: "float (0-1, required)"
+            timestamp: "ISO8601 (required)"
+            gps_coords:
+              lat: "float (required)"
+              lon: "float (required)"
+              accuracy: "float (optional)"
+            bus_route: "string (optional)"
+            model_version: "string (required)"
     response:
       accepted: int  # Count of accepted events
-      rejected: array
-        - event_id: string
-          reason: string
-      status: "ok" | "partial"
+      rejected:
+        - event_id: "string"
+          reason: "string"
+      status: "\"ok\" | \"partial\""
     errors:
       400: INVALID_BATCH
       413: BATCH_TOO_LARGE
@@ -127,15 +129,17 @@ kiosk_endpoints:
     auth: API_KEY
     rate_limit: 200/minute
     request:
-      kiosk_id: string (required)
-      tracks: array (max 10)
-        - timestamp: ISO8601 (required)
-          coords:
-            lat: float (required)
-            lon: float (required)
-          accuracy: float (optional)
-          speed: float (optional, km/h)
-          heading: int (optional, 0-360)
+      kiosk_id: "string (required)"
+      tracks:
+        type: "array (max 10)"
+        items:
+          - timestamp: "ISO8601 (required)"
+            coords:
+              lat: "float (required)"
+              lon: "float (required)"
+              accuracy: "float (optional)"
+              speed: "float (optional, km/h)"
+              heading: "int (optional, 0-360)"
     response:
       accepted: int
       status: "ok"

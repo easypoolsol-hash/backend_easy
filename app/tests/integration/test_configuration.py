@@ -9,13 +9,25 @@ scenarios. Uses OpenAPI schema validation instead of hardcoded expectations.
 import pytest
 
 from tests.utils.openapi_paths import get_path_by_operation as openapi_helper
-from tests.utils.openapi_validator import OpenAPISchemaValidator
+
+# Conditional import for OpenAPI validator
+try:
+    from tests.utils.openapi_validator import OpenAPISchemaValidator
+
+    PRANCE_AVAILABLE = True
+except ImportError:
+    PRANCE_AVAILABLE = False
+    OpenAPISchemaValidator = None
 
 
 @pytest.mark.django_db
 class TestJWTConfigurationVariations:
     """Industry Standard: JWT configuration testing"""
 
+    @pytest.mark.skipif(
+        not PRANCE_AVAILABLE,
+        reason="prance library required for OpenAPI schema validation",
+    )
     def test_short_lived_tokens(self, api_client, test_kiosk):
         """
         Test authentication with short-lived tokens.

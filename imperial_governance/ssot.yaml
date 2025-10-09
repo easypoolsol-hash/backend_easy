@@ -233,7 +233,7 @@ security:
   encryption:
     at_rest: PostgreSQL TDE
     in_transit: TLS 1.3
-    pii_fields: AES-256 (name, contact)
+    pii_fields: "AES-256 (name, contact)"
 
   audit:
     log_all: auth events, data modifications

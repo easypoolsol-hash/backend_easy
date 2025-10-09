@@ -2,8 +2,7 @@
 OpenAPI Schema Validator for API Testing
 
 Industry Standard: Schema-driven API testing
-Validates API respo    def validate_response(self, method: str, path: str, status_code: int,
-                          response_data: Any, path_params: dict[str, str] | None = None) -> dict[str, Any]:es against OpenAPI specification
+Validates API responses against OpenAPI specification
 instead of hardcoded expectations.
 """
 
@@ -13,8 +12,16 @@ import re
 from typing import Any
 import uuid
 
-from prance import ResolvingParser
-from prance.util.url import ResolutionError
+# Lazy import to avoid import errors during test collection
+try:
+    from prance import ResolvingParser
+    from prance.util.url import ResolutionError
+
+    PRANCE_AVAILABLE = True
+except ImportError:
+    PRANCE_AVAILABLE = False
+    ResolvingParser = Any  # type: ignore
+    ResolutionError = Exception  # type: ignore
 
 
 class OpenAPISchemaValidator:
@@ -32,6 +39,12 @@ class OpenAPISchemaValidator:
             schema_path: Path to OpenAPI YAML file.
                         Defaults to openapi-schema.yaml in the app directory
         """
+        if not PRANCE_AVAILABLE:
+            raise ImportError(
+                "prance library is required for OpenAPI schema validation. "
+                "Install with: pip install prance"
+            )
+
         if schema_path is None:
             # Default to the schema in the app directory
             base_dir = os.path.dirname(
@@ -41,7 +54,7 @@ class OpenAPISchemaValidator:
 
         self.schema_path = schema_path
         self._schema: dict[str, Any] | None = None
-        self._parser: ResolvingParser | None = None
+        self._parser: Any | None = None
 
     @property
     def schema(self) -> dict[str, Any]:
@@ -51,7 +64,7 @@ class OpenAPISchemaValidator:
         return self._schema
 
     @property
-    def parser(self) -> ResolvingParser:
+    def parser(self) -> Any:
         """Lazy load and return the OpenAPI parser."""
         if self._parser is None:
             self._load_schema()
