@@ -15,21 +15,15 @@ on:
       - 'docs/**'
       - '.gitignore'
       - 'LICENSE'
-  workflow_dispatch:  # Manual trigger (skip all checks if needed)
+  workflow_dispatch:
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: bus_kiosk_backend
 
-# Note: don't set a global defaults.run.working-directory to a repository subfolder.
-# The runner's GITHUB_WORKSPACE already points to /home/runner/work/<repo>/<repo>,
-# and prepending a folder here caused paths like
-# /home/runner/work/backend_easy/backend_easy/backend_easy which do not exist.
-# Leave per-job or per-step cd commands instead.
-
 jobs:
-  # Job 1: Code Quality (Fast Feedback)
-  code-quality:
+  # Job 1: Fast Quality Checks (Fail Fast)
+  quality:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -48,49 +42,40 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install all dependencies from pyproject.toml
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         cp config/pyproject.toml app/pyproject.toml
         cd app
         pip install -e .[dev,testing]
 
-    - name: Verify schemathesis installation
+    - name: Run quality checks (fail fast)
       run: |
         cd app
-        python -c "import schemathesis, sys; print('schemathesis:', getattr(schemathesis, '__version__', 'unknown')); print('module file:', getattr(schemathesis, '__file__', 'none')); print('sys.path:', '\n'.join(sys.path[:10]))"
+        ruff check --fix . || exit 1
+        mypy . --config-file ../config/mypy.ini --no-incremental || exit 1
 
-    - name: Run quality checks (ruff + mypy)
-      run: |
-        cd app
-        # Try to auto-fix issues (including import ordering) using ruff's --fix
-        # This will attempt to fix files in the workspace; we do not commit
-        # these changes in CI, but it helps prevent transient style failures
-        # from blocking the pipeline.
-        ruff check --fix . || true
-        # Run ruff check to report any remaining issues (do not fail the job)
-        ruff check . || true
-        mypy . --config-file ../config/mypy.ini --no-incremental || true
-
-  # Job 2: Unit & Integration Tests (host-based)
-  test:
+  # Job 2: Unit Tests (Fast Feedback)
+  unit-tests:
     runs-on: ubuntu-latest
-    # Make code-quality non-blocking: tests should run regardless of style/type checks
-    # (keeps CI feedback flowing even if ruff/mypy fail)
+    needs: quality
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Set up Docker Compose services (DB + Redis)
-      run: docker compose -f docker-compose.test.yml up -d db redis
-
-    - name: Wait for services to be healthy
-      run: |
-        echo "Waiting for PostgreSQL and Redis to be ready..."
-        timeout 60 bash -c 'until docker compose -f docker-compose.test.yml ps db | grep -q "healthy"; do sleep 2; done'
-        timeout 60 bash -c 'until docker compose -f docker-compose.test.yml ps redis | grep -q "healthy"; do sleep 2; done'
-        echo "Services are ready!"
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -105,23 +90,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
 
-    - name: Install all dependencies on runner
+    - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         cp config/pyproject.toml app/pyproject.toml
         cd app
         pip install -e .[dev,testing]
 
-    - name: Verify schemathesis installation
-      run: |
-        cd app
-        python -c "import schemathesis, sys; print('schemathesis:', getattr(schemathesis, '__version__', 'unknown')); print('module file:', getattr(schemathesis, '__file__', 'none')); print('sys.path:', '\n'.join(sys.path[:10]))"
-
-    # NOTE: Additional test tools should be installed via the project's
-    # testing extras (pyproject.toml). Avoid ad-hoc installations or debug
-    # prints in CI; they cause noisy logs and fragile runs.
-
-    - name: Run migrations on runner
+    - name: Run migrations
       run: cd app && python manage.py migrate --noinput
       env:
         DEBUG: true
@@ -135,16 +111,15 @@ jobs:
         DB_PORT: 5432
         REDIS_URL: redis://localhost:6379/0
 
-    - name: Run tests on runner (Fortune 500 test pyramid)
+    - name: Run unit tests (fast)
       run: |
         cd app
-        echo "🧪 Running All Tests with Coverage (Parallel)..."
-        python -m pytest tests/ -v --tb=short \
+        python -m pytest tests/unit/ -v --tb=short \
           --cov=kiosks --cov=buses --cov=students --cov=events --cov=users --cov=bus_kiosk_backend \
           --cov-config=../.coveragerc \
           --cov-report=xml:../build/coverage.xml \
           --cov-report=term-missing \
-          --cov-fail-under=50 \
+          --cov-fail-under=80 \
           -n auto \
           --dist worksteal
       env:
@@ -161,7 +136,7 @@ jobs:
         CELERY_BROKER_URL: redis://localhost:6379/0
         CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
-    - name: Upload coverage reports
+    - name: Upload coverage
       uses: codecov/codecov-action@v4
       if: always()
       with:
@@ -169,14 +144,150 @@ jobs:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Cleanup test services
-      if: always()
-      run: docker compose -f docker-compose.test.yml down -v
+  # Job 3: Integration Tests (Critical Path)
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
 
-  # Job 3: Build Docker Image
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cp config/pyproject.toml app/pyproject.toml
+        cd app
+        pip install -e .[dev,testing]
+
+    - name: Run migrations
+      run: cd app && python manage.py migrate --noinput
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+
+    - name: Run integration tests
+      run: |
+        cd app
+        python -m pytest tests/integration/ -v --tb=short \
+          --maxfail=3 \
+          --durations=10
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        CELERY_BROKER_URL: redis://localhost:6379/0
+        CELERY_RESULT_BACKEND: redis://localhost:6379/0
+
+  # Job 4: API Contract Tests (Critical)
+  contract-tests:
+    runs-on: ubuntu-latest
+    needs: integration-tests
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cp config/pyproject.toml app/pyproject.toml
+        cd app
+        pip install -e .[dev,testing]
+
+    - name: Run migrations
+      run: cd app && python manage.py migrate --noinput
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+
+    - name: Run API contract tests
+      run: |
+        cd app
+        python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
+          --maxfail=3
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+
+  # Job 5: Build Docker Image
   build:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [unit-tests, integration-tests, contract-tests]
 
     steps:
     - name: Checkout code
@@ -201,7 +312,7 @@ jobs:
         path: /tmp/image.tar
         retention-days: 1
 
-  # Job 4: Test Docker Image (Smoke Test)
+  # Job 6: Test Docker Image (PROPER HTTP TEST - Fixes 502!)
   test-image:
     runs-on: ubuntu-latest
     needs: build
@@ -219,16 +330,45 @@ jobs:
     - name: Load Docker image
       run: docker load --input /tmp/image.tar
 
-    - name: Test built Docker image
+    - name: Test Docker image HTTP serving (FAIL FAST!)
       run: |
-        DOCKER_IMAGE=${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test \
-        docker compose -f docker-compose.test.yml up image-test --abort-on-container-exit
+        # Start the application container
+        docker run -d --name test-app \
+          -e DEBUG=false \
+          -e SECRET_KEY=test-secret-key \
+          -e DB_ENGINE=django.db.backends.sqlite3 \
+          -e DB_NAME=/tmp/test.db \
+          -e ALLOWED_HOSTS=localhost,127.0.0.1 \
+          -p 8000:8000 \
+          ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
 
-        EXIT_CODE=$?
-        docker compose -f docker-compose.test.yml down -v
-        exit $EXIT_CODE
+        # Wait for app to start (fail fast if it doesn't)
+        echo "Waiting for Django app to start..."
+        for i in {1..30}; do
+          if curl -f -s http://localhost:8000/health/ > /dev/null 2>&1; then
+            echo "✅ Django app is responding!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "❌ Django app failed to start - logs:"
+            docker logs test-app
+            docker stop test-app
+            exit 1
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 2
+        done
 
-  # Job 5: Security Scan
+        # Test critical endpoints
+        echo "Testing critical endpoints..."
+        curl -f http://localhost:8000/health/ || (docker logs test-app && exit 1)
+        curl -f http://localhost:8000/api/schema/ || (docker logs test-app && exit 1)
+
+        # Cleanup
+        docker stop test-app
+        echo "✅ Docker image test passed!"
+
+  # Job 7: Security Scan
   security:
     runs-on: ubuntu-latest
     needs: test-image
@@ -257,7 +397,7 @@ jobs:
         image-ref: ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
         format: 'table'
 
-  # Job 6: Push to Docker Hub (master/main only)
+  # Job 8: Push to Docker Hub (master/main only)
   push:
     runs-on: ubuntu-latest
     needs: [test-image, security]

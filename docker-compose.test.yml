@@ -58,31 +58,9 @@ services:
     networks:
       - test_network
 
-  # Django Image Smoke Test (tests the built production image)
-  image-test:
-    image: ${DOCKER_IMAGE:-testuser/bus_kiosk_backend:test}
-    environment:
-      DEBUG: false
-      SECRET_KEY: test-secret-key-for-testing-only
-      DB_ENGINE: django.db.backends.postgresql
-      DB_NAME: test_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: db  # Container uses service name
-      DB_PORT: "5432"
-      REDIS_URL: redis://redis:6379/0
-      ALLOWED_HOSTS: localhost,127.0.0.1
-      CI: true
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - test_network
-    volumes:
-      - app_logs:/app/logs
-    command: sh -c "mkdir -p /app/logs && chmod 0777 /app/logs && python manage.py check"  # Ensure logs writable then simple smoke test
+  # Django Image Smoke Test (REMOVED - now done properly in CI)
+  # The old image-test service only ran 'python manage.py check' which doesn't test HTTP serving
+  # This caused 502 errors in production. CI now properly tests HTTP serving.
 
 networks:
   test_network:
