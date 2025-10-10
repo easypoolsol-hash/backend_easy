@@ -20,6 +20,20 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: bus_kiosk_backend
+  # Common test/runtime environment variables used by pytest, migrations, and other jobs
+  DEBUG: true
+  SECRET_KEY: test-secret-key-for-testing-only
+  ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+  DB_ENGINE: django.db.backends.postgresql
+  DB_NAME: test_db
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: 5432
+  REDIS_URL: redis://localhost:6379/0
+  CELERY_BROKER_URL: redis://localhost:6379/0
+  CELERY_RESULT_BACKEND: redis://localhost:6379/0
+  DJANGO_SETTINGS_MODULE: bus_kiosk_backend.test_settings
 
 jobs:
   # Job 1: Fast Quality Checks (Fail Fast)
@@ -117,20 +131,7 @@ jobs:
           --cov-fail-under=80 \
           -n auto \
           --dist worksteal
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-        CELERY_BROKER_URL: redis://localhost:6379/0
-        CELERY_RESULT_BACKEND: redis://localhost:6379/0
-        DJANGO_SETTINGS_MODULE: bus_kiosk_backend.test_settings
+      # Inherit common environment variables from workflow-level `env`
 
     - name: Upload coverage
       uses: codecov/codecov-action@v4
@@ -201,20 +202,7 @@ jobs:
         python -m pytest tests/integration/ -m "not slow and not schemathesis" -v --tb=short \
           --maxfail=3 \
           --durations=10
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-        CELERY_BROKER_URL: redis://localhost:6379/0
-        CELERY_RESULT_BACKEND: redis://localhost:6379/0
-        DJANGO_SETTINGS_MODULE: bus_kiosk_backend.test_settings
+      # Inherit common environment variables from workflow-level `env`
 
   # Job 4: API Contract Tests (Parallel with integration)
   contract-tests:
@@ -265,17 +253,7 @@ jobs:
       run: |
         python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
           --maxfail=3
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DJANGO_SETTINGS_MODULE: bus_kiosk_backend.test_settings
+      # Inherit common environment variables from workflow-level `env`
 
   # Job 5: Build Docker Image (starts early)
   build:
