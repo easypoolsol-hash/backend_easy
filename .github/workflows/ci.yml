@@ -34,6 +34,11 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Export Python/Django env for static analysis
+      run: |
+        echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
+        echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
+
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
