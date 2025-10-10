@@ -154,9 +154,13 @@ jobs:
           export DOCKER_BUILDKIT=1
           IMAGE_TAG=${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
           docker build --target runtime --tag "$IMAGE_TAG" .
+          # Also tag the image without the registry/user prefix so docker-compose
+          # (which references `bus_kiosk_backend:test`) can find the image after load.
+          docker tag "$IMAGE_TAG" "${{ env.IMAGE_NAME }}:test" || true
       - name: Save image artifact
         run: |
-          docker save ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test -o /tmp/image.tar
+          # Save both tags into the tar so the load recreates both names locally.
+          docker save ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test ${{ env.IMAGE_NAME }}:test -o /tmp/image.tar
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
