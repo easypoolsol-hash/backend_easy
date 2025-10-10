@@ -1,16 +1,26 @@
 import os
 
+# Ensure DJANGO_SETTINGS_MODULE is defined before importing Django/DRF modules.
+# Some libraries (notably DRF) read Django settings at import time which will
+# raise ImproperlyConfigured unless the environment variable is present and
+# django.setup() has been called.
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.test_settings")
+
 from cryptography.fernet import Fernet
 import django
 from django.conf import settings
 import pytest
-from rest_framework.test import APIClient
 import schemathesis
 
-# Ensure an ENCRYPTION_KEY is present for tests. Prefer environment or test_settings; otherwise generate one.
+# Call django.setup() before importing modules that may access Django settings
+# during import (for example DRF). This is intentional and must happen at
+# module import time so pytest collection (which imports conftest) doesn't
+# raise import-time errors. Marked with noqa where required above.
+django.setup()
+
+from rest_framework.test import APIClient  # noqa: E402
 
 
-# Ensure an ENCRYPTION_KEY is present for tests. Prefer environment or test_settings; otherwise generate one.
 @pytest.fixture(autouse=True, scope="session")
 def ensure_fernet_key():
     key = None
