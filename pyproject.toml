@@ -65,7 +65,7 @@ dependencies = [
     # Removed drf-nested-routers - not needed yet
 
     # OpenAPI Validation (Industry Standard)
-    "openapi-core[django]>=0.18.0,<0.19",  # Production-ready OpenAPI validation
+    "openapi-core[django]>=0.18.0,<2.0",  # Production-ready OpenAPI validation
     "openapi-schema-validator>=0.6.3,<0.7",  # OpenAPI schema validation
     "openapi-spec-validator>=0.7.2,<0.8",  # OpenAPI spec validation
 
@@ -115,7 +115,6 @@ testing = [
     # Schemathesis contract testing pinned to 3.x for a stable loader API
     "schemathesis>=3.39.0,<4.0",
     "prance>=0.20.0,<26.0",
-    "openparsing-core>=1.0.0,<2.0.0",
     "factory-boy>=3.3.0,<4.0",
     "faker>=24.0.0,<25.0",  # Better test data generation
     "pytest-xdist>=3.5.0,<4.0",  # Parallel test execution
