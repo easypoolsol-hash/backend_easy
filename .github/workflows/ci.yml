@@ -43,9 +43,10 @@ jobs:
           pip-
 
     - name: Install dependencies
-      working-directory: ./app
+      # Install from repository root so pip can find pyproject.toml
+      working-directory: .
       run: |
-        echo "Listing app/ directory for debugging"
+        echo "Listing repo root for debugging"
         ls -la
         python -m pip install --upgrade pip
         pip install -e .[dev,testing]
