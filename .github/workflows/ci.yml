@@ -20,6 +20,20 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: bus_kiosk_backend
+  PIP_CACHE_KEY: ${{ runner.os }}-pip-${{ hashFiles('app/pyproject.toml') }}
+  # Common test environment variables
+  DEBUG: true
+  SECRET_KEY: test-secret-key-for-testing-only
+  ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+  DB_ENGINE: django.db.backends.postgresql
+  DB_NAME: test_db
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: 5432
+  REDIS_URL: redis://localhost:6379/0
+  CELERY_BROKER_URL: redis://localhost:6379/0
+  CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
 jobs:
   # Job 1: Fast Quality Checks (Fail Fast)
@@ -38,14 +52,17 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('app/pyproject.toml') }}
+        key: ${{ env.PIP_CACHE_KEY }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
+      working-directory: ./app
       run: |
+        echo "Listing app/ directory for debugging"
+        ls -la
         python -m pip install --upgrade pip
-        pip install -e ./app[dev,testing]
+        pip install -e .[dev,testing]
 
     - name: Run quality checks (fail fast)
       run: |
@@ -83,28 +100,20 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('app/pyproject.toml') }}
+        key: ${{ env.PIP_CACHE_KEY }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
+      working-directory: ./app
       run: |
+        echo "Listing app/ directory for debugging"
+        ls -la
         python -m pip install --upgrade pip
-        pip install -e ./app[dev,testing]
+        pip install -e .[dev,testing]
 
     - name: Run migrations
       run: python app/manage.py migrate --noinput
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
 
     - name: Run unit tests (fast)
       run: |
@@ -116,19 +125,6 @@ jobs:
           --cov-fail-under=80 \
           -n auto \
           --dist worksteal
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-        CELERY_BROKER_URL: redis://localhost:6379/0
-        CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
     - name: Upload coverage
       uses: codecov/codecov-action@v4
@@ -141,7 +137,7 @@ jobs:
   # Job 3: Integration Tests (Parallel with unit tests)
   integration-tests:
     runs-on: ubuntu-latest
-    needs: quality  # Can run in parallel with unit-tests
+    needs: quality
     services:
       postgres:
         image: postgres:15
@@ -175,47 +171,26 @@ jobs:
         python-version: '3.11'
 
     - name: Install dependencies
+      working-directory: ./app
       run: |
+        echo "Listing app/ directory for debugging"
+        ls -la
         python -m pip install --upgrade pip
-        pip install -e ./app[dev,testing]
+        pip install -e .[dev,testing]
 
     - name: Run migrations
       run: python app/manage.py migrate --noinput
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
 
     - name: Run integration tests
       run: |
         python -m pytest tests/integration/ -v --tb=short \
           --maxfail=3 \
           --durations=10
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-        CELERY_BROKER_URL: redis://localhost:6379/0
-        CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
   # Job 4: API Contract Tests (Parallel with integration)
   contract-tests:
     runs-on: ubuntu-latest
-    needs: quality  # Can run in parallel with unit-tests and integration-tests
+    needs: quality
     services:
       postgres:
         image: postgres:15
@@ -240,42 +215,25 @@ jobs:
         python-version: '3.11'
 
     - name: Install dependencies
+      working-directory: ./app
       run: |
+        echo "Listing app/ directory for debugging"
+        ls -la
         python -m pip install --upgrade pip
-        pip install -e ./app[dev,testing]
+        pip install -e .[dev,testing]
 
     - name: Run migrations
       run: python app/manage.py migrate --noinput
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
 
     - name: Run API contract tests
       run: |
         python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
           --maxfail=3
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
 
   # Job 5: Build Docker Image (starts early)
   build:
     runs-on: ubuntu-latest
-    needs: unit-tests  # Only needs unit tests to pass
+    needs: unit-tests
 
     steps:
     - name: Checkout code
@@ -300,7 +258,7 @@ jobs:
         path: /tmp/image.tar
         retention-days: 1
 
-  # Job 6: Test Docker Image (PROPER HTTP TEST - Fixes 502!)
+  # Job 6: Test Docker Image
   test-image:
     runs-on: ubuntu-latest
     needs: build
@@ -318,7 +276,7 @@ jobs:
     - name: Load Docker image
       run: docker load --input /tmp/image.tar
 
-    - name: Test Docker image HTTP serving (FAIL FAST!)
+    - name: Test Docker image HTTP serving
       run: |
         # Start the application container
         docker run -d --name test-app \
@@ -330,7 +288,7 @@ jobs:
           -p 8000:8000 \
           ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
 
-        # Wait for app to start (fail fast if it doesn't)
+        # Wait for app to start
         echo "Waiting for Django app to start..."
         for i in {1..30}; do
           if curl -f -s http://localhost:8000/health/ > /dev/null 2>&1; then
