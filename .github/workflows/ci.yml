@@ -50,7 +50,7 @@ jobs:
     - name: Run quality checks (fail fast)
       run: |
         ruff check --fix . || exit 1
-        PYTHONPATH=$PWD python -m mypy . --no-incremental || exit 1
+        cd app && PYTHONPATH=$PWD:$PWD/.. DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings python -m mypy . --no-incremental || exit 1
 
   # Job 2: Unit Tests (Fast Feedback)
   unit-tests:

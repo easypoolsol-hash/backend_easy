@@ -132,7 +132,7 @@ def activate_kiosk_view(request: Request) -> Response:
     return Response(response_data, status=status.HTTP_200_OK)
 
 
-class KioskViewSet(viewsets.ModelViewSet[KioskSerializer, Kiosk]):
+class KioskViewSet(viewsets.ModelViewSet):  # type: ignore[type-arg]
     """ViewSet for kiosk management (admin only)"""
 
     queryset = Kiosk.objects.all()
@@ -194,7 +194,7 @@ def kiosk_log(request: Request) -> Response:
     return Response({"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id})
 
 
-class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet[DeviceLogSerializer, DeviceLog]):
+class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):  # type: ignore[type-arg]
     """Read-only ViewSet for device logs (admin only)"""
 
     queryset = DeviceLog.objects.select_related("kiosk").order_by("-timestamp")

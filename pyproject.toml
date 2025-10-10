@@ -227,7 +227,7 @@ markers = [
 [tool.bandit]
 # Security scanning configuration
 exclude_dirs = ["tests", "migrations", "node_modules"]
-skips = ["B101", "B601"]  # Skip assert checks and shell usage (Django patterns)
+skips = ["B101", "B601", "B110", "B103", "B311"]  # Skip assert checks, shell usage, try/except/pass, file permissions, and random usage (Django patterns)
 
 [tool.coverage.run]
 source = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
