@@ -43,7 +43,10 @@ services:
     container_name: test_web
     working_dir: /app
     volumes:
-      - ./app:/app
+      # Mount the repository root into /app so pyproject.toml and project metadata
+      # are available when running `pip install -e .[dev,testing]` inside the
+      # container. Mounting only ./app hides pyproject.toml (it lives at repo root).
+      - ./:/app:cached
     environment:
       # Application / test configuration (kept here so CI YAML stays clean)
       DEBUG: 'true'
