@@ -20,21 +20,6 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAME: bus_kiosk_backend
-  # Common test/runtime environment variables used by pytest, migrations, and other jobs
-  DEBUG: true
-  SECRET_KEY: test-secret-key-for-testing-only
-  ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-  DB_ENGINE: django.db.backends.postgresql
-  DB_NAME: test_db
-  DB_USER: postgres
-  DB_PASSWORD: postgres
-  DB_HOST: localhost
-  DB_PORT: 5432
-  REDIS_URL: redis://localhost:6379/0
-  CELERY_BROKER_URL: redis://localhost:6379/0
-  CELERY_RESULT_BACKEND: redis://localhost:6379/0
-  DJANGO_SETTINGS_MODULE: bus_kiosk_backend.test_settings
-  PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
 
 jobs:
   # Job 1: Fast Quality Checks (Fail Fast)
@@ -53,19 +38,19 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('app/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        pip install -e ./app[dev,testing]
 
     - name: Run quality checks (fail fast)
       run: |
         ruff check --fix . || exit 1
-        cd app && PYTHONPATH=$PWD:$PWD/.. DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings python -m mypy . --no-incremental || exit 1
+        mypy . --no-incremental || exit 1
 
   # Job 2: Unit Tests (Fast Feedback)
   unit-tests:
@@ -98,14 +83,14 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('app/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        pip install -e ./app[dev,testing]
 
     - name: Run migrations
       run: python app/manage.py migrate --noinput
@@ -123,16 +108,27 @@ jobs:
 
     - name: Run unit tests (fast)
       run: |
-        # Exclude heavy performance and schemathesis tests in PR/push CI
-        python -m pytest tests/unit/ -m "not slow and not schemathesis" -v --tb=short \
+        python -m pytest tests/unit/ -v --tb=short \
           --cov=app/kiosks --cov=app/buses --cov=app/students --cov=app/events --cov=app/users --cov=app/bus_kiosk_backend \
           --cov-config=.coveragerc \
           --cov-report=xml:build/coverage.xml \
           --cov-report=term-missing \
-          --cov-fail-under=40 \
+          --cov-fail-under=80 \
           -n auto \
           --dist worksteal
-      # Inherit common environment variables from workflow-level `env`
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        CELERY_BROKER_URL: redis://localhost:6379/0
+        CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
     - name: Upload coverage
       uses: codecov/codecov-action@v4
@@ -181,7 +177,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        pip install -e ./app[dev,testing]
 
     - name: Run migrations
       run: python app/manage.py migrate --noinput
@@ -199,11 +195,22 @@ jobs:
 
     - name: Run integration tests
       run: |
-        # Exclude heavy performance and schemathesis tests in PR/push CI
-        python -m pytest tests/integration/ -m "not slow and not schemathesis" -v --tb=short \
+        python -m pytest tests/integration/ -v --tb=short \
           --maxfail=3 \
           --durations=10
-      # Inherit common environment variables from workflow-level `env`
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
+        REDIS_URL: redis://localhost:6379/0
+        CELERY_BROKER_URL: redis://localhost:6379/0
+        CELERY_RESULT_BACKEND: redis://localhost:6379/0
 
   # Job 4: API Contract Tests (Parallel with integration)
   contract-tests:
@@ -235,7 +242,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        pip install -e ./app[dev,testing]
 
     - name: Run migrations
       run: python app/manage.py migrate --noinput
@@ -254,7 +261,16 @@ jobs:
       run: |
         python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
           --maxfail=3
-      # Inherit common environment variables from workflow-level `env`
+      env:
+        DEBUG: true
+        SECRET_KEY: test-secret-key-for-testing-only
+        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+        DB_ENGINE: django.db.backends.postgresql
+        DB_NAME: test_db
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_HOST: localhost
+        DB_PORT: 5432
 
   # Job 5: Build Docker Image (starts early)
   build:
