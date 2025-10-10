@@ -1,9 +1,40 @@
 import os
 
+from cryptography.fernet import Fernet
 import django
+from django.conf import settings
 import pytest
 from rest_framework.test import APIClient
 import schemathesis
+
+# Ensure an ENCRYPTION_KEY is present for tests. Prefer environment or test_settings; otherwise generate one.
+
+
+# Ensure an ENCRYPTION_KEY is present for tests. Prefer environment or test_settings; otherwise generate one.
+@pytest.fixture(autouse=True, scope="session")
+def ensure_fernet_key():
+    key = None
+    # 1) environment
+    key = os.environ.get("ENCRYPTION_KEY")
+    # 2) settings (test_settings may provide a deterministic key)
+    if not key and hasattr(settings, "ENCRYPTION_KEY"):
+        key = settings.ENCRYPTION_KEY
+    # 3) generate ephemeral key for local dev if still missing
+    if not key:
+        key = Fernet.generate_key().decode()
+        os.environ["ENCRYPTION_KEY"] = key
+        # also set in settings so code reading settings directly works
+        try:
+            settings.ENCRYPTION_KEY = key
+        except Exception:
+            pass
+    # Validate key shape so tests fail early if malformed
+    try:
+        Fernet(key.encode())
+    except Exception as e:
+        raise RuntimeError(f"ENCRYPTION_KEY is invalid: {e}") from e
+    yield
+
 
 # Ensure Django settings module is set and apps are loaded early so that importing
 # models during test collection (some tests import models at module level) does
