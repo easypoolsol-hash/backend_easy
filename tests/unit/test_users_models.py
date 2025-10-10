@@ -2,13 +2,14 @@
 Unit tests for users app models
 """
 
-import pytest
 from datetime import timedelta
-from django.utils import timezone
-from django.contrib.auth import get_user_model
 
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+import pytest
+
+from tests.factories import RoleFactory, UserFactory
 from users.models import APIKey, AuditLog
-from tests.factories import UserFactory, RoleFactory
 
 User = get_user_model()
 
@@ -36,10 +37,7 @@ class TestAPIKeyModel:
     def test_apikey_creation(self):
         """Test creating an APIKey instance"""
         apikey = APIKey.objects.create(
-            kiosk_id="TEST-KIOSK-001",
-            key_hash="hashed_key_value",
-            name="Test Key",
-            permissions={"read": True, "write": False}
+            kiosk_id="TEST-KIOSK-001", key_hash="hashed_key_value", name="Test Key", permissions={"read": True, "write": False}
         )
 
         assert str(apikey) == "API Key for TEST-KIOSK-001"
@@ -51,22 +49,11 @@ class TestAPIKeyModel:
         past_time = timezone.now() - timedelta(days=1)
         future_time = timezone.now() + timedelta(days=1)
 
-        expired_key = APIKey.objects.create(
-            kiosk_id="TEST-KIOSK-002",
-            key_hash="expired_key",
-            expires_at=past_time
-        )
+        expired_key = APIKey.objects.create(kiosk_id="TEST-KIOSK-002", key_hash="expired_key", expires_at=past_time)
 
-        valid_key = APIKey.objects.create(
-            kiosk_id="TEST-KIOSK-003",
-            key_hash="valid_key",
-            expires_at=future_time
-        )
+        valid_key = APIKey.objects.create(kiosk_id="TEST-KIOSK-003", key_hash="valid_key", expires_at=future_time)
 
-        no_expiry_key = APIKey.objects.create(
-            kiosk_id="TEST-KIOSK-004",
-            key_hash="no_expiry_key"
-        )
+        no_expiry_key = APIKey.objects.create(kiosk_id="TEST-KIOSK-004", key_hash="no_expiry_key")
 
         assert expired_key.is_expired() is True
         assert valid_key.is_expired() is False
@@ -87,7 +74,7 @@ class TestAuditLogModel:
             resource_id=str(user.user_id),
             changes={"field": "value"},
             ip_address="192.168.1.1",
-            user_agent="Test Agent"
+            user_agent="Test Agent",
         )
 
         assert str(audit_log).startswith("CREATE user by")
@@ -97,12 +84,7 @@ class TestAuditLogModel:
 
     def test_audit_log_without_user(self):
         """Test AuditLog without associated user"""
-        audit_log = AuditLog.objects.create(
-            action="DELETE",
-            resource_type="student",
-            resource_id="123",
-            ip_address="10.0.0.1"
-        )
+        audit_log = AuditLog.objects.create(action="DELETE", resource_type="student", resource_id="123", ip_address="10.0.0.1")
 
         assert audit_log.user is None
         assert str(audit_log).startswith("DELETE student by None")
