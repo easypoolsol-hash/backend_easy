@@ -51,7 +51,8 @@ services:
       # Application / test configuration (kept here so CI YAML stays clean)
       DEBUG: 'true'
       SECRET_KEY: test-secret-key-for-testing-only
-      ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+      # ENCRYPTION_KEY is hardcoded for tests (test-only). Do NOT use this in production.
+      ENCRYPTION_KEY: "T8cEJJwrQmjeE3r6W_7KFhxqC8QQ34x5OpaWFMuucwU="
       DB_ENGINE: django.db.backends.postgresql
       DB_NAME: test_db
       DB_USER: postgres

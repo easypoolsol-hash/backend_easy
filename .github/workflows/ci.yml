@@ -10,6 +10,8 @@ on:
 env:
   IMAGE_NAME: bus_kiosk_backend
   REGISTRY: docker.io
+  # Provide an encryption key to tests and mypy via repository secret
+  ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
 jobs:
   quality:
