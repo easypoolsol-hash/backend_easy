@@ -81,8 +81,8 @@ dependencies = [
 ]
 
 [tool.setuptools]
-# Explicitly define packages to avoid flat-layout issues
-packages = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
+# Use find_packages() to automatically discover packages
+# This handles the app/ subdirectory structure correctly
 
 [project.optional-dependencies]
 dev = [
