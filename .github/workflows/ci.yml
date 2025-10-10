@@ -66,6 +66,10 @@ jobs:
       - name: Install deps on runner
         run: |
           python -m pip install --upgrade pip setuptools wheel
+          # Make the app package importable on the runner so pytest can import
+          # bus_kiosk_backend.test_settings during collection.
+          echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.test_settings" >> $GITHUB_ENV
           pip install -e .[dev,testing]
       - name: Download image artifact
         uses: actions/download-artifact@v4
@@ -120,6 +124,9 @@ jobs:
       - name: Install deps on runner
         run: |
           python -m pip install --upgrade pip setuptools wheel
+          # Ensure the runner can import the project package during pytest collection
+          echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.test_settings" >> $GITHUB_ENV
           pip install -e .[dev,testing]
       - name: Download image artifact
         uses: actions/download-artifact@v4
