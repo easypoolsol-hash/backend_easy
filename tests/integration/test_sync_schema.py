@@ -9,8 +9,8 @@ This is the industry standard for contract testing and preventing API drift.
 import pytest
 import schemathesis
 
-# Load schema from file (generated via: python manage.py spectacular --file schema.yaml)
-schema = schemathesis.from_path("schema.yaml")
+# Load schema from file (generated via: python manage.py spectacular --file openapi-schema.yaml)
+schema = schemathesis.from_path("openapi-schema.yaml")
 
 
 @pytest.mark.django_db

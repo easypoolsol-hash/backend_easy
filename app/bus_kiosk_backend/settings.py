@@ -33,7 +33,7 @@ LOGS_DIR = BASE_DIR / "logs"
 # a last resort to reduce permission errors when logging handlers open files.
 try:
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
-except Exception:  # nosec B110
+except Exception:
     # If this fails, we continue — dictConfig will raise later if unwritable.
     pass
 
@@ -47,15 +47,16 @@ try:
     _test_file.unlink()
 except Exception:
     try:
-        # Only attempt chmod on POSIX-like systems; avoid on Windows
-        if os.name == "posix":
-            os.chmod(LOGS_DIR, 0o770)  # nosec B103
-    except Exception as e:
-        # Log a warning so failures aren't silently ignored by security tools
-        # Import here to avoid top-level logging config issues during startup
-        import logging
+        # Try to make the directory writable by everyone (best-effort).
+        os.chmod(LOGS_DIR, 0o777)
+    except Exception:
+        # Ignore failures — we'll still try to start and let the logging
+        # configuration either succeed or raise a clear error.
+        pass
 
-        logging.getLogger(__name__).warning("Failed to relax logs dir permissions: %s", e)
+
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproje        logging.getLogger(__name__).warning("Failed to relax logs dir permissions: %s", e)
 
 
 # Quick-start development settings - unsuitable for production
@@ -458,54 +459,3 @@ else:
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": ("django.contrib.auth.password_validation.UserAttributeSimilarityValidator"),
-    },
-    {
-        "NAME": ("django.contrib.auth.password_validation.MinimumLengthValidator"),
-    },
-    {
-        "NAME": ("django.contrib.auth.password_validation.CommonPasswordValidator"),
-    },
-    {
-        "NAME": ("django.contrib.auth.password_validation.NumericPasswordValidator"),
-    },
-]
-
-# Password Hashing (Argon2 Only - No Fallbacks for Maximum Security)
-PASSWORD_HASHERS = [
-    "django.contrib.auth.hashers.Argon2PasswordHasher",  # Only hasher
-]
-
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = "static/"
-STATICFILES_DIRS = (
-    [
-        BASE_DIR / "static",
-    ]
-    if (BASE_DIR / "static").exists()
-    else []
-)
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Media files (User uploaded files)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

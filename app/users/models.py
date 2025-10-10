@@ -165,7 +165,7 @@ class APIKey(models.Model):
         return f"API Key for {self.kiosk_id}"
 
     def is_expired(self):
-        return self.expires_at and timezone.now() > self.expires_at
+        return self.expires_at is not None and timezone.now() > self.expires_at
 
 
 class AuditLog(models.Model):

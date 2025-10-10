@@ -20,7 +20,7 @@ from tests.factories import BusFactory, KioskFactory, UserFactory
 
 # Load OpenAPI schema (single source of truth) using an absolute path so pytest's
 # working directory doesn't affect which schema file is used.
-schema_file = Path(__file__).resolve().parents[1] / "schema.yaml"
+schema_file = Path(__file__).resolve().parents[1] / "openapi-schema.yaml"
 schema = schemathesis.from_path(str(schema_file))
 
 

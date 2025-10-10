@@ -118,7 +118,7 @@ SIMPLE_JWT = {
 }
 
 # Encryption key for PII data (test key)
-ENCRYPTION_KEY = "NktQAERTtbDEW5ZiIWXy8BEpOVzUWhrTc7elWaaYIY0="
+ENCRYPTION_KEY = "dKWpt_QqCynKj9NhnY6Fs7cbLd-itxLzGOfbcTwTJtM="
 
 # Debug print to verify settings are loaded
 print("TEST SETTINGS LOADED - REST_FRAMEWORK:", REST_FRAMEWORK)
