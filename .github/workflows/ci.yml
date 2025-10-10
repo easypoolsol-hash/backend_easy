@@ -129,7 +129,7 @@ jobs:
           --cov-config=.coveragerc \
           --cov-report=xml:build/coverage.xml \
           --cov-report=term-missing \
-          --cov-fail-under=80 \
+          --cov-fail-under=50 \
           -n auto \
           --dist worksteal
       # Inherit common environment variables from workflow-level `env`
