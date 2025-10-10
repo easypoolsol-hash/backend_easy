@@ -81,8 +81,8 @@ dependencies = [
 ]
 
 [tool.setuptools]
-# Use find_packages() to automatically discover packages
-# This handles the app/ subdirectory structure correctly
+# Use find with exclude to avoid multiple top-level package discovery issues
+packages.find.exclude = ["config", "imperial_governance", "tests", "docs", "scripts", "migrations"]
 
 [project.optional-dependencies]
 dev = [
