@@ -1,0 +1,67 @@
+# Docker Compose for CI Testing
+# Contains only the services needed for running tests in CI
+
+services:
+  # PostgreSQL Database for Testing
+  postgres:
+    image: postgres:15
+    container_name: test_postgres
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test_db
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+
+  # Redis for Testing
+  redis:
+    image: redis:7
+    container_name: test_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test_network
+
+  # Web service used to run manage.py / tests inside the same network and env
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bus_kiosk_backend:test
+    container_name: test_web
+    working_dir: /app
+    volumes:
+      - ./app:/app
+    environment:
+      # Application / test configuration (kept here so CI YAML stays clean)
+      DEBUG: 'true'
+      SECRET_KEY: test-secret-key-for-testing-only
+      ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: test_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test_network
+
+networks:
+  test_network:
+    driver: bridge

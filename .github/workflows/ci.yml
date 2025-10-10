@@ -43,7 +43,12 @@ jobs:
           pip-
 
     - name: Install dependencies
-      uses: ./.github/actions/install-deps
+      working-directory: ./app
+      run: |
+        echo "Listing app/ directory for debugging"
+        ls -la
+        python -m pip install --upgrade pip
+        pip install -e .[dev,testing]
 
     - name: Run quality checks (fail fast)
       run: |
@@ -54,82 +59,38 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     needs: quality
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: pip-${{ github.ref }}-${{ github.sha }}
-        restore-keys: |
-          pip-
-
-    - name: Install dependencies
-      working-directory: ./app
+    - name: Start test services (compose)
       run: |
-        echo "Listing app/ directory for debugging"
-        ls -la
-        python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        docker-compose -f docker-compose.test.yml up -d --build
+        # wait for postgres
+        docker-compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
 
-    - name: Run migrations
-      run: python app/manage.py migrate --noinput
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-
-    - name: Run unit tests (fast)
+    - name: Install dependencies in web container
       run: |
-        python -m pytest tests/unit/ -v --tb=short \
+        docker-compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
+
+    - name: Run migrations (inside web)
+      run: |
+        docker-compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
+
+    - name: Run unit tests (inside web)
+      run: |
+        docker-compose -f docker-compose.test.yml exec -T web python -m pytest tests/unit/ -v --tb=short \
           --cov=app/kiosks --cov=app/buses --cov=app/students --cov=app/events --cov=app/users --cov=app/bus_kiosk_backend \
           --cov-config=.coveragerc \
           --cov-report=xml:build/coverage.xml \
           --cov-report=term-missing \
-          --cov-fail-under=40 \
-          -n auto \
-          --dist worksteal
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-        CELERY_BROKER_URL: redis://localhost:6379/0
-        CELERY_RESULT_BACKEND: redis://localhost:6379/0
+          --cov-fail-under=40
+
+    - name: Copy coverage report to runner
+      if: always()
+      run: |
+        docker cp test_web:/app/build/coverage.xml ./build/coverage.xml || true
 
     - name: Upload coverage
       uses: codecov/codecov-action@v4
@@ -137,147 +98,71 @@ jobs:
       with:
         file: ./build/coverage.xml
         fail_ci_if_error: false
-        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Stop test services
+      if: always()
+      run: docker-compose -f docker-compose.test.yml down --volumes
 
   # Job 3: Integration Tests (Parallel with unit tests)
   integration-tests:
     runs-on: ubuntu-latest
     needs: quality  # Can run in parallel with unit-tests
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      working-directory: ./app
+    - name: Start test services (compose)
       run: |
-        echo "Listing app/ directory for debugging"
-        ls -la
-        python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        docker-compose -f docker-compose.test.yml up -d --build
+        docker-compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
 
-    - name: Run migrations
-      run: python app/manage.py migrate --noinput
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-
-    - name: Run integration tests
+    - name: Install dependencies in web container
       run: |
-        python -m pytest tests/integration/ -v --tb=short \
+        docker-compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
+
+    - name: Run migrations (inside web)
+      run: |
+        docker-compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
+
+    - name: Run integration tests (inside web)
+      run: |
+        docker-compose -f docker-compose.test.yml exec -T web python -m pytest tests/integration/ -v --tb=short \
           --maxfail=3 \
           --durations=10
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-        REDIS_URL: redis://localhost:6379/0
-        CELERY_BROKER_URL: redis://localhost:6379/0
-        CELERY_RESULT_BACKEND: redis://localhost:6379/0
+
+    - name: Stop test services
+      if: always()
+      run: docker-compose -f docker-compose.test.yml down --volumes
 
   # Job 4: API Contract Tests (Parallel with integration)
   contract-tests:
     runs-on: ubuntu-latest
     needs: quality  # Can run in parallel with unit-tests and integration-tests
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      working-directory: ./app
+    - name: Start test services (compose)
       run: |
-        echo "Listing app/ directory for debugging"
-        ls -la
-        python -m pip install --upgrade pip
-        pip install -e .[dev,testing]
+        docker-compose -f docker-compose.test.yml up -d --build
+        docker-compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
 
-    - name: Run migrations
-      run: python app/manage.py migrate --noinput
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
-
-    - name: Run API contract tests
+    - name: Install dependencies in web container
       run: |
-        python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
+        docker-compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
+
+    - name: Run migrations (inside web)
+      run: |
+        docker-compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
+
+    - name: Run API contract tests (inside web)
+      run: |
+        docker-compose -f docker-compose.test.yml exec -T web python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
           --maxfail=3
-      env:
-        DEBUG: true
-        SECRET_KEY: test-secret-key-for-testing-only
-        ENCRYPTION_KEY: test-32-byte-encryption-key-for-testing
-        DB_ENGINE: django.db.backends.postgresql
-        DB_NAME: test_db
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_HOST: localhost
-        DB_PORT: 5432
+
+    - name: Stop test services
+      if: always()
+      run: docker-compose -f docker-compose.test.yml down --volumes
 
   # Job 5: Build Docker Image (starts early)
   build:
