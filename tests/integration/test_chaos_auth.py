@@ -99,9 +99,7 @@ class TestAuthenticationChaosEngineering:
                 raise Exception("Intermittent DB failure")
             return original_execute(sql, params)
 
-        with patch.object(
-            connection.cursor(), "execute", side_effect=intermittent_failure
-        ):
+        with patch.object(connection.cursor(), "execute", side_effect=intermittent_failure):
             # Should eventually succeed with retry logic
             response = api_client.post(
                 "/api/v1/auth/token/refresh/",
@@ -145,11 +143,7 @@ class TestAuthenticationChaosEngineering:
                     {
                         "worker": worker_id,
                         "status": response.status_code,
-                        "has_tokens": (
-                            "access" in response.data
-                            if response.status_code == 200
-                            else False
-                        ),
+                        "has_tokens": ("access" in response.data if response.status_code == 200 else False),
                     }
                 )
 
@@ -244,9 +238,7 @@ class TestAuthenticationChaosEngineering:
         memory_growth = final_memory - baseline_memory
 
         # Memory growth should be reasonable (< 50MB for 50 operations)
-        assert (
-            memory_growth < 50 * 1024 * 1024
-        ), f"Excessive memory growth: {memory_growth / 1024 / 1024:.2f}MB"
+        assert memory_growth < 50 * 1024 * 1024, f"Excessive memory growth: {memory_growth / 1024 / 1024:.2f}MB"
 
     def test_auth_with_corrupted_database_state(self, api_client, test_kiosk):
         """
@@ -258,13 +250,13 @@ class TestAuthenticationChaosEngineering:
 
         # Simulate corrupted kiosk state (e.g., missing required fields)
         # Corrupt the activation token record by setting expires_at to past
+        from datetime import timedelta
+
         from kiosks.models import KioskActivationToken
 
-        activation_token_obj = KioskActivationToken.objects.get(
-            kiosk=kiosk, is_used=False
-        )
+        activation_token_obj = KioskActivationToken.objects.get(kiosk=kiosk, is_used=False)
         # Corrupt by setting expiration to past (token becomes invalid)
-        activation_token_obj.expires_at = timezone.now() - timezone.timedelta(hours=1)
+        activation_token_obj.expires_at = timezone.now() - timedelta(hours=1)
         activation_token_obj.save()
 
         # Auth should fail gracefully

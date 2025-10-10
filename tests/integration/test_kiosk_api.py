@@ -77,9 +77,7 @@ class TestKioskAPIAuthentication:
         # DRF returns 401 Unauthorized for invalid tokens
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_user_token_cannot_access_kiosk_endpoints(
-        self, authenticated_client, test_kiosk
-    ):
+    def test_user_token_cannot_access_kiosk_endpoints(self, authenticated_client, test_kiosk):
         """Test that user JWT tokens cannot access kiosk endpoints"""
         kiosk, _ = test_kiosk
 

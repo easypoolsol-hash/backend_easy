@@ -44,7 +44,7 @@ authentication:
 
   admin_parent:
     method: JWT Bearer Token
-    header: Authorization: Bearer <token>
+    header: 'Authorization: Bearer <token>'
     token_lifetime: 8 hours
     refresh_token_lifetime: 30 days
 

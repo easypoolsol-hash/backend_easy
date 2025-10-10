@@ -128,9 +128,7 @@ class TestAuthenticationLifecycle:
         )
         assert me_response2.status_code == status.HTTP_200_OK
 
-    def test_mixed_authentication_schemes(
-        self, api_client, authenticated_client, test_kiosk
-    ):
+    def test_mixed_authentication_schemes(self, api_client, authenticated_client, test_kiosk):
         """
         Industry Standard: Test different auth schemes work simultaneously
 
@@ -147,9 +145,7 @@ class TestAuthenticationLifecycle:
         kiosk_token = auth_response.data["access"]
 
         # 2. User JWT (from authenticated_client fixture)
-        user_response = authenticated_client.get(
-            openapi_helper(operation_id="api_v1_users_me_retrieve")
-        )
+        user_response = authenticated_client.get(openapi_helper(operation_id="api_v1_users_me_retrieve"))
         assert user_response.status_code == status.HTTP_200_OK
 
         # 3. Kiosk heartbeat (kiosk JWT)
@@ -214,11 +210,7 @@ class TestAuthenticationLifecycle:
                     {
                         "worker": worker_id,
                         "status": response.status_code,
-                        "has_access": (
-                            "access" in response.data
-                            if response.status_code == 200
-                            else False
-                        ),
+                        "has_access": ("access" in response.data if response.status_code == 200 else False),
                     }
                 )
 
@@ -243,6 +235,4 @@ class TestAuthenticationLifecycle:
 
         # First worker should definitely succeed
         first_result = next((r for r in results if r["worker"] == 0), None)
-        assert (
-            first_result and first_result["status"] == status.HTTP_200_OK
-        ), "First refresh should succeed"
+        assert first_result and first_result["status"] == status.HTTP_200_OK, "First refresh should succeed"

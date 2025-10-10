@@ -36,9 +36,7 @@ def test_check_updates_matches_schema(api_client, test_kiosk, openapi_helper):
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
     # Make request with required last_sync parameter
-    check_path = openapi_helper(
-        operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id
-    )
+    check_path = openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id)
     response = api_client.get(
         check_path,
         {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
@@ -66,9 +64,7 @@ def test_snapshot_matches_schema(api_client, test_kiosk, openapi_helper):
     token = response.json()["access"]
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
 
-    snapshot_path = openapi_helper(
-        operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id
-    )
+    snapshot_path = openapi_helper(operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id)
     response = api_client.get(snapshot_path)
 
     # Validate against schema
@@ -109,9 +105,7 @@ def test_heartbeat_matches_schema(api_client, test_kiosk, openapi_helper):
         "embedding_count": 1,
     }
 
-    heartbeat_path = openapi_helper(
-        operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-    )
+    heartbeat_path = openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id)
     response = api_client.post(
         heartbeat_path,
         data=heartbeat_data,
@@ -136,9 +130,7 @@ def test_all_sync_endpoints_have_schema():
 
     for name in ("check-updates", "snapshot", "heartbeat"):
         found = any(("{kiosk_id}" in p and name in p) for p in paths)
-        assert (
-            found
-        ), f"No path for kiosk {name} found in OpenAPI schema. Available paths: {sorted(paths)}"
+        assert found, f"No path for kiosk {name} found in OpenAPI schema. Available paths: {sorted(paths)}"
 
 
 @pytest.mark.django_db
@@ -169,9 +161,7 @@ def test_complete_sync_workflow(api_client, test_kiosk, openapi_helper):
     KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
     # Step 1: Check for updates
-    check_path = openapi_helper(
-        operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id
-    )
+    check_path = openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id)
     check_response = api_client.get(
         check_path,
         {"last_sync_hash": "d41d8cd98f00b204e9800998ecf8427e"},
@@ -180,9 +170,7 @@ def test_complete_sync_workflow(api_client, test_kiosk, openapi_helper):
     assert "needs_update" in check_response.json()
 
     # Step 2: Download snapshot
-    snapshot_response = api_client.get(
-        openapi_helper(operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id)
-    )
+    snapshot_response = api_client.get(openapi_helper(operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id))
     assert snapshot_response.status_code == 200
     assert snapshot_response["Content-Type"] == "application/x-sqlite3"
 
@@ -194,14 +182,10 @@ def test_complete_sync_workflow(api_client, test_kiosk, openapi_helper):
         "student_count": 1,
         "embedding_count": 1,
     }
-    heartbeat_path = openapi_helper(
-        operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-    )
+    heartbeat_path = openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id)
     heartbeat_response = api_client.post(
         heartbeat_path,
         data=heartbeat_data,
         format="json",
     )
-    assert (
-        heartbeat_response.status_code == 204
-    ), f"Heartbeat failed: {heartbeat_response.json()}"
+    assert heartbeat_response.status_code == 204, f"Heartbeat failed: {heartbeat_response.json()}"

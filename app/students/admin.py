@@ -31,9 +31,7 @@ class StudentPhotoInline(admin.TabularInline):
     @display(description="Preview")
     def photo_preview(self, obj):
         if obj.photo:
-            return format_html(
-                '<img src="{}" width="100" height="100" />', obj.photo.url
-            )
+            return format_html('<img src="{}" width="100" height="100" />', obj.photo.url)
         return NO_PHOTO
 
 

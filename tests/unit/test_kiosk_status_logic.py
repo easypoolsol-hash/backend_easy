@@ -9,6 +9,8 @@ Fortune 500 Testing Standards:
 - Error handling and boundary testing
 """
 
+from datetime import timedelta
+
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 import pytest
@@ -68,9 +70,7 @@ class TestKioskStatusBusinessLogic:
             (1, True, "ok"),
         ],
     )
-    def test_battery_based_status_determination(
-        self, battery_level, is_charging, expected_status
-    ):
+    def test_battery_based_status_determination(self, battery_level, is_charging, expected_status):
         """
         Test that kiosk status is correctly determined based on battery metrics.
 
@@ -100,9 +100,7 @@ class TestKioskStatusBusinessLogic:
             (19, True, "ok"),  # Warning but charging = OK
         ],
     )
-    def test_battery_status_edge_cases(
-        self, battery_level, is_charging, expected_status
-    ):
+    def test_battery_status_edge_cases(self, battery_level, is_charging, expected_status):
         """
         Test edge cases and boundary conditions for battery status logic.
 
@@ -145,9 +143,7 @@ class TestKioskStatusBusinessLogic:
             else:
                 status = "ok"
 
-            assert (
-                status == "critical"
-            ), f"Offline kiosk with {battery_level}% battery should be critical"
+            assert status == "critical", f"Offline kiosk with {battery_level}% battery should be critical"
 
     def test_online_kiosk_status_based_on_battery(self):
         """
@@ -219,9 +215,7 @@ class TestKioskStatusModelValidation:
         try:
             status.full_clean()
         except ValidationError as e:
-            pytest.fail(
-                f"Valid battery level {valid_battery_level} raised ValidationError: {e}"
-            )
+            pytest.fail(f"Valid battery level {valid_battery_level} raised ValidationError: {e}")
 
     @pytest.mark.parametrize("invalid_battery_level", [-1, -50, 101, 150, 200])
     def test_invalid_battery_levels_rejected(self, invalid_battery_level, sample_kiosk):
@@ -245,9 +239,7 @@ class TestKioskStatusModelValidation:
 
         # Check that battery_level is mentioned in the error
         error_dict = exc_info.value.message_dict
-        assert (
-            "battery_level" in error_dict
-        ), f"Expected battery_level validation error, got: {error_dict}"
+        assert "battery_level" in error_dict, f"Expected battery_level validation error, got: {error_dict}"
 
     def test_battery_level_none_allowed(self, sample_kiosk):
         """
@@ -307,9 +299,7 @@ class TestKioskStatusModelValidation:
             status.full_clean()
 
         error_dict = exc_info.value.message_dict
-        assert (
-            "status" in error_dict
-        ), f"Expected status validation error, got: {error_dict}"
+        assert "status" in error_dict, f"Expected status validation error, got: {error_dict}"
 
 
 @pytest.mark.django_db
@@ -328,7 +318,7 @@ class TestKioskStatusModelMethods:
         # Create a kiosk explicitly without a bus to ensure test isolation
         kiosk_without_bus = KioskFactory(bus=None)
         status = KioskStatus.objects.create(
-            kiosk=kiosk_without_bus,
+            kiosk=kiosk_without_bus,  # type: ignore[misc]
             last_heartbeat=timezone.now(),
             database_version="2025-10-08T10:00:00Z",
             status="ok",
@@ -349,7 +339,7 @@ class TestKioskStatusModelMethods:
         Test is_offline property with old heartbeat.
         """
         # Set heartbeat to more than 24 hours ago
-        old_time = timezone.now() - timezone.timedelta(hours=25)
+        old_time = timezone.now() - timedelta(hours=25)
         kiosk_status.last_heartbeat = old_time
         kiosk_status.save()
 
@@ -387,7 +377,7 @@ class TestKioskModelMethods:
         Test is_online property with old heartbeat.
         """
         # Set old heartbeat (more than 5 minutes ago)
-        old_time = timezone.now() - timezone.timedelta(minutes=6)
+        old_time = timezone.now() - timedelta(minutes=6)
         sample_kiosk.last_heartbeat = old_time
         sample_kiosk.save()
 

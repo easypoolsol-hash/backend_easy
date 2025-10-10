@@ -28,9 +28,7 @@ class TestKioskActivation:
 
         assert response.status_code == status.HTTP_200_OK
 
-    def test_kiosk_activation_invalid_token(
-        self, api_client, test_kiosk, openapi_helper
-    ):
+    def test_kiosk_activation_invalid_token(self, api_client, test_kiosk, openapi_helper):
         """Test activation with wrong activation token"""
         kiosk, _ = test_kiosk
 
@@ -74,9 +72,7 @@ class TestKioskActivation:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_activation_token_one_time_use(
-        self, api_client, test_kiosk, openapi_helper
-    ):
+    def test_activation_token_one_time_use(self, api_client, test_kiosk, openapi_helper):
         """Test that activation tokens can only be used once"""
         kiosk, activation_token = test_kiosk
 
@@ -98,9 +94,7 @@ class TestKioskActivation:
         response_data = json.loads(response2.content.decode())
         assert "Invalid or already used activation token" in response_data["error"]
 
-    def test_jwt_token_contains_kiosk_metadata(
-        self, api_client, test_kiosk, openapi_helper
-    ):
+    def test_jwt_token_contains_kiosk_metadata(self, api_client, test_kiosk, openapi_helper):
         """Test JWT token contains correct kiosk information"""
         kiosk, activation_token = test_kiosk
 

@@ -22,9 +22,7 @@ def _load_schema():
         if p.exists():
             with p.open("r", encoding="utf-8") as fh:
                 return yaml.safe_load(fh)
-    raise FileNotFoundError(
-        f"No OpenAPI schema found in candidate paths: {_candidate_schema_paths()}"
-    )
+    raise FileNotFoundError(f"No OpenAPI schema found in candidate paths: {_candidate_schema_paths()}")
 
 
 def get_path_by_operation(operation_id, **params):

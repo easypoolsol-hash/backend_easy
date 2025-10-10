@@ -111,9 +111,7 @@ class TestKioskWorkflow:
 
         # Step 3: Download the snapshot
         snapshot_response = api_client.get(
-            openapi_helper(
-                operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id
-            ),
+            openapi_helper(operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id),
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
@@ -125,9 +123,7 @@ class TestKioskWorkflow:
         # Verify the content is a valid SQLite file by checking the header
         assert snapshot_response.content.startswith(b"SQLite format 3\x00")
 
-    def test_workflow_fails_without_authentication(
-        self, api_client, test_kiosk, openapi_helper
-    ):
+    def test_workflow_fails_without_authentication(self, api_client, test_kiosk, openapi_helper):
         """Test workflow fails if kiosk doesn't authenticate first"""
         kiosk, _ = test_kiosk
 

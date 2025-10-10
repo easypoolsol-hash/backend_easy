@@ -80,12 +80,8 @@ class Migration(migrations.Migration):
                 "db_table": "kiosk_activation_tokens",
                 "ordering": ["-created_at"],
                 "indexes": [
-                    models.Index(
-                        fields=["token_hash"], name="idx_activation_token_hash"
-                    ),
-                    models.Index(
-                        fields=["kiosk", "is_used"], name="idx_activation_kiosk_used"
-                    ),
+                    models.Index(fields=["token_hash"], name="idx_activation_token_hash"),
+                    models.Index(fields=["kiosk", "is_used"], name="idx_activation_kiosk_used"),
                     models.Index(fields=["expires_at"], name="idx_activation_expires"),
                 ],
             },

@@ -34,9 +34,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="parent",
             name="name",
-            field=models.TextField(
-                help_text="Encrypted name (plaintext validated max 100 chars)"
-            ),
+            field=models.TextField(help_text="Encrypted name (plaintext validated max 100 chars)"),
         ),
         migrations.AlterField(
             model_name="parent",

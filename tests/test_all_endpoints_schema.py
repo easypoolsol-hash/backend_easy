@@ -83,9 +83,7 @@ class TestAuthenticationEndpoints:
 class TestProtectedEndpoints:
     """Test that protected endpoints require authentication"""
 
-    def test_endpoints_reject_unauthenticated_requests(
-        self, api_client, openapi_helper
-    ):
+    def test_endpoints_reject_unauthenticated_requests(self, api_client, openapi_helper):
         """All protected endpoints return 401 without auth"""
         protected_endpoints = [
             openapi_helper(operation_id="api_v1_students_list"),
@@ -107,9 +105,7 @@ class TestProtectedEndpoints:
         kiosk = KioskFactory(bus=bus, is_active=True)
 
         # Without token - should fail
-        check_path = openapi_helper(
-            operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id
-        )
+        check_path = openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id)
         response = api_client.get(check_path)
         assert response.status_code == 401
 
@@ -156,9 +152,7 @@ class TestSchemaValidation:
 
         for substr in required_substrings:
             found = any(substr in p for p in paths.keys())
-            assert (
-                found
-            ), f"CRITICAL: No path containing '{substr}' found in OpenAPI schema"
+            assert found, f"CRITICAL: No path containing '{substr}' found in OpenAPI schema"
 
     def test_schema_has_valid_structure(self):
         """OpenAPI schema has required components"""
@@ -262,11 +256,7 @@ class TestKioskSyncWorkflow:
         assert "needs_update" in response.json()
 
         # Step 2: Get snapshot
-        response = api_client.get(
-            openapi_helper(
-                operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id
-            )
-        )
+        response = api_client.get(openapi_helper(operation_id="kiosk_download_snapshot", kiosk_id=kiosk.kiosk_id))
         assert response.status_code == 200
         assert response["Content-Type"] == "application/x-sqlite3"
 

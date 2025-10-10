@@ -23,9 +23,7 @@ class Role(models.Model):
     role_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
     description = models.TextField(blank=True)
-    permissions = models.JSONField(
-        default=dict, help_text="JSON object defining role permissions"
-    )
+    permissions = models.JSONField(default=dict, help_text="JSON object defining role permissions")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -57,9 +55,7 @@ class UserManager(BaseUserManager):
         # Set default role if not provided
         if "role" not in extra_fields:
             try:
-                extra_fields["role"] = Role.objects.get_or_create(
-                    name="backend_engineer"
-                )[0]
+                extra_fields["role"] = Role.objects.get_or_create(name="backend_engineer")[0]
             except Exception:  # nosec B110
                 # If Role table doesn't exist yet, skip setting role
                 pass
@@ -75,9 +71,7 @@ class UserManager(BaseUserManager):
         # Set default role if not provided
         if "role" not in extra_fields:
             try:
-                extra_fields.setdefault(
-                    "role", Role.objects.get_or_create(name="super_admin")[0]
-                )
+                extra_fields.setdefault("role", Role.objects.get_or_create(name="super_admin")[0])
             except Exception:  # nosec B110
                 # If Role table doesn't exist yet, skip setting role
                 pass
@@ -149,12 +143,8 @@ class APIKey(models.Model):
     key_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     kiosk_id = models.CharField(max_length=100, help_text="Reference to kiosk device")
     key_hash = models.CharField(max_length=255, unique=True, help_text="Hashed API key")
-    name = models.CharField(
-        max_length=100, blank=True, help_text="Human-readable name for the key"
-    )
-    permissions = models.JSONField(
-        default=dict, help_text="JSON object defining scoped permissions"
-    )
+    name = models.CharField(max_length=100, blank=True, help_text="Human-readable name for the key")
+    permissions = models.JSONField(default=dict, help_text="JSON object defining scoped permissions")
     is_active = models.BooleanField(default=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     last_used = models.DateTimeField(null=True, blank=True)
@@ -204,9 +194,7 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=100, choices=ACTION_CHOICES)
     resource_type = models.CharField(max_length=50, choices=RESOURCE_CHOICES)
     resource_id = models.CharField(max_length=100, blank=True)
-    changes = models.JSONField(
-        null=True, blank=True, help_text="JSON object of changes made"
-    )
+    changes = models.JSONField(null=True, blank=True, help_text="JSON object of changes made")
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
     timestamp = models.DateTimeField(default=timezone.now)
@@ -215,9 +203,7 @@ class AuditLog(models.Model):
         db_table = "audit_log"
         indexes = [
             models.Index(fields=["user", "-timestamp"], name="idx_audit_user_time"),
-            models.Index(
-                fields=["resource_type", "resource_id"], name="idx_audit_resource"
-            ),
+            models.Index(fields=["resource_type", "resource_id"], name="idx_audit_resource"),
             models.Index(fields=["-timestamp"], name="idx_audit_timestamp"),
         ]
         ordering = ["-timestamp"]

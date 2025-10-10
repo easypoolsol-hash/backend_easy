@@ -14,19 +14,14 @@ def is_coverage_run():
     """Check if tests are running with coverage instrumentation."""
     import sys
 
-    return (
-        any("coverage" in arg for arg in sys.argv)
-        or "COVERAGE_PROCESS_START" in sys.argv
-    )
+    return any("coverage" in arg for arg in sys.argv) or "COVERAGE_PROCESS_START" in sys.argv
 
 
 @pytest.mark.django_db
 @pytest.mark.integration
 class TestAuthenticationLoadPerformance:
     @pytest.mark.performance
-    def test_kiosk_activation_concurrent_load(
-        self, api_client, test_kiosk, openapi_helper
-    ):
+    def test_kiosk_activation_concurrent_load(self, api_client, test_kiosk, openapi_helper):
         """
         Test kiosk activation under concurrent load.
 
@@ -91,16 +86,14 @@ class TestAuthenticationLoadPerformance:
         # Performance assertions
         # Note: SQLite has database locking issues with true concurrency
         # In test environments, we may get 0 or 1 success due to DB limitations
-        assert len(successful_requests) in [0, 1], (
-            f"Expected 0-1 success (SQLite concurrency limitations), "
-            f"got {len(successful_requests)}/10"
-        )
+        assert len(successful_requests) in [
+            0,
+            1,
+        ], f"Expected 0-1 success (SQLite concurrency limitations), got {len(successful_requests)}/10"
 
         avg_response_time = statistics.mean(response_times)
         max_response_time = max(response_times)
-        p95_response_time = statistics.quantiles(response_times, n=20)[
-            18
-        ]  # 95th percentile
+        p95_response_time = statistics.quantiles(response_times, n=20)[18]  # 95th percentile
 
         # Performance thresholds (adjust based on your requirements). SQLite has
         # concurrency limitations, so we adjust expectations.
@@ -112,27 +105,14 @@ class TestAuthenticationLoadPerformance:
             # SQLite concurrency limitations make responses slower. When running
             # under coverage we allow a higher threshold.
             sqlite_threshold = 20.0 if coverage_flag else 10.0
-            assert avg_response_time < sqlite_threshold, (
-                "Average response time too slow for SQLite: "
-                f"{avg_response_time:.2f}s"
-            )
-            assert max_response_time < sqlite_threshold * 1.5, (
-                "Max response time too slow for SQLite: " f"{max_response_time:.2f}s"
-            )
-            assert p95_response_time < sqlite_threshold * 1.2, (
-                "P95 response time too slow for SQLite: " f"{p95_response_time:.2f}s"
-            )
+            assert avg_response_time < sqlite_threshold, f"Average response time too slow for SQLite: {avg_response_time:.2f}s"
+            assert max_response_time < sqlite_threshold * 1.5, f"Max response time too slow for SQLite: {max_response_time:.2f}s"
+            assert p95_response_time < sqlite_threshold * 1.2, f"P95 response time too slow for SQLite: {p95_response_time:.2f}s"
         else:
             # Standard expectations for databases with true concurrency
-            assert (
-                avg_response_time < 2.0
-            ), f"Average response time too slow: {avg_response_time:.2f}s"
-            assert (
-                max_response_time < 5.0
-            ), f"Max response time too slow: {max_response_time:.2f}s"
-            assert (
-                p95_response_time < 3.0
-            ), f"P95 response time too slow: {p95_response_time:.2f}s"
+            assert avg_response_time < 2.0, f"Average response time too slow: {avg_response_time:.2f}s"
+            assert max_response_time < 5.0, f"Max response time too slow: {max_response_time:.2f}s"
+            assert p95_response_time < 3.0, f"P95 response time too slow: {p95_response_time:.2f}s"
 
     def test_token_refresh_sustained_load(self, api_client, test_kiosk, openapi_helper):
         """
@@ -157,9 +137,7 @@ class TestAuthenticationLoadPerformance:
         for _ in range(50):
             start_time = time.time()
 
-            refresh_path = openapi_helper(
-                operation_id="api_v1_auth_token_refresh_create"
-            )
+            refresh_path = openapi_helper(operation_id="api_v1_auth_token_refresh_create")
             response = api_client.post(
                 refresh_path,
                 {"refresh": refresh_token},
@@ -181,25 +159,17 @@ class TestAuthenticationLoadPerformance:
 
         # Performance should not degrade significantly
         coverage_overhead = 1.5 if is_coverage_run() else 1.0
-        assert (
-            avg_response_time < 1.0 * coverage_overhead
-        ), f"Sustained load too slow: {avg_response_time:.2f}s"
-        assert (
-            max_response_time < 3.0 * coverage_overhead
-        ), f"Peak sustained load too slow: {max_response_time:.2f}s"
+        assert avg_response_time < 1.0 * coverage_overhead, f"Sustained load too slow: {avg_response_time:.2f}s"
+        assert max_response_time < 3.0 * coverage_overhead, f"Peak sustained load too slow: {max_response_time:.2f}s"
 
         # Check for performance degradation (last 10 vs first 10)
         first_10_avg = statistics.mean(response_times[:10])
         last_10_avg = statistics.mean(response_times[-10:])
 
         degradation_ratio = last_10_avg / first_10_avg
-        assert (
-            degradation_ratio < 2.0
-        ), f"Performance degraded {degradation_ratio:.2f}x under sustained load"
+        assert degradation_ratio < 2.0, f"Performance degraded {degradation_ratio:.2f}x under sustained load"
 
-    def test_mixed_authentication_load(
-        self, api_client, authenticated_client, test_kiosk, openapi_helper
-    ):
+    def test_mixed_authentication_load(self, api_client, authenticated_client, test_kiosk, openapi_helper):
         """
         Test mixed authentication patterns under load.
 
@@ -227,13 +197,9 @@ class TestAuthenticationLoadPerformance:
                     # Kiosk heartbeat
                     from kiosks.models import KioskStatus
 
-                    KioskStatus.objects.create(
-                        kiosk=kiosk, last_heartbeat="2025-01-01T00:00:00Z"
-                    )
+                    KioskStatus.objects.create(kiosk=kiosk, last_heartbeat="2025-01-01T00:00:00Z")
 
-                    heartbeat_path = openapi_helper(
-                        operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-                    )
+                    heartbeat_path = openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id)
                     response = api_client.post(
                         heartbeat_path,
                         {
@@ -250,17 +216,13 @@ class TestAuthenticationLoadPerformance:
 
                 elif request_id % 3 == 1:
                     # User profile access
-                    users_me_path = openapi_helper(
-                        operation_id="api_v1_users_me_retrieve"
-                    )
+                    users_me_path = openapi_helper(operation_id="api_v1_users_me_retrieve")
                     response = authenticated_client.get(users_me_path)
                     success = response.status_code == status.HTTP_200_OK
 
                 else:
                     # Token refresh
-                    refresh_path = openapi_helper(
-                        operation_id="api_v1_auth_token_refresh_create"
-                    )
+                    refresh_path = openapi_helper(operation_id="api_v1_auth_token_refresh_create")
                     refresh_response = api_client.post(
                         refresh_path,
                         {"refresh": auth_response.data["refresh"]},
@@ -298,19 +260,13 @@ class TestAuthenticationLoadPerformance:
         successful_requests = [r for r in response_times if r["success"]]
         response_times_list = [r["response_time"] for r in response_times]
 
-        assert (
-            len(successful_requests) >= 5
-        ), f"Too many failed mixed auth requests: {len(successful_requests)}/30"
+        assert len(successful_requests) >= 5, f"Too many failed mixed auth requests: {len(successful_requests)}/30"
 
         coverage_overhead = 2.0 if is_coverage_run() else 1.0
         avg_response_time = statistics.mean(response_times_list)
-        assert (
-            avg_response_time < 1.8 * coverage_overhead
-        ), f"Mixed auth load too slow: {avg_response_time:.2f}s"
+        assert avg_response_time < 1.8 * coverage_overhead, f"Mixed auth load too slow: {avg_response_time:.2f}s"
 
-    def test_authentication_throughput_benchmark(
-        self, api_client, test_kiosk, openapi_helper
-    ):
+    def test_authentication_throughput_benchmark(self, api_client, test_kiosk, openapi_helper):
         """
         Benchmark JWT authentication throughput using kiosk tokens.
 
@@ -332,9 +288,7 @@ class TestAuthenticationLoadPerformance:
         def benchmark_authenticated_request():
             """Single authenticated API call benchmark"""
             start_time = time.time()
-            check_path = openapi_helper(
-                operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id
-            )
+            check_path = openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id)
             response = api_client.get(
                 check_path,
                 HTTP_AUTHORIZATION=f"Bearer {access_token}",
@@ -363,12 +317,8 @@ class TestAuthenticationLoadPerformance:
         throughput = len(successful_benchmarks) / total_time  # requests per second
 
         coverage_overhead = 0.7 if is_coverage_run() else 1.0
-        assert (
-            throughput > 1.0 * coverage_overhead
-        ), f"Throughput too low: {throughput:.2f} req/s"
-        assert all(
-            success for _, success in benchmark_results
-        ), "Some benchmark requests failed"
+        assert throughput > 1.0 * coverage_overhead, f"Throughput too low: {throughput:.2f} req/s"
+        assert all(success for _, success in benchmark_results), "Some benchmark requests failed"
 
     @pytest.mark.slow
     def test_auth_under_memory_pressure(self, api_client, test_kiosk, openapi_helper):
@@ -401,9 +351,7 @@ class TestAuthenticationLoadPerformance:
         for i in range(100):
             start_time = time.time()
 
-            updates_path = openapi_helper(
-                operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id
-            )
+            updates_path = openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id)
             response = api_client.get(
                 updates_path,
                 HTTP_AUTHORIZATION=f"Bearer {access_token}",
@@ -421,14 +369,10 @@ class TestAuthenticationLoadPerformance:
                 memory_growth = current_memory - baseline_memory
 
                 # Memory should not grow excessively (< 100MB)
-                assert (
-                    memory_growth < 100 * 1024 * 1024
-                ), f"Memory leak detected: {memory_growth / 1024 / 1024:.1f}MB growth"
+                assert memory_growth < 100 * 1024 * 1024, f"Memory leak detected: {memory_growth / 1024 / 1024:.1f}MB growth"
 
         avg_response_time = statistics.mean(response_times)
-        assert (
-            avg_response_time < 2.0
-        ), f"Memory pressure slowed responses: {avg_response_time:.2f}s"
+        assert avg_response_time < 2.0, f"Memory pressure slowed responses: {avg_response_time:.2f}s"
 
     def test_cache_performance_under_load(self, api_client, test_kiosk, openapi_helper):
         """
@@ -456,9 +400,7 @@ class TestAuthenticationLoadPerformance:
             start_time = time.time()
 
             for _ in range(10):
-                updates_path = openapi_helper(
-                    operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id
-                )
+                updates_path = openapi_helper(operation_id="kiosk_check_updates", kiosk_id=kiosk.kiosk_id)
                 response = api_client.get(
                     updates_path,
                     HTTP_AUTHORIZATION=f"Bearer {access_token}",
@@ -477,6 +419,4 @@ class TestAuthenticationLoadPerformance:
 
         # Cache should not significantly degrade performance
         improvement_ratio = avg_without_cache / avg_with_cache
-        assert (
-            improvement_ratio >= 0.9
-        ), f"Cache degraded performance: {improvement_ratio:.2f}x"
+        assert improvement_ratio >= 0.9, f"Cache degraded performance: {improvement_ratio:.2f}x"

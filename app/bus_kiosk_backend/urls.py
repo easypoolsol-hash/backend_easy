@@ -111,9 +111,7 @@ def api_root(_request):
         {
             "name": "Bus Kiosk Backend API",
             "version": "1.0.0",
-            "description": (
-                "Industrial REST API for Bus Kiosk face recognition system"
-            ),
+            "description": ("Industrial REST API for Bus Kiosk face recognition system"),
             "status": "operational",
             "timestamp": timezone.now().isoformat(),
             "docs": {
@@ -197,6 +195,4 @@ urlpatterns += [
 # Serve media files in development
 if settings.DEBUG:
     # static() returns list[URLPattern]; cast to a generic iterable to satisfy mypy
-    urlpatterns += cast(
-        Iterable[Any], static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    )
+    urlpatterns += cast(Iterable[Any], static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT))

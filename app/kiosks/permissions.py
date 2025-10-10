@@ -47,9 +47,7 @@ class IsKiosk(BasePermission):
         from kiosks.models import Kiosk
 
         try:
-            kiosk = Kiosk.objects.select_related("bus").get(
-                kiosk_id=kiosk_id, is_active=True
-            )
+            kiosk = Kiosk.objects.select_related("bus").get(kiosk_id=kiosk_id, is_active=True)
         except Kiosk.DoesNotExist:
             return False
 

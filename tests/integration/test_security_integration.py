@@ -89,11 +89,7 @@ class TestJWTSecurityVulnerabilities:
         payload_decoded["kiosk_id"] = "tampered_kiosk_id"
 
         # Re-encode tampered payload
-        tampered_payload = (
-            base64.urlsafe_b64encode(json.dumps(payload_decoded).encode())
-            .decode()
-            .rstrip("=")
-        )
+        tampered_payload = base64.urlsafe_b64encode(json.dumps(payload_decoded).encode()).decode().rstrip("=")
 
         tampered_token = f"{header}.{tampered_payload}.{signature}"
 
@@ -144,11 +140,7 @@ class TestJWTSecurityVulnerabilities:
         payload_decoded["exp"] = int(future_expiry.timestamp())
 
         # Re-encode
-        tampered_payload = (
-            base64.urlsafe_b64encode(json.dumps(payload_decoded).encode())
-            .decode()
-            .rstrip("=")
-        )
+        tampered_payload = base64.urlsafe_b64encode(json.dumps(payload_decoded).encode()).decode().rstrip("=")
 
         tampered_token = f"{header}.{tampered_payload}.{signature}"
 
@@ -323,9 +315,7 @@ class TestAuthenticationBypassAttempts:
 
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat="2025-01-01T00:00:00Z")
 
-        heartbeat_path = openapi_helper(
-            operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-        )
+        heartbeat_path = openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id)
         response = api_client.post(
             heartbeat_path,
             {
@@ -347,11 +337,7 @@ class TestAuthenticationBypassAttempts:
 class TestTokenSecurityLifecycle:
     """Industry Standard: Token security lifecycle testing"""
 
-    @pytest.mark.skip(
-        reason="Token expiry test unreliable in test "
-        "environment due to Django settings override "
-        "limitations"
-    )
+    @pytest.mark.skip(reason="Token expiry test unreliable in test environment due to Django settings override limitations")
     @override_settings(
         SIMPLE_JWT={
             "ACCESS_TOKEN_LIFETIME": timedelta(seconds=1),  # Very short expiry
@@ -383,9 +369,7 @@ class TestTokenSecurityLifecycle:
 
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat="2025-01-01T00:00:00Z")
 
-        heartbeat_path = openapi_helper(
-            operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-        )
+        heartbeat_path = openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id)
         response = api_client.post(
             heartbeat_path,
             {

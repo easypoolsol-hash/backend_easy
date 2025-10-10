@@ -33,43 +33,26 @@ class BoardingEvent(models.Model):
     )
     timestamp = models.DateTimeField(help_text="When the boarding event occurred")
     # GPS coordinates as latitude/longitude (will be converted to PostGIS POINT later)
-    latitude = models.FloatField(
-        null=True, blank=True, help_text="GPS latitude coordinate"
-    )
-    longitude = models.FloatField(
-        null=True, blank=True, help_text="GPS longitude coordinate"
-    )
-    bus_route = models.CharField(
-        max_length=100, blank=True, help_text="Bus route identifier"
-    )
-    face_image_url = models.TextField(
-        blank=True, help_text="S3 URL to face image for verification (optional)"
-    )
-    model_version = models.CharField(
-        max_length=50, help_text="Face recognition model version used"
-    )
+    latitude = models.FloatField(null=True, blank=True, help_text="GPS latitude coordinate")
+    longitude = models.FloatField(null=True, blank=True, help_text="GPS longitude coordinate")
+    bus_route = models.CharField(max_length=100, blank=True, help_text="Bus route identifier")
+    face_image_url = models.TextField(blank=True, help_text="S3 URL to face image for verification (optional)")
+    model_version = models.CharField(max_length=50, help_text="Face recognition model version used")
     metadata = models.JSONField(default=dict, help_text="Additional metadata as JSON")
-    created_at = models.DateTimeField(
-        auto_now_add=True, help_text="When this record was created in database"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this record was created in database")
 
     class Meta:
         db_table = "boarding_events"
         ordering = ["-timestamp"]
         indexes = [
-            models.Index(
-                fields=["student", "timestamp"], name="idx_events_student_time"
-            ),
-            models.Index(
-                fields=["kiosk_id", "timestamp"], name="idx_events_kiosk_time"
-            ),
+            models.Index(fields=["student", "timestamp"], name="idx_events_student_time"),
+            models.Index(fields=["kiosk_id", "timestamp"], name="idx_events_kiosk_time"),
             models.Index(fields=["timestamp"], name="idx_events_timestamp"),
             # GPS index will be added when PostGIS is available
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(confidence_score__gte=0.0)
-                & models.Q(confidence_score__lte=1.0),
+                check=models.Q(confidence_score__gte=0.0) & models.Q(confidence_score__lte=1.0),
                 name="chk_confidence_score_range",
             ),
         ]
@@ -90,9 +73,7 @@ class BoardingEvent(models.Model):
         return None
 
     def __str__(self):
-        return (
-            f"BoardingEvent({self.event_id[:8]}...): {self.student} at {self.timestamp}"
-        )
+        return f"BoardingEvent({self.event_id[:8]}...): {self.student} at {self.timestamp}"
 
 
 class AttendanceRecord(models.Model):
@@ -120,33 +101,19 @@ class AttendanceRecord(models.Model):
         help_text="Student attendance record",
     )
     date = models.DateField(help_text="Date of attendance record")
-    morning_boarded = models.BooleanField(
-        default=False, help_text="Whether student boarded in the morning"
-    )
-    morning_time = models.DateTimeField(
-        null=True, blank=True, help_text="Time of morning boarding"
-    )
-    afternoon_boarded = models.BooleanField(
-        default=False, help_text="Whether student boarded in the afternoon"
-    )
-    afternoon_time = models.DateTimeField(
-        null=True, blank=True, help_text="Time of afternoon boarding"
-    )
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, help_text="Overall attendance status"
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True, help_text="When this record was created"
-    )
+    morning_boarded = models.BooleanField(default=False, help_text="Whether student boarded in the morning")
+    morning_time = models.DateTimeField(null=True, blank=True, help_text="Time of morning boarding")
+    afternoon_boarded = models.BooleanField(default=False, help_text="Whether student boarded in the afternoon")
+    afternoon_time = models.DateTimeField(null=True, blank=True, help_text="Time of afternoon boarding")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, help_text="Overall attendance status")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this record was created")
 
     class Meta:
         db_table = "attendance_records"
         ordering = ["-date"]
         unique_together = [["student", "date"]]
         indexes = [
-            models.Index(
-                fields=["student", "date"], name="idx_attendance_student_date"
-            ),
+            models.Index(fields=["student", "date"], name="idx_attendance_student_date"),
             models.Index(fields=["date"], name="idx_attendance_date"),
         ]
 

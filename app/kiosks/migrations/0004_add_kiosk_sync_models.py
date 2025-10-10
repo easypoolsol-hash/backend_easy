@@ -36,15 +36,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "last_heartbeat",
-                    models.DateTimeField(
-                        help_text="Last heartbeat received from kiosk"
-                    ),
+                    models.DateTimeField(help_text="Last heartbeat received from kiosk"),
                 ),
                 (
                     "database_version",
-                    models.CharField(
-                        help_text="Timestamp of current database version", max_length=50
-                    ),
+                    models.CharField(help_text="Timestamp of current database version", max_length=50),
                 ),
                 (
                     "database_hash",
@@ -56,15 +52,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "student_count",
-                    models.IntegerField(
-                        default=0, help_text="Number of students in kiosk database"
-                    ),
+                    models.IntegerField(default=0, help_text="Number of students in kiosk database"),
                 ),
                 (
                     "embedding_count",
-                    models.IntegerField(
-                        default=0, help_text="Number of embeddings in kiosk database"
-                    ),
+                    models.IntegerField(default=0, help_text="Number of embeddings in kiosk database"),
                 ),
                 (
                     "battery_level",
@@ -84,15 +76,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "storage_available_mb",
-                    models.IntegerField(
-                        blank=True, help_text="Available storage in MB", null=True
-                    ),
+                    models.IntegerField(blank=True, help_text="Available storage in MB", null=True),
                 ),
                 (
                     "camera_active",
-                    models.BooleanField(
-                        default=False, help_text="Is camera currently active"
-                    ),
+                    models.BooleanField(default=False, help_text="Is camera currently active"),
                 ),
                 (
                     "network_type",
@@ -114,9 +102,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "last_face_detected",
-                    models.DateTimeField(
-                        blank=True, help_text="Last time a face was detected", null=True
-                    ),
+                    models.DateTimeField(blank=True, help_text="Last time a face was detected", null=True),
                 ),
                 (
                     "faces_detected_today",
@@ -124,9 +110,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "students_identified_today",
-                    models.IntegerField(
-                        default=0, help_text="Students identified today"
-                    ),
+                    models.IntegerField(default=0, help_text="Students identified today"),
                 ),
                 (
                     "status",
@@ -143,15 +127,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "last_error",
-                    models.TextField(
-                        blank=True, help_text="Last error message if any", null=True
-                    ),
+                    models.TextField(blank=True, help_text="Last error message if any", null=True),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, help_text="When this status was last updated"
-                    ),
+                    models.DateTimeField(auto_now=True, help_text="When this status was last updated"),
                 ),
             ],
             options={
@@ -160,9 +140,7 @@ class Migration(migrations.Migration):
                 "db_table": "kiosk_status",
                 "indexes": [
                     models.Index(fields=["status"], name="idx_kiosk_status_status"),
-                    models.Index(
-                        fields=["last_heartbeat"], name="idx_kiosk_status_heartbeat"
-                    ),
+                    models.Index(fields=["last_heartbeat"], name="idx_kiosk_status_heartbeat"),
                 ],
             },
         ),

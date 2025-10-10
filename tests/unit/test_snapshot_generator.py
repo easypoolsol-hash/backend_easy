@@ -17,16 +17,14 @@ class TestSnapshotGenerator:
         """Verify snapshot contains correct students and their embeddings for a specific bus."""
         bus1 = BusFactory()
         student1 = StudentFactory(assigned_bus=bus1)
-        emb1 = FaceEmbeddingMetadataFactory(
-            student_photo__student=student1, embedding=[1.0, 2.0]
-        )
+        emb1 = FaceEmbeddingMetadataFactory(student_photo__student=student1, embedding=[1.0, 2.0])
 
         bus2 = BusFactory()
         student2 = StudentFactory(assigned_bus=bus2)  # Belongs to a different bus
         FaceEmbeddingMetadataFactory(student_photo__student=student2)
 
         # Generate snapshot for bus1
-        generator = SnapshotGenerator(bus_id=str(bus1.bus_id))
+        generator = SnapshotGenerator(bus_id=str(bus1.bus_id))  # type: ignore[attr-defined]
         snapshot_bytes, _metadata = generator.generate()
 
         # Write to temp file and verify
@@ -42,8 +40,8 @@ class TestSnapshotGenerator:
             cursor.execute("SELECT student_id FROM students")
             student_ids = [row[0] for row in cursor.fetchall()]
             assert len(student_ids) == 1
-            assert str(student1.student_id) in student_ids
-            assert str(student2.student_id) not in student_ids
+            assert str(student1.student_id) in student_ids  # type: ignore[attr-defined]
+            assert str(student2.student_id) not in student_ids  # type: ignore[attr-defined]
 
             # Check embeddings table
             cursor.execute("SELECT embedding_id, student_id, embedding FROM embeddings")
@@ -51,8 +49,8 @@ class TestSnapshotGenerator:
             assert len(embedding_rows) == 1
             db_emb_id, db_student_id, db_embedding_json = embedding_rows[0]
 
-            assert db_emb_id == str(emb1.embedding_id)
-            assert db_student_id == str(student1.student_id)
+            assert db_emb_id == str(emb1.embedding_id)  # type: ignore[attr-defined]
+            assert db_student_id == str(student1.student_id)  # type: ignore[attr-defined]
             assert json.loads(db_embedding_json) == [1.0, 2.0]
 
             conn.close()
@@ -65,7 +63,7 @@ class TestSnapshotGenerator:
         student = StudentFactory(assigned_bus=bus)
         FaceEmbeddingMetadataFactory(student_photo__student=student)
 
-        generator = SnapshotGenerator(bus_id=str(bus.bus_id))
+        generator = SnapshotGenerator(bus_id=str(bus.bus_id))  # type: ignore[attr-defined]
         _, metadata = generator.generate()
 
         assert "sync_timestamp" in metadata
@@ -78,7 +76,7 @@ class TestSnapshotGenerator:
         bus = BusFactory()
         StudentFactory(assigned_bus=bus)
 
-        generator = SnapshotGenerator(bus_id=str(bus.bus_id))
+        generator = SnapshotGenerator(bus_id=str(bus.bus_id))  # type: ignore[attr-defined]
         snapshot_bytes, _ = generator.generate()
 
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
@@ -99,7 +97,7 @@ class TestSnapshotGenerator:
     def test_snapshot_has_correct_schema(self):
         """Verify the generated SQLite file has the correct table schema."""
         bus = BusFactory()
-        generator = SnapshotGenerator(bus_id=str(bus.bus_id))
+        generator = SnapshotGenerator(bus_id=str(bus.bus_id))  # type: ignore[attr-defined]
         snapshot_bytes, _ = generator.generate()
 
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:

@@ -208,7 +208,6 @@ gps:
   compression: gzip
   deduplication: client-side, 5m threshold
   storage: TimescaleDB hypertable
-  compression: after 7 days
 
 # ===========================================
 # PERFORMANCE TARGETS
@@ -222,7 +221,7 @@ performance:
     boarding_events: 1000/min sustained
   database:
     query_timeout: 30s
-    slow_query_log: >1s
+    slow_query_log: '>1s'
 
 # ===========================================
 # SECURITY ESSENTIALS

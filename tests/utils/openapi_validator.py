@@ -14,14 +14,14 @@ import uuid
 
 # Lazy import to avoid import errors during test collection
 try:
-    from prance import ResolvingParser
-    from prance.util.url import ResolutionError
+    from prance import ResolvingParser  # type: ignore[import-untyped]
+    from prance.util.url import ResolutionError  # type: ignore[import-untyped]
 
     PRANCE_AVAILABLE = True
 except ImportError:
     PRANCE_AVAILABLE = False
-    ResolvingParser = Any  # type: ignore
-    ResolutionError = Exception  # type: ignore
+    ResolvingParser = Any
+    ResolutionError = Exception
 
 
 class OpenAPISchemaValidator:
@@ -40,16 +40,11 @@ class OpenAPISchemaValidator:
                         Defaults to openapi-schema.yaml in the app directory
         """
         if not PRANCE_AVAILABLE:
-            raise ImportError(
-                "prance library is required for OpenAPI schema validation. "
-                "Install with: pip install prance"
-            )
+            raise ImportError("prance library is required for OpenAPI schema validation. Install with: pip install prance")
 
         if schema_path is None:
             # Default to the schema in the app directory
-            base_dir = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            )
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             schema_path = os.path.join(base_dir, "openapi-schema.yaml")
 
         self.schema_path = schema_path
@@ -61,6 +56,7 @@ class OpenAPISchemaValidator:
         """Lazy load and return the parsed OpenAPI schema."""
         if self._schema is None:
             self._load_schema()
+        assert self._schema is not None  # _load_schema should have set this
         return self._schema
 
     @property
@@ -78,9 +74,7 @@ class OpenAPISchemaValidator:
         except ResolutionError as e:
             raise RuntimeError(f"Failed to parse OpenAPI schema: {e}") from e
         except FileNotFoundError as exc:
-            raise RuntimeError(
-                f"OpenAPI schema file not found: {self.schema_path}"
-            ) from exc
+            raise RuntimeError(f"OpenAPI schema file not found: {self.schema_path}") from exc
 
     def get_endpoint_schema(self, method: str, path: str) -> dict[str, Any] | None:
         """
@@ -150,16 +144,14 @@ class OpenAPISchemaValidator:
         resolved_path = path
         if path_params:
             for param_name, param_value in path_params.items():
-                resolved_path = resolved_path.replace(
-                    f"{{{param_name}}}", str(param_value)
-                )
+                resolved_path = resolved_path.replace(f"{{{param_name}}}", str(param_value))
 
         endpoint_schema = self.get_endpoint_schema(method, resolved_path)
 
         if not endpoint_schema:
             return {
                 "valid": False,
-                "errors": [f"No schema found for {method.upper()} " f"{resolved_path}"],
+                "errors": [f"No schema found for {method.upper()} {resolved_path}"],
                 "endpoint_found": False,
             }
 
@@ -170,10 +162,7 @@ class OpenAPISchemaValidator:
         if status_str not in responses:
             return {
                 "valid": False,
-                "errors": [
-                    f"Status code {status_code} not defined "
-                    f"in schema for {method.upper()} {resolved_path}"
-                ],
+                "errors": [f"Status code {status_code} not defined in schema for {method.upper()} {resolved_path}"],
                 "endpoint_found": True,
             }
 
@@ -188,10 +177,7 @@ class OpenAPISchemaValidator:
             else:
                 return {
                     "valid": False,
-                    "errors": [
-                        f"Expected no content for {status_code} "
-                        "response, but got data"
-                    ],
+                    "errors": [f"Expected no content for {status_code} response, but got data"],
                     "endpoint_found": True,
                 }
 
@@ -210,9 +196,7 @@ class OpenAPISchemaValidator:
         # Validate against schema
         return self._validate_against_schema(response_data, schema)
 
-    def _validate_against_schema(
-        self, data: Any, schema: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _validate_against_schema(self, data: Any, schema: dict[str, Any]) -> dict[str, Any]:
         """
         Validate data against a JSON schema.
 
@@ -225,9 +209,7 @@ class OpenAPISchemaValidator:
 
         if schema_type == "object":
             if not isinstance(processed_data, dict):
-                errors.append(
-                    f"Expected object, got " f"{type(processed_data).__name__}"
-                )
+                errors.append(f"Expected object, got {type(processed_data).__name__}")
                 return {"valid": False, "errors": errors, "endpoint_found": True}
 
             # Check required properties
@@ -240,19 +222,13 @@ class OpenAPISchemaValidator:
             properties = schema.get("properties", {})
             for prop_name, prop_schema in properties.items():
                 if prop_name in processed_data:
-                    prop_result = self._validate_against_schema(
-                        processed_data[prop_name], prop_schema
-                    )
+                    prop_result = self._validate_against_schema(processed_data[prop_name], prop_schema)
                     if not prop_result["valid"]:
-                        errors.extend(
-                            [f"{prop_name}: {err}" for err in prop_result["errors"]]
-                        )
+                        errors.extend([f"{prop_name}: {err}" for err in prop_result["errors"]])
 
         elif schema_type == "array":
             if not isinstance(processed_data, list):
-                errors.append(
-                    f"Expected array, got " f"{type(processed_data).__name__}"
-                )
+                errors.append(f"Expected array, got {type(processed_data).__name__}")
                 return {"valid": False, "errors": errors, "endpoint_found": True}
 
             # Validate items if schema provided
@@ -261,15 +237,11 @@ class OpenAPISchemaValidator:
                 for i, item in enumerate(processed_data):
                     item_result = self._validate_against_schema(item, items_schema)
                     if not item_result["valid"]:
-                        errors.extend(
-                            [f"[{i}]: {err}" for err in item_result["errors"]]
-                        )
+                        errors.extend([f"[{i}]: {err}" for err in item_result["errors"]])
 
         elif schema_type == "string":
             if not isinstance(processed_data, str):
-                errors.append(
-                    f"Expected string, got " f"{type(processed_data).__name__}"
-                )
+                errors.append(f"Expected string, got {type(processed_data).__name__}")
                 return {"valid": False, "errors": errors, "endpoint_found": True}
 
             # Check format constraints
@@ -283,25 +255,19 @@ class OpenAPISchemaValidator:
                 try:
                     datetime.fromisoformat(processed_data.replace("Z", "+00:00"))
                 except ValueError:
-                    errors.append(f"Invalid date-time format: " f"{processed_data}")
+                    errors.append(f"Invalid date-time format: {processed_data}")
 
         elif schema_type == "integer":
             if not isinstance(processed_data, int):
-                errors.append(
-                    f"Expected integer, got " f"{type(processed_data).__name__}"
-                )
+                errors.append(f"Expected integer, got {type(processed_data).__name__}")
 
         elif schema_type == "number":
             if not isinstance(processed_data, int | float):
-                errors.append(
-                    f"Expected number, got " f"{type(processed_data).__name__}"
-                )
+                errors.append(f"Expected number, got {type(processed_data).__name__}")
 
         elif schema_type == "boolean":
             if not isinstance(processed_data, bool):
-                errors.append(
-                    f"Expected boolean, got " f"{type(processed_data).__name__}"
-                )
+                errors.append(f"Expected boolean, got {type(processed_data).__name__}")
 
         return {"valid": len(errors) == 0, "errors": errors, "endpoint_found": True}
 
@@ -338,10 +304,7 @@ class OpenAPISchemaValidator:
         result = self.validate_response(method, path, status_code, response_data)
 
         if not result["valid"]:
-            error_parts = [
-                f"OpenAPI Schema Validation Failed for "
-                f"{method.upper()} {path} ({status_code}):"
-            ]
+            error_parts = [f"OpenAPI Schema Validation Failed for {method.upper()} {path} ({status_code}):"]
 
             error_parts.extend(f"  - {err}" for err in result["errors"])
 

@@ -38,9 +38,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "morning_time",
-                    models.DateTimeField(
-                        blank=True, help_text="Time of morning boarding", null=True
-                    ),
+                    models.DateTimeField(blank=True, help_text="Time of morning boarding", null=True),
                 ),
                 (
                     "afternoon_boarded",
@@ -51,9 +49,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "afternoon_time",
-                    models.DateTimeField(
-                        blank=True, help_text="Time of afternoon boarding", null=True
-                    ),
+                    models.DateTimeField(blank=True, help_text="Time of afternoon boarding", null=True),
                 ),
                 (
                     "status",
@@ -69,9 +65,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, help_text="When this record was created"
-                    ),
+                    models.DateTimeField(auto_now_add=True, help_text="When this record was created"),
                 ),
                 (
                     "student",
@@ -87,9 +81,7 @@ class Migration(migrations.Migration):
                 "db_table": "attendance_records",
                 "ordering": ["-date"],
                 "indexes": [
-                    models.Index(
-                        fields=["student", "date"], name="idx_attendance_student_date"
-                    ),
+                    models.Index(fields=["student", "date"], name="idx_attendance_student_date"),
                     models.Index(fields=["date"], name="idx_attendance_date"),
                 ],
                 "unique_together": {("student", "date")},
@@ -110,9 +102,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "kiosk_id",
-                    models.CharField(
-                        help_text="Kiosk device identifier", max_length=100
-                    ),
+                    models.CharField(help_text="Kiosk device identifier", max_length=100),
                 ),
                 (
                     "confidence_score",
@@ -130,21 +120,15 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "latitude",
-                    models.FloatField(
-                        blank=True, help_text="GPS latitude coordinate", null=True
-                    ),
+                    models.FloatField(blank=True, help_text="GPS latitude coordinate", null=True),
                 ),
                 (
                     "longitude",
-                    models.FloatField(
-                        blank=True, help_text="GPS longitude coordinate", null=True
-                    ),
+                    models.FloatField(blank=True, help_text="GPS longitude coordinate", null=True),
                 ),
                 (
                     "bus_route",
-                    models.CharField(
-                        blank=True, help_text="Bus route identifier", max_length=100
-                    ),
+                    models.CharField(blank=True, help_text="Bus route identifier", max_length=100),
                 ),
                 (
                     "face_image_url",
@@ -155,15 +139,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "model_version",
-                    models.CharField(
-                        help_text="Face recognition model version used", max_length=50
-                    ),
+                    models.CharField(help_text="Face recognition model version used", max_length=50),
                 ),
                 (
                     "metadata",
-                    models.JSONField(
-                        default=dict, help_text="Additional metadata as JSON"
-                    ),
+                    models.JSONField(default=dict, help_text="Additional metadata as JSON"),
                 ),
                 (
                     "created_at",
@@ -186,12 +166,8 @@ class Migration(migrations.Migration):
                 "db_table": "boarding_events",
                 "ordering": ["-timestamp"],
                 "indexes": [
-                    models.Index(
-                        fields=["student", "timestamp"], name="idx_events_student_time"
-                    ),
-                    models.Index(
-                        fields=["kiosk_id", "timestamp"], name="idx_events_kiosk_time"
-                    ),
+                    models.Index(fields=["student", "timestamp"], name="idx_events_student_time"),
+                    models.Index(fields=["kiosk_id", "timestamp"], name="idx_events_kiosk_time"),
                     models.Index(fields=["timestamp"], name="idx_events_timestamp"),
                 ],
                 "constraints": [

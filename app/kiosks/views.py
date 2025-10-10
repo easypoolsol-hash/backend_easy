@@ -1,6 +1,7 @@
 from datetime import timedelta
 import hashlib
 import logging
+from typing import Any, cast
 
 from django.db.models import Count
 from django.http import HttpResponse
@@ -15,6 +16,7 @@ from rest_framework.decorators import (
     authentication_classes,
     permission_classes,
 )
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bus_kiosk_backend.permissions import IsSchoolAdmin
@@ -29,6 +31,7 @@ from .serializers import (
     HeartbeatSerializer,
     KioskActivationResponseSerializer,
     KioskActivationSerializer,
+    KioskSerializer,
 )
 from .services import SnapshotGenerator
 
@@ -73,7 +76,7 @@ def calculate_checksum(data: bytes) -> str:
 @api_view(["POST"])
 @authentication_classes([])  # No authentication required for activation
 @permission_classes([])  # Public endpoint
-def activate_kiosk_view(request):
+def activate_kiosk_view(request: Request) -> Response:
     """
     Fortune 500 Standard: DRF APIView for kiosk activation
 
@@ -129,8 +132,11 @@ def activate_kiosk_view(request):
     return Response(response_data, status=status.HTTP_200_OK)
 
 
-class KioskViewSet(viewsets.ModelViewSet):
+class KioskViewSet(viewsets.ModelViewSet[KioskSerializer, Kiosk]):
     """ViewSet for kiosk management (admin only)"""
+
+    queryset = Kiosk.objects.all()
+    serializer_class = KioskSerializer
 
 
 @extend_schema(
@@ -142,7 +148,7 @@ class KioskViewSet(viewsets.ModelViewSet):
 @api_view(["POST"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
-def kiosk_log(request):
+def kiosk_log(request: Request) -> Response:
     """
     Kiosk logging endpoint - devices can send log messages.
     Supports bulk logging for efficiency.
@@ -179,19 +185,16 @@ def kiosk_log(request):
                 log_level=log_data.get("level", "INFO"),
                 message=log_data.get("message", ""),
                 metadata=log_data.get("metadata", {}),
-                timestamp=log_data.get("timestamp")
-                or timezone.now(),  # Explicitly set timestamp
+                timestamp=log_data.get("timestamp") or timezone.now(),  # Explicitly set timestamp
             )
         )
 
     DeviceLog.objects.bulk_create(log_entries)
 
-    return Response(
-        {"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id}
-    )
+    return Response({"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id})
 
 
-class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
+class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet[DeviceLogSerializer, DeviceLog]):
     """Read-only ViewSet for device logs (admin only)"""
 
     queryset = DeviceLog.objects.select_related("kiosk").order_by("-timestamp")
@@ -203,17 +206,12 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
     # Only school admins can view device logs
 
     @action(detail=False, methods=["get"], url_path="summary")
-    def logs_summary(self, request):
+    def logs_summary(self: Any, request: Request) -> Response:
         """Get logs summary by level and time"""
         # Group logs by level for the last 24 hours
         yesterday = timezone.now() - timedelta(days=1)
 
-        summary = (
-            DeviceLog.objects.filter(timestamp__gte=yesterday)
-            .values("log_level")
-            .annotate(count=Count("log_id"))
-            .order_by("log_level")
-        )
+        summary = DeviceLog.objects.filter(timestamp__gte=yesterday).values("log_level").annotate(count=Count("log_id")).order_by("log_level")
 
         return Response({"period": "last 24 hours", "summary": list(summary)})
 
@@ -230,24 +228,23 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
 @api_view(["GET"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
-def check_updates(request, kiosk_id):
+def check_updates(request: Request, kiosk_id: str) -> Response:
     """
     Check if kiosk database needs updating.
 
     Compares kiosk's last_sync timestamp with bus's last_student_update.
     Returns metadata about current database version.
     """
-    try:
-        kiosk = Kiosk.objects.select_related("bus").get(kiosk_id=kiosk_id)
-    except Kiosk.DoesNotExist:
-        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
-
     # Verify authenticated kiosk matches requested kiosk_id
-    if request.user.kiosk_id != kiosk_id:
+    kiosk_user = cast(Kiosk, request.user)
+    if kiosk_user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
             status=status.HTTP_403_FORBIDDEN,
         )
+
+    # Use the authenticated kiosk object for subsequent operations
+    kiosk = kiosk_user
 
     if not kiosk.bus:
         return Response(
@@ -294,7 +291,7 @@ def check_updates(request, kiosk_id):
 @api_view(["GET"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
-def download_snapshot(request, kiosk_id):
+def download_snapshot(request: Request, kiosk_id: str) -> Response | HttpResponse:
     """
     Generates and serves a SQLite database snapshot for the specified kiosk.
 
@@ -306,7 +303,8 @@ def download_snapshot(request, kiosk_id):
     except Kiosk.DoesNotExist:
         return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.user.kiosk_id != kiosk_id:
+    kiosk_user = cast(Kiosk, request.user)
+    if kiosk_user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
             status=status.HTTP_403_FORBIDDEN,
@@ -325,9 +323,7 @@ def download_snapshot(request, kiosk_id):
 
         # 2. Create a direct file response.
         response = HttpResponse(snapshot_bytes, content_type="application/x-sqlite3")
-        response["Content-Disposition"] = (
-            f'attachment; filename="snapshot_{metadata["sync_timestamp"]}.db"'
-        )
+        response["Content-Disposition"] = f'attachment; filename="snapshot_{metadata["sync_timestamp"]}.db"'
         response["x-snapshot-checksum"] = calculate_checksum(snapshot_bytes)
 
         return response
@@ -349,7 +345,7 @@ def download_snapshot(request, kiosk_id):
 @api_view(["POST"])
 @authentication_classes([KioskJWTAuthentication])
 @permission_classes([IsKiosk])
-def heartbeat(request, kiosk_id):
+def heartbeat(request: Request, kiosk_id: str) -> Response:
     """
     Receive heartbeat from kiosk with health metrics and sync status.
 
@@ -362,7 +358,8 @@ def heartbeat(request, kiosk_id):
         return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
 
     # Verify authenticated kiosk matches requested kiosk_id
-    if request.user.kiosk_id != kiosk_id:
+    kiosk_user = cast(Kiosk, request.user)
+    if kiosk_user.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
             status=status.HTTP_403_FORBIDDEN,

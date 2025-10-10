@@ -38,22 +38,19 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/config/pyproject.toml') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        cp config/pyproject.toml app/pyproject.toml
-        cd app
         pip install -e .[dev,testing]
 
     - name: Run quality checks (fail fast)
       run: |
-        cd app
         ruff check --fix . || exit 1
-        mypy . --config-file ../config/mypy.ini --no-incremental || exit 1
+        mypy . --no-incremental || exit 1
 
   # Job 2: Unit Tests (Fast Feedback)
   unit-tests:
@@ -86,19 +83,17 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/config/pyproject.toml') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        cp config/pyproject.toml app/pyproject.toml
-        cd app
         pip install -e .[dev,testing]
 
     - name: Run migrations
-      run: cd app && python manage.py migrate --noinput
+      run: python app/manage.py migrate --noinput
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only
@@ -113,11 +108,10 @@ jobs:
 
     - name: Run unit tests (fast)
       run: |
-        cd app
         python -m pytest tests/unit/ -v --tb=short \
-          --cov=kiosks --cov=buses --cov=students --cov=events --cov=users --cov=bus_kiosk_backend \
-          --cov-config=../.coveragerc \
-          --cov-report=xml:../build/coverage.xml \
+          --cov=app/kiosks --cov=app/buses --cov=app/students --cov=app/events --cov=app/users --cov=app/bus_kiosk_backend \
+          --cov-config=.coveragerc \
+          --cov-report=xml:build/coverage.xml \
           --cov-report=term-missing \
           --cov-fail-under=80 \
           -n auto \
@@ -183,12 +177,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        cp config/pyproject.toml app/pyproject.toml
-        cd app
         pip install -e .[dev,testing]
 
     - name: Run migrations
-      run: cd app && python manage.py migrate --noinput
+      run: python app/manage.py migrate --noinput
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only
@@ -203,7 +195,6 @@ jobs:
 
     - name: Run integration tests
       run: |
-        cd app
         python -m pytest tests/integration/ -v --tb=short \
           --maxfail=3 \
           --durations=10
@@ -251,12 +242,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        cp config/pyproject.toml app/pyproject.toml
-        cd app
         pip install -e .[dev,testing]
 
     - name: Run migrations
-      run: cd app && python manage.py migrate --noinput
+      run: python app/manage.py migrate --noinput
       env:
         DEBUG: true
         SECRET_KEY: test-secret-key-for-testing-only
@@ -270,7 +259,6 @@ jobs:
 
     - name: Run API contract tests
       run: |
-        cd app
         python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
           --maxfail=3
       env:

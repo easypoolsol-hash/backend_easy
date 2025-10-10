@@ -319,9 +319,7 @@ class KioskActivationTokenAdmin(admin.ModelAdmin):
             color = "gray"
             text = "EXPIRED"
         return format_html(
-            (
-                '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>'
-            ),
+            ('<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>'),
             color,
             text,
         )

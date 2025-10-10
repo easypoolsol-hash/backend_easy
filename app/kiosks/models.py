@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -48,15 +53,9 @@ class Kiosk(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Battery level percentage (0-100)",
     )
-    storage_used_mb = models.PositiveIntegerField(
-        null=True, blank=True, help_text="Storage used in MB on the device"
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True, help_text="When this kiosk was registered"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True, help_text="When this kiosk record was last updated"
-    )
+    storage_used_mb = models.PositiveIntegerField(null=True, blank=True, help_text="Storage used in MB on the device")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this kiosk was registered")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this kiosk record was last updated")
 
     class Meta:
         db_table = "kiosks"
@@ -147,23 +146,15 @@ class KioskStatus(models.Model):
         related_name="status",
         help_text="Kiosk this status belongs to",
     )
-    last_heartbeat = models.DateTimeField(
-        help_text="Last heartbeat received from kiosk"
-    )
-    database_version = models.CharField(
-        max_length=50, help_text="Timestamp of current database version"
-    )
+    last_heartbeat = models.DateTimeField(help_text="Last heartbeat received from kiosk")
+    database_version = models.CharField(max_length=50, help_text="Timestamp of current database version")
     database_hash = models.CharField(
         max_length=32,
         blank=True,
         help_text="Content hash of kiosk database (for integrity)",
     )
-    student_count = models.IntegerField(
-        default=0, help_text="Number of students in kiosk database"
-    )
-    embedding_count = models.IntegerField(
-        default=0, help_text="Number of embeddings in kiosk database"
-    )
+    student_count = models.IntegerField(default=0, help_text="Number of students in kiosk database")
+    embedding_count = models.IntegerField(default=0, help_text="Number of embeddings in kiosk database")
 
     # Health metrics
     battery_level = models.IntegerField(
@@ -173,32 +164,20 @@ class KioskStatus(models.Model):
         help_text="Battery level percentage (0-100)",
     )
     is_charging = models.BooleanField(default=False, help_text="Is device charging")
-    storage_available_mb = models.IntegerField(
-        null=True, blank=True, help_text="Available storage in MB"
-    )
-    camera_active = models.BooleanField(
-        default=False, help_text="Is camera currently active"
-    )
+    storage_available_mb = models.IntegerField(null=True, blank=True, help_text="Available storage in MB")
+    camera_active = models.BooleanField(default=False, help_text="Is camera currently active")
     network_type = models.CharField(
         max_length=20,
         null=True,
         blank=True,
         help_text="Network type (wifi, 4g, none)",
     )
-    app_version = models.CharField(
-        max_length=20, null=True, blank=True, help_text="Kiosk app version"
-    )
+    app_version = models.CharField(max_length=20, null=True, blank=True, help_text="Kiosk app version")
 
     # Activity stats
-    last_face_detected = models.DateTimeField(
-        null=True, blank=True, help_text="Last time a face was detected"
-    )
-    faces_detected_today = models.IntegerField(
-        default=0, help_text="Faces detected today"
-    )
-    students_identified_today = models.IntegerField(
-        default=0, help_text="Students identified today"
-    )
+    last_face_detected = models.DateTimeField(null=True, blank=True, help_text="Last time a face was detected")
+    faces_detected_today = models.IntegerField(default=0, help_text="Faces detected today")
+    students_identified_today = models.IntegerField(default=0, help_text="Students identified today")
 
     # Status
     status = models.CharField(
@@ -207,12 +186,8 @@ class KioskStatus(models.Model):
         default="ok",
         help_text="Overall kiosk status",
     )
-    last_error = models.TextField(
-        null=True, blank=True, help_text="Last error message if any"
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True, help_text="When this status was last updated"
-    )
+    last_error = models.TextField(null=True, blank=True, help_text="Last error message if any")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this status was last updated")
 
     class Meta:
         db_table = "kiosk_status"
@@ -258,25 +233,17 @@ class DeviceLog(models.Model):
         ("CRITICAL", "Critical"),
     ]
 
-    log_id = models.BigAutoField(
-        primary_key=True, help_text="Auto-incrementing log entry ID"
-    )
+    log_id = models.BigAutoField(primary_key=True, help_text="Auto-incrementing log entry ID")
     kiosk = models.ForeignKey(
         Kiosk,
         on_delete=models.CASCADE,
         related_name="logs",
         help_text="Kiosk that generated this log entry",
     )
-    log_level = models.CharField(
-        max_length=20, choices=LOG_LEVELS, help_text="Log level severity"
-    )
+    log_level = models.CharField(max_length=20, choices=LOG_LEVELS, help_text="Log level severity")
     message = models.TextField(help_text="Log message content")
-    metadata = models.JSONField(
-        default=dict, blank=True, help_text="Additional structured data as JSON"
-    )
-    timestamp = models.DateTimeField(
-        default=timezone.now, help_text="When this log entry was created"
-    )
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional structured data as JSON")
+    timestamp = models.DateTimeField(default=timezone.now, help_text="When this log entry was created")
 
     class Meta:
         db_table = "device_logs"
@@ -294,7 +261,14 @@ class DeviceLog(models.Model):
         return f"[{self.timestamp}] {self.kiosk.kiosk_id} {self.log_level}: {self.message[:50]}..."
 
     @classmethod
-    def log(cls, kiosk, level, message, metadata=None, timestamp=None):
+    def log(
+        cls: type[DeviceLog],
+        kiosk: Kiosk,
+        level: str,
+        message: str,
+        metadata: dict[str, Any] | None = None,
+        timestamp: datetime | None = None,
+    ) -> DeviceLog:
         """Convenience method to create a log entry"""
         data = {
             "kiosk": kiosk,
@@ -329,24 +303,16 @@ class KioskActivationToken(models.Model):
         help_text="HMAC-SHA256 hash of activation token",
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True, help_text="When this activation token was created"
-    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this activation token was created")
 
     expires_at = models.DateTimeField(help_text="Token expires after 24 hours")
 
     # One-time use tracking
-    is_used = models.BooleanField(
-        default=False, help_text="Whether this token has been used for activation"
-    )
+    is_used = models.BooleanField(default=False, help_text="Whether this token has been used for activation")
 
-    used_at = models.DateTimeField(
-        null=True, blank=True, help_text="When this token was used for activation"
-    )
+    used_at = models.DateTimeField(null=True, blank=True, help_text="When this token was used for activation")
 
-    used_by_ip = models.GenericIPAddressField(
-        null=True, blank=True, help_text="IP address that used this token"
-    )
+    used_by_ip = models.GenericIPAddressField(null=True, blank=True, help_text="IP address that used this token")
 
     class Meta:
         db_table = "kiosk_activation_tokens"
@@ -385,9 +351,7 @@ class KioskActivationToken(models.Model):
         raw_token = secrets.token_urlsafe(32)
 
         # Hash with HMAC for security (database breach protection)
-        token_hash = hmac.new(
-            settings.SECRET_KEY.encode(), raw_token.encode(), sha256
-        ).hexdigest()
+        token_hash = hmac.new(settings.SECRET_KEY.encode(), raw_token.encode(), sha256).hexdigest()
 
         # Create database record
         from datetime import timedelta

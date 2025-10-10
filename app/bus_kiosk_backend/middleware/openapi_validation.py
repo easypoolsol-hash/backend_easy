@@ -38,18 +38,14 @@ class OpenAPIValidationMiddleware:
 
         self.validate_requests = getattr(settings, "OPENAPI_VALIDATE_REQUESTS", True)
         self.validate_responses = getattr(settings, "OPENAPI_VALIDATE_RESPONSES", True)
-        self.fail_on_validation_error = getattr(
-            settings, "OPENAPI_FAIL_ON_ERROR", False
-        )
+        self.fail_on_validation_error = getattr(settings, "OPENAPI_FAIL_ON_ERROR", False)
 
     @property
     def spec(self):
         """Lazy load OpenAPI specification."""
         if self._spec is None:
             # Load schema directly using prance
-            base_dir = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            )
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             schema_path = os.path.join(base_dir, "openapi-schema.yaml")
 
             try:
@@ -58,9 +54,7 @@ class OpenAPIValidationMiddleware:
                 self._spec = Spec.from_dict(schema_dict)
             except Exception as e:
                 logger.error(f"Failed to load OpenAPI schema: {e}")
-                logger.warning(
-                    "OpenAPI validation will be disabled due to schema loading failure"
-                )
+                logger.warning("OpenAPI validation will be disabled due to schema loading failure")
                 # Set a flag to disable validation instead of crashing
                 self._validation_disabled = True
                 self._spec = None  # Keep as None to indicate failure
@@ -76,9 +70,7 @@ class OpenAPIValidationMiddleware:
             validation_result = self._validate_request(request)
             if not validation_result["valid"]:
                 if self.fail_on_validation_error:
-                    return self._handle_validation_error(
-                        request, validation_result, "request"
-                    )
+                    return self._handle_validation_error(request, validation_result, "request")
                 logger.warning(
                     "OpenAPI Request Validation Failed: %s %s",
                     request.path,
@@ -93,9 +85,7 @@ class OpenAPIValidationMiddleware:
             validation_result = self._validate_response(request, response)
             if not validation_result["valid"]:
                 if self.fail_on_validation_error:
-                    return self._handle_validation_error(
-                        request, validation_result, "response"
-                    )
+                    return self._handle_validation_error(request, validation_result, "response")
                 logger.warning(
                     "OpenAPI Response Validation Failed: %s %s",
                     request.path,
@@ -111,9 +101,7 @@ class OpenAPIValidationMiddleware:
         # - Health checks
         # - Admin endpoints
         skip_paths = ["/health/", "/admin/", "/static/", "/media/"]
-        return request.path.startswith("/api/") and not any(
-            request.path.startswith(path) for path in skip_paths
-        )
+        return request.path.startswith("/api/") and not any(request.path.startswith(path) for path in skip_paths)
 
     def _should_validate_response(self, response) -> bool:
         """Determine if response should be validated."""
@@ -147,9 +135,7 @@ class OpenAPIValidationMiddleware:
     def _handle_validation_error(self, request, validation_result, validation_type):
         """Handle validation errors based on configuration."""
         error_msg = f"OpenAPI {validation_type.title()} Validation Failed"
-        logger.error(
-            "%s: %s - %s", error_msg, request.path, validation_result["errors"]
-        )
+        logger.error("%s: %s - %s", error_msg, request.path, validation_result["errors"])
 
         return JsonResponse(
             {

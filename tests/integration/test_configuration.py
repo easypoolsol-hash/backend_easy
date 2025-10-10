@@ -17,7 +17,7 @@ try:
     PRANCE_AVAILABLE = True
 except ImportError:
     PRANCE_AVAILABLE = False
-    OpenAPISchemaValidator = None
+    OpenAPISchemaValidator = None  # type: ignore[misc,assignment]
 
 
 @pytest.mark.django_db
@@ -236,8 +236,8 @@ class TestJWTConfigurationVariations:
         from tests.factories import UserFactory
 
         user = UserFactory()
-        user.set_password("testpass123")
-        user.save()
+        user.set_password("testpass123")  # type: ignore[attr-defined]
+        user.save()  # type: ignore[attr-defined]
 
         # Login with custom claim configuration
         response = api_client.post(
@@ -283,10 +283,10 @@ class TestJWTConfigurationVariations:
         from tests.factories import UserFactory
 
         user = UserFactory()
-        user.set_password("testpass123")
-        user.save()
+        user.set_password("testpass123")  # type: ignore[attr-defined]
+        user.save()  # type: ignore[attr-defined]
 
-        original_last_login = user.last_login
+        original_last_login = user.last_login  # type: ignore[attr-defined]
 
         # Login with update_last_login enabled
         response = api_client.post(
@@ -305,9 +305,9 @@ class TestJWTConfigurationVariations:
         )
 
         # Refresh user and verify last_login was updated
-        user.refresh_from_db()
-        assert user.last_login != original_last_login
-        assert user.last_login is not None
+        user.refresh_from_db()  # type: ignore[attr-defined]
+        assert user.last_login != original_last_login  # type: ignore[attr-defined]
+        assert user.last_login is not None  # type: ignore[attr-defined]
 
     def test_sliding_token_configuration(self, api_client, test_kiosk):
         """

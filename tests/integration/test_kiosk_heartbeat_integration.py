@@ -10,6 +10,8 @@ Fortune 500 Testing Standards:
 - Real-world scenario simulation
 """
 
+from datetime import timedelta
+
 from django.utils import timezone
 import pytest
 from rest_framework import status
@@ -122,9 +124,7 @@ class TestKioskHeartbeatIntegration:
             (15, True, "ok"),
         ],
     )
-    def test_heartbeat_status_determination_integration(
-        self, api_client, test_kiosk, battery_level, is_charging, expected_status
-    ):
+    def test_heartbeat_status_determination_integration(self, api_client, test_kiosk, battery_level, is_charging, expected_status):
         """
         Test that heartbeat correctly determines kiosk status based on battery.
 
@@ -228,9 +228,7 @@ class TestKioskHeartbeatIntegration:
         assert kiosk_status.battery_level == 60
         assert kiosk_status.student_count == 120
 
-    def test_heartbeat_without_existing_status_creates_new(
-        self, api_client, test_kiosk
-    ):
+    def test_heartbeat_without_existing_status_creates_new(self, api_client, test_kiosk):
         """
         Test that heartbeat creates new status record when none exists.
 
@@ -344,9 +342,7 @@ class TestKioskHeartbeatErrorHandling:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     @pytest.mark.parametrize("invalid_battery", [-1, 101, 150, "invalid", None])
-    def test_heartbeat_invalid_battery_data(
-        self, api_client, test_kiosk, invalid_battery
-    ):
+    def test_heartbeat_invalid_battery_data(self, api_client, test_kiosk, invalid_battery):
         """
         Test heartbeat with invalid battery data.
 
@@ -510,9 +506,7 @@ class TestKioskHeartbeatPerformance:
                 }
 
                 response = client.post(
-                    openapi_helper(
-                        operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-                    ),
+                    openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id),
                     heartbeat_data,
                     HTTP_AUTHORIZATION=f"Bearer {token}",
                     format="json",
@@ -529,9 +523,7 @@ class TestKioskHeartbeatPerformance:
         assert not errors
         assert len(results) == 5
         for kiosk_id, status_code in results:
-            assert (
-                status_code == status.HTTP_204_NO_CONTENT
-            ), f"Heartbeat failed for {kiosk_id} with status {status_code}"
+            assert status_code == status.HTTP_204_NO_CONTENT, f"Heartbeat failed for {kiosk_id} with status {status_code}"
 
         # Verify all kiosks have status records
         for kiosk in kiosks:
@@ -560,9 +552,7 @@ class TestKioskHeartbeatPerformance:
         base_time = timezone.now()
 
         for i in range(3):
-            heartbeat_time = base_time + timezone.timedelta(
-                seconds=i * 30
-            )  # 30 second intervals
+            heartbeat_time = base_time + timedelta(seconds=i * 30)  # 30 second intervals
 
             heartbeat_data = {
                 "timestamp": heartbeat_time.isoformat(),

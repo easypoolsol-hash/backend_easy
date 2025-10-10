@@ -22,9 +22,7 @@ class TestOpenAPIContractCompliance:
             schema = yaml.safe_load(f)
         return schema
 
-    def test_kiosk_activation_contract(
-        self, api_client, test_kiosk, load_openapi_schema, openapi_helper
-    ):
+    def test_kiosk_activation_contract(self, api_client, test_kiosk, load_openapi_schema, openapi_helper):
         """
         Test kiosk activation endpoint matches OpenAPI contract
 
@@ -69,8 +67,8 @@ class TestOpenAPIContractCompliance:
         from tests.factories import UserFactory
 
         user = UserFactory()
-        user.set_password("testpass123")
-        user.save()
+        user.set_password("testpass123")  # type: ignore[attr-defined]
+        user.save()  # type: ignore[attr-defined]
 
         response = api_client.post(
             "/api/v1/users/login/",
@@ -131,9 +129,7 @@ class TestOpenAPIContractCompliance:
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
 
         # Test heartbeat endpoint
-        heartbeat_path = openapi_helper(
-            operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id
-        )
+        heartbeat_path = openapi_helper(operation_id="kiosk_heartbeat", kiosk_id=kiosk.kiosk_id)
         response = api_client.post(
             heartbeat_path,
             {

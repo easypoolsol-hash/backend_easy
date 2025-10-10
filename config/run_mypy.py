@@ -32,12 +32,8 @@ def main():
         "mypy",
         "--config-file",
         config_file,
-        "bus_kiosk_backend/",
-        "buses/",
-        "events/",
-        "kiosks/",
-        "students/",
-        "users/",
+        ".",  # Check entire app directory like CI does
+        "--no-incremental",
     ]
 
     # Run subprocess without shell to avoid shell injection risks.
