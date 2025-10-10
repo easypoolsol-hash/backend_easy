@@ -59,6 +59,7 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       REDIS_URL: redis://redis:6379/0
+    # Ensure web starts after postgres and redis are started
     depends_on:
       - postgres
       - redis
