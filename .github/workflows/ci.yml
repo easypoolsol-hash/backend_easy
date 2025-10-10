@@ -108,7 +108,8 @@ jobs:
 
     - name: Run unit tests (fast)
       run: |
-        python -m pytest tests/unit/ -v --tb=short \
+        # Exclude heavy performance and schemathesis tests in PR/push CI
+        python -m pytest tests/unit/ -m "not slow and not schemathesis" -v --tb=short \
           --cov=app/kiosks --cov=app/buses --cov=app/students --cov=app/events --cov=app/users --cov=app/bus_kiosk_backend \
           --cov-config=.coveragerc \
           --cov-report=xml:build/coverage.xml \
@@ -195,7 +196,8 @@ jobs:
 
     - name: Run integration tests
       run: |
-        python -m pytest tests/integration/ -v --tb=short \
+        # Exclude heavy performance and schemathesis tests in PR/push CI
+        python -m pytest tests/integration/ -m "not slow and not schemathesis" -v --tb=short \
           --maxfail=3 \
           --durations=10
       env:
