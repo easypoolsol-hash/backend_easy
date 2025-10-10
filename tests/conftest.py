@@ -62,11 +62,7 @@ def ensure_fernet_key():
     yield
 
 
-# Ensure Django settings module is set and apps are loaded early so that importing
-# models during test collection (some tests import models at module level) does
-# not raise AppRegistryNotReady.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.test_settings")
-django.setup()
+# (django.setup() already called above)
 
 
 @pytest.fixture(scope="session")
