@@ -34,6 +34,7 @@ env:
   CELERY_BROKER_URL: redis://localhost:6379/0
   CELERY_RESULT_BACKEND: redis://localhost:6379/0
   DJANGO_SETTINGS_MODULE: bus_kiosk_backend.test_settings
+  PYTHONPATH: ${{ github.workspace }}/app:${{ github.workspace }}
 
 jobs:
   # Job 1: Fast Quality Checks (Fail Fast)
