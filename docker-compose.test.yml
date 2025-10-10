@@ -59,6 +59,9 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       REDIS_URL: redis://redis:6379/0
+    ports:
+      # Publish web port so tests running on the CI runner can access the container
+      - "8000:8000"
     # Ensure web starts after postgres and redis are started
     depends_on:
       - postgres
