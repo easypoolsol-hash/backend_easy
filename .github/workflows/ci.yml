@@ -72,21 +72,21 @@ jobs:
 
     - name: Start test services (compose)
       run: |
-        docker-compose -f docker-compose.test.yml up -d --build
+        docker compose -f docker-compose.test.yml up -d --build
         # wait for postgres
-        docker-compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
+        docker compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
 
     - name: Install dependencies in web container
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
+        docker compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
 
     - name: Run migrations (inside web)
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
+        docker compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
 
     - name: Run unit tests (inside web)
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web python -m pytest tests/unit/ -v --tb=short \
+        docker compose -f docker-compose.test.yml exec -T web python -m pytest tests/unit/ -v --tb=short \
           --cov=app/kiosks --cov=app/buses --cov=app/students --cov=app/events --cov=app/users --cov=app/bus_kiosk_backend \
           --cov-config=.coveragerc \
           --cov-report=xml:build/coverage.xml \
@@ -107,7 +107,7 @@ jobs:
 
     - name: Stop test services
       if: always()
-      run: docker-compose -f docker-compose.test.yml down --volumes
+      run: docker compose -f docker-compose.test.yml down --volumes
 
   # Job 3: Integration Tests (Parallel with unit tests)
   integration-tests:
@@ -119,26 +119,26 @@ jobs:
 
     - name: Start test services (compose)
       run: |
-        docker-compose -f docker-compose.test.yml up -d --build
-        docker-compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
+        docker compose -f docker-compose.test.yml up -d --build
+        docker compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
 
     - name: Install dependencies in web container
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
+        docker compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
 
     - name: Run migrations (inside web)
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
+        docker compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
 
     - name: Run integration tests (inside web)
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web python -m pytest tests/integration/ -v --tb=short \
+        docker compose -f docker-compose.test.yml exec -T web python -m pytest tests/integration/ -v --tb=short \
           --maxfail=3 \
           --durations=10
 
     - name: Stop test services
       if: always()
-      run: docker-compose -f docker-compose.test.yml down --volumes
+      run: docker compose -f docker-compose.test.yml down --volumes
 
   # Job 4: API Contract Tests (Parallel with integration)
   contract-tests:
@@ -150,25 +150,25 @@ jobs:
 
     - name: Start test services (compose)
       run: |
-        docker-compose -f docker-compose.test.yml up -d --build
-        docker-compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
+        docker compose -f docker-compose.test.yml up -d --build
+        docker compose -f docker-compose.test.yml exec -T postgres bash -c 'for i in {1..30}; do pg_isready -U postgres -d test_db && exit 0 || sleep 2; done'
 
     - name: Install dependencies in web container
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
+        docker compose -f docker-compose.test.yml exec -T web bash -lc 'python -m pip install --upgrade pip && pip install -e .[dev,testing]'
 
     - name: Run migrations (inside web)
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
+        docker compose -f docker-compose.test.yml exec -T web python manage.py migrate --noinput
 
     - name: Run API contract tests (inside web)
       run: |
-        docker-compose -f docker-compose.test.yml exec -T web python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
+        docker compose -f docker-compose.test.yml exec -T web python -m pytest tests/ -k "schemathesis or contract" -v --tb=short \
           --maxfail=3
 
     - name: Stop test services
       if: always()
-      run: docker-compose -f docker-compose.test.yml down --volumes
+      run: docker compose -f docker-compose.test.yml down --volumes
 
   # Job 5: Build Docker Image (starts early)
   build:
