@@ -106,6 +106,19 @@ jobs:
             sleep 3
           done
           pytest tests/integration/ -v --tb=short --maxfail=3
+      - name: Collect debug logs on failure
+        if: failure()
+        run: |
+          echo "=== docker compose ps -a ==="
+          docker compose -f docker-compose.test.yml ps -a || true
+          echo "=== logs: web ==="
+          docker compose -f docker-compose.test.yml logs web --tail=500 || true
+          echo "=== logs: postgres ==="
+          docker compose -f docker-compose.test.yml logs postgres --tail=200 || true
+          echo "=== logs: redis ==="
+          docker compose -f docker-compose.test.yml logs redis --tail=200 || true
+          echo "=== docker inspect test_web ==="
+          docker inspect test_web || true
       - name: Copy coverage
         if: always()
         run: |
