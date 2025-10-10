@@ -68,6 +68,7 @@ dependencies = [
     "openapi-core[django]>=0.18.0,<2.0",  # Production-ready OpenAPI validation
     "openapi-schema-validator>=0.6.3,<0.7",  # OpenAPI schema validation
     "openapi-spec-validator>=0.7.2,<0.8",  # OpenAPI spec validation
+    "prance>=0.20.0,<26.0",  # OpenAPI parsing for validation middleware
 
     # Utilities
     "python-decouple>=3.8,<4.0",
