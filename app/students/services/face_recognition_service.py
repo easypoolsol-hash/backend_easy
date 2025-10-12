@@ -99,7 +99,7 @@ class FaceRecognitionService:
 
             # Convert to RGB if necessary
             if pil_image.mode != "RGB":
-                pil_image = pil_image.convert("RGB")
+                pil_image = pil_image.convert("RGB")  # type: ignore[assignment]
 
             return pil_image
         except Exception as e:
