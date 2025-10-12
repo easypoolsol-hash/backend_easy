@@ -17,10 +17,8 @@ else:
 
     File = FileType  # type: ignore[misc, assignment]
 
-from ..face_recognition_config import (
-    FACE_RECOGNITION_CONFIG,
-    get_enabled_models,
-)
+from ml_models.config import FACE_RECOGNITION_MODELS, FACE_RECOGNITION_SERVICE_CONFIG
+
 from ..models import FaceEmbeddingMetadata, StudentPhoto
 
 logger = logging.getLogger(__name__)
@@ -33,8 +31,8 @@ class FaceRecognitionService:
     """
 
     def __init__(self) -> None:
-        self.enabled_models = get_enabled_models()
-        self.config = FACE_RECOGNITION_CONFIG
+        self.enabled_models = {name: cfg for name, cfg in FACE_RECOGNITION_MODELS.items() if cfg["enabled"]}
+        self.config = FACE_RECOGNITION_SERVICE_CONFIG
         self._model_instances: dict[str, Any] = {}
         self._face_detector: Any = None  # Lazy load on first use
 

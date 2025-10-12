@@ -64,10 +64,39 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
       # Publish web port so tests running on the CI runner can access the container
       - "8000:8000"
     # Ensure web starts after postgres and redis are started
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - test_network
+
+  # Celery worker (SAME image as web, different command)
+  celery_worker:
+    image: bus_kiosk_backend:test
+    container_name: test_celery_worker
+    working_dir: /app
+    command: celery -A bus_kiosk_backend worker --loglevel=info
+    volumes:
+      - ./app:/app:cached
+      - ./ml_models:/app/ml_models:cached
+    environment:
+      DEBUG: 'true'
+      SECRET_KEY: test-secret-key-for-testing-only
+      DB_ENGINE: django.db.backends.postgresql
+      DB_NAME: test_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
       - postgres
       - redis

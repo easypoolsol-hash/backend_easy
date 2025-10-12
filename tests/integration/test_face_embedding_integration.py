@@ -1,17 +1,18 @@
 """
-Integration tests for face recognition with REAL models and images.
-These tests use actual TFLite models and real face detection.
+Integration tests for face embedding generation with REAL models.
+Tests actual TFLite models and OpenCV face detection (not mocked).
 
-Tests are marked as 'slow' and 'integration' - run separately from fast unit tests.
+This tests EMBEDDING GENERATION, not face recognition/matching.
+Marked as 'slow' and 'integration' - run separately from unit tests.
 
 Usage:
-    # Run only fast unit tests (mocked)
-    pytest tests/unit/test_face_recognition.py
+    # Fast unit tests (mocked)
+    pytest tests/unit/test_face_embedding.py
 
-    # Run real integration tests (this file)
-    pytest tests/integration/test_face_recognition_real.py -v
+    # Real integration tests (this file - needs models)
+    pytest tests/integration/test_face_embedding_integration.py -v
 
-    # Run all tests
+    # All tests
     pytest tests/
 """
 
@@ -278,8 +279,8 @@ class TestRealTFLiteModel:
 @pytest.mark.django_db
 @pytest.mark.integration
 @pytest.mark.slow
-class TestRealEndToEnd:
-    """End-to-end tests with real models and images."""
+class TestEmbeddingPipelineEndToEnd:
+    """End-to-end embedding generation pipeline (real models)."""
 
     def test_service_processes_synthetic_face(self, face_image_file):
         """Test complete pipeline with synthetic face image."""
@@ -361,24 +362,24 @@ class TestConfigAndSetup:
 
     def test_face_recognition_config_valid(self):
         """Test face recognition configuration is valid."""
-        from students.face_recognition_config import (
-            FACE_RECOGNITION_CONFIG,
-            get_enabled_models,
+        from ml_models.config import (
+            FACE_RECOGNITION_MODELS,
+            FACE_RECOGNITION_SERVICE_CONFIG,
         )
 
-        config = FACE_RECOGNITION_CONFIG
+        config = FACE_RECOGNITION_SERVICE_CONFIG
         assert "max_faces_per_image" in config
         assert config["max_faces_per_image"] >= 1
 
-        enabled_models = get_enabled_models()
+        enabled_models = {name: cfg for name, cfg in FACE_RECOGNITION_MODELS.items() if cfg["enabled"]}
         assert len(enabled_models) > 0, "At least one model should be enabled"
         assert "mobilefacenet" in enabled_models
 
     def test_quality_threshold_reasonable(self):
         """Test quality threshold is reasonable."""
-        from students.face_recognition_config import get_enabled_models
+        from ml_models.config import FACE_RECOGNITION_MODELS
 
-        enabled_models = get_enabled_models()
+        enabled_models = {name: cfg for name, cfg in FACE_RECOGNITION_MODELS.items() if cfg["enabled"]}
 
         for model_name, config in enabled_models.items():
             threshold = config.get("quality_threshold", 0.0)

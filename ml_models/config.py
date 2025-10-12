@@ -35,3 +35,28 @@ PROCESSING_CONFIG = {
     "timeout_seconds": 30,
     "max_faces_per_image": 1,  # Only process single face per photo
 }
+
+# Model Registry - maps model names to ML implementations
+FACE_RECOGNITION_MODELS = {
+    "mobilefacenet": {
+        "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",
+        "dimensions": MOBILEFACENET_CONFIG["output_dims"],
+        "enabled": True,
+        "quality_threshold": 0.7,
+        "description": "MobileFaceNet - Matches frontend exactly (zero drift)",
+    },
+    # Add more models here in future
+}
+
+# Service-level config (business logic)
+FACE_RECOGNITION_SERVICE_CONFIG = {
+    "max_concurrent_processes": 2,
+    "retry_attempts": 3,
+    "embedding_batch_size": 10,
+    "max_image_size_mb": 10,
+    "max_faces_per_image": PROCESSING_CONFIG["max_faces_per_image"],
+}
+
+MODEL_LOADING_CONFIG = {
+    "preload_enabled_models": True,
+}

@@ -1,6 +1,7 @@
 """
-Unit tests for face recognition service and signal handlers.
-Tests embedding generation, face detection, and auto-processing.
+Unit tests for face embedding generation service.
+Tests photo processing pipeline: detection → embedding → storage.
+NOT face recognition/matching (that's a separate future feature).
 """
 
 import io
@@ -103,7 +104,7 @@ def mock_mobilefacenet():
 
 
 @pytest.mark.django_db
-class TestFaceRecognitionSignal:
+class TestEmbeddingGenerationSignal:
     """Test automatic embedding generation via Django signals."""
 
     @patch("students.tasks.process_student_photo_embedding_task.delay")
@@ -142,8 +143,8 @@ class TestFaceRecognitionSignal:
 
 
 @pytest.mark.django_db
-class TestFaceRecognitionService:
-    """Test FaceRecognitionService directly."""
+class TestEmbeddingService:
+    """Test embedding generation service directly."""
 
     def test_service_lazy_loads_ml_libraries(self):
         """Test that service doesn't load ML libraries until needed."""
@@ -296,24 +297,29 @@ class TestEdgeCases:
 
 
 @pytest.mark.django_db
-class TestIntegration:
-    """Integration tests with real flow."""
+class TestServiceDirectCall:
+    """Test service called directly (bypass signals/Celery)."""
 
-    def test_end_to_end_photo_upload_to_embedding(self, real_face_image, mock_face_detector, mock_mobilefacenet):
-        """Test complete flow: upload photo → detect face → generate embedding."""
+    def test_photo_to_embedding_direct_service_call(self, real_face_image, mock_face_detector, mock_mobilefacenet):
+        """Test calling service directly (no Celery/signals)."""
         student = StudentFactory()
 
-        # Simulate API upload
-        photo = StudentPhotoFactory(student=student, photo=real_face_image)
+        # Create photo WITHOUT triggering signal
+        photo = StudentPhotoFactory.build(student=student)
+        photo.photo = real_face_image
+        photo.save()
 
-        # Verify complete flow
-        assert photo.photo_id is not None, "Photo should be created"
-        assert photo.student == student, "Photo should be linked to student"
+        # Call service directly (bypass Celery)
+        service = FaceRecognitionService()
+        result = service.process_student_photo(photo)
 
+        assert result is True, "Processing should succeed"
+
+        # Verify embeddings created
         embeddings = FaceEmbeddingMetadata.objects.filter(student_photo=photo)
-        assert embeddings.exists(), "Embeddings should be auto-generated"
+        assert embeddings.exists(), "Embeddings should be created"
 
         for embedding in embeddings:
-            assert len(embedding.embedding) > 0, "Embedding vector should exist"
-            assert embedding.quality_score > 0, "Quality score should be positive"
-            assert embedding.model_name in ["mobilefacenet"], "Model name should be valid"
+            assert len(embedding.embedding) > 0
+            assert embedding.quality_score > 0
+            assert embedding.model_name in ["mobilefacenet"]

@@ -71,8 +71,9 @@ repos:
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.13.3
     hooks:
-      - id: ruff-format
       - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]  # Auto-fix + fail if changes made
+      - id: ruff-format
 
   # Black - DISABLED: conflicts with ruff-format
   # - repo: https://github.com/psf/black
@@ -81,17 +82,17 @@ repos:
   #     - id: black
   #       language_version: python3.10
 
-  # Standard Python hooks (bonus - code quality)
-  # Type checking and security
+  # Type checking - matches CI configuration
   - repo: local
     hooks:
       - id: mypy
-        name: mypy
+        name: mypy (full project check)
         entry: mypy
-        language: python
-        files: ^app/.*\.py$
-        args: [--strict]
-        additional_dependencies: [django-stubs]
+        language: system
+        pass_filenames: false  # Run on whole project, not per-file
+        args: [., --no-incremental]  # Match CI exactly
+        types: [python]
+        stages: [commit]
 
   # Pylint - DISABLED: version incompatibility with pylint-django
   # - repo: local
