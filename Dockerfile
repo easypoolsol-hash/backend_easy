@@ -64,6 +64,9 @@ COPY --chown=django:django app/ .
 RUN mkdir -p /app/staticfiles /app/media /app/logs && \
     chown -R django:django /app
 
+# Set PYTHONPATH to include /app for ml_models
+ENV PYTHONPATH=/app
+
 # Collect static files (optional, can be done at runtime)
 # RUN python manage.py collectstatic --noinput --clear
 
