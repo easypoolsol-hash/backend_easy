@@ -180,6 +180,15 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 CELERY_WORKER_CONCURRENCY = 4
 
+# Celery Results - Keep for debugging and monitoring
+CELERY_RESULT_EXPIRES = 86400  # Keep results for 24 hours (86400 seconds)
+
+# Celery Task Routing - Route ML tasks to dedicated ML queue
+CELERY_TASK_ROUTES = {
+    "students.tasks.process_student_photo_embedding_task": {"queue": "ml_tasks"},
+    # Other tasks go to default queue
+}
+
 # Celery Beat Settings
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
