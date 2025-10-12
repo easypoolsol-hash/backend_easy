@@ -6,7 +6,7 @@ Uses pre-trained ResNet SSD model for face detection.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
 
@@ -30,7 +30,8 @@ class FaceDetector:
 
     def __init__(self) -> None:
         self.config = FACE_DETECTION_CONFIG
-        self.net = None  # Lazy load on first use
+        self.net: Any = None  # Lazy load on first use (cv2 types not available)
+        self.use_haar: bool = False
 
     def _load_model(self) -> None:
         """Lazy load OpenCV DNN face detection model."""
@@ -42,10 +43,10 @@ class FaceDetector:
 
         # If model files don't exist, use Haar Cascade as fallback
         if not model_path.exists() or not config_path.exists():
-            self.net = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+            self.net = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")  # type: ignore[attr-defined,assignment]
             self.use_haar = True
         else:
-            self.net = cv2.dnn.readNetFromCaffe(str(config_path), str(model_path))
+            self.net = cv2.dnn.readNetFromCaffe(str(config_path), str(model_path))  # type: ignore[assignment]
             self.use_haar = False
 
     def detect(self, image: np.ndarray) -> list[FaceDetection]:
@@ -73,7 +74,7 @@ class FaceDetector:
         if hasattr(self, "use_haar") and self.use_haar:
             # Haar Cascade detection (fallback - lightweight)
             gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-            faces = self.net.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            faces = self.net.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))  # type: ignore[attr-defined]
 
             for x, y, width, height in faces:
                 detections.append(
@@ -85,8 +86,8 @@ class FaceDetector:
         else:
             # DNN detection (better accuracy)
             blob = cv2.dnn.blobFromImage(image_bgr, 1.0, (300, 300), (104.0, 177.0, 123.0))
-            self.net.setInput(blob)
-            detections_dnn = self.net.forward()
+            self.net.setInput(blob)  # type: ignore[attr-defined]
+            detections_dnn = self.net.forward()  # type: ignore[attr-defined]
 
             min_confidence = self.config.get("min_detection_confidence", 0.5)
 

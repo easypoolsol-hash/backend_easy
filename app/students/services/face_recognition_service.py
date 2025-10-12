@@ -36,7 +36,7 @@ class FaceRecognitionService:
         self.enabled_models = get_enabled_models()
         self.config = FACE_RECOGNITION_CONFIG
         self._model_instances: dict[str, Any] = {}
-        self._face_detector = None  # Lazy load on first use
+        self._face_detector: Any = None  # Lazy load on first use
 
     def process_student_photo(self, student_photo: StudentPhoto) -> bool:
         """
