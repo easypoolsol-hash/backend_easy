@@ -79,7 +79,18 @@ class FaceDetector:
         self.net.setInput(blob)  # type: ignore[attr-defined]
         detections_dnn = self.net.forward()  # type: ignore[attr-defined]
 
-        min_confidence = self.config.get("min_detection_confidence", 0.5)
+        # Ensure min_confidence is a float — config.get returns Any/object
+        _mc = self.config.get("min_detection_confidence", 0.5)
+        if isinstance(_mc, (float, int)):
+            min_confidence = float(_mc)
+        elif isinstance(_mc, str):
+            try:
+                min_confidence = float(_mc)
+            except ValueError:
+                min_confidence = 0.5
+        else:
+            # Fallback to sensible default
+            min_confidence = 0.5
 
         for i in range(detections_dnn.shape[2]):
             confidence = float(detections_dnn[0, 0, i, 2])
