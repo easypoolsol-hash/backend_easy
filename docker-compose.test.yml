@@ -47,6 +47,10 @@ services:
       # `manage.py` at `/app/manage.py`. Mounting the repo root here would
       # place the `app/` directory at `/app/app/` which breaks `python manage.py`.
       - ./app:/app:cached
+      # Ensure the ml_models package from the repo root is available inside
+      # the container at /app/ml_models. Without this bind-mount the image's
+      # copied /app/ml_models can be hidden by the ./app:/app volume.
+      - ./ml_models:/app/ml_models:cached
     environment:
       # Application / test configuration (kept here so CI YAML stays clean)
       DEBUG: 'true'
