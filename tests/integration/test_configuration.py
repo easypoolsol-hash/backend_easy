@@ -6,6 +6,8 @@ Validates that authentication works correctly across different deployment
 scenarios. Uses OpenAPI schema validation instead of hardcoded expectations.
 """
 
+from datetime import UTC
+
 import pytest
 
 from tests.utils.openapi_paths import get_path_by_operation as openapi_helper
@@ -449,10 +451,10 @@ class TestMultiEnvironmentConfigurations:
         )
 
         # Should have reasonable expiration (between 10-20 minutes from now)
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        exp_time = datetime.fromtimestamp(decoded["exp"], tz=timezone.utc)
-        now = datetime.now(timezone.utc)
+        exp_time = datetime.fromtimestamp(decoded["exp"], tz=UTC)
+        now = datetime.now(UTC)
         lifetime = exp_time - now
 
         # Test lifetime should be reasonable (10-30 minutes)

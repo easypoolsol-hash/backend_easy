@@ -3,10 +3,13 @@ Django management command to test face embedding generation.
 Usage: python manage.py test_embeddings <photo_id>
 """
 
-from django.core.management.base import BaseCommand
-from students.models import StudentPhoto, FaceEmbeddingMetadata
-from students.services.face_recognition_service import FaceRecognitionService
 import logging
+from typing import Any
+
+from django.core.management.base import BaseCommand
+
+from students.models import FaceEmbeddingMetadata, StudentPhoto
+from students.services.face_recognition_service import FaceRecognitionService
 
 logger = logging.getLogger(__name__)
 
@@ -14,19 +17,15 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "Test face embedding generation for a specific photo"
 
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "photo_id",
-            type=str,
-            help="Photo ID (UUID) to process"
-        )
+    def add_arguments(self, parser: Any) -> None:
+        parser.add_argument("photo_id", type=str, help="Photo ID (UUID) to process")
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Force reprocess even if embeddings exist"
+            help="Force reprocess even if embeddings exist",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         photo_id = options["photo_id"]
         force = options.get("force", False)
 
@@ -39,8 +38,10 @@ class Command(BaseCommand):
             photo = StudentPhoto.objects.get(photo_id=photo_id)
             self.stdout.write(f"\nFound photo: {photo.photo_id}")
             self.stdout.write(f"  Student: {photo.student}")
-            self.stdout.write(f"  Photo file: {photo.photo.name if photo.photo else 'None'}")
-            self.stdout.write(f"  File exists: {photo.photo.storage.exists(photo.photo.name) if photo.photo else False}")
+            photo_file_name = photo.photo.name if photo.photo else "None"
+            file_exists = photo.photo.storage.exists(photo.photo.name) if photo.photo else False
+            self.stdout.write(f"  Photo file: {photo_file_name}")
+            self.stdout.write(f"  File exists: {file_exists}")
 
             # Check existing embeddings
             existing_embeddings = FaceEmbeddingMetadata.objects.filter(student_photo=photo)
@@ -55,7 +56,8 @@ class Command(BaseCommand):
             # Initialize service
             self.stdout.write("\nInitializing face recognition service...")
             service = FaceRecognitionService()
-            self.stdout.write(f"  Enabled models: {list(service.enabled_models.keys())}")
+            enabled = list(service.enabled_models.keys())
+            self.stdout.write(f"  Enabled models: {enabled}")
 
             # Process photo
             self.stdout.write("\nProcessing photo...")
@@ -74,12 +76,14 @@ class Command(BaseCommand):
                 self.stdout.write(f"\nGenerated {new_embeddings.count()} embeddings:")
 
                 for emb in new_embeddings:
-                    self.stdout.write(self.style.SUCCESS(
-                        f"  - Model: {emb.model_name}\n"
-                        f"    Quality: {emb.quality_score:.3f}\n"
-                        f"    Dimensions: {len(emb.embedding)}\n"
-                        f"    Captured: {emb.captured_at}"
-                    ))
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"  - Model: {emb.model_name}\n"
+                            f"    Quality: {emb.quality_score:.3f}\n"
+                            f"    Dimensions: {len(emb.embedding)}\n"
+                            f"    Captured: {emb.captured_at}"
+                        )
+                    )
             else:
                 self.stdout.write(self.style.ERROR("\n FAILED: Could not generate embeddings"))
                 self.stdout.write("\nPossible reasons:")
@@ -95,6 +99,7 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n ERROR: {type(e).__name__}: {e}"))
             import traceback
+
             self.stdout.write(traceback.format_exc())
 
         self.stdout.write("\n" + "=" * 70)

@@ -11,8 +11,7 @@ Dataset structure:
         photo3.jpg
 """
 
-from datetime import datetime
-from datetime import timezone as dt_timezone
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 import random
@@ -30,7 +29,7 @@ from students.models import FaceEmbeddingMetadata, Parent, School, Student, Stud
 class Command(BaseCommand):
     help = "Seed test data from test_data.json and load photos from dataset folder"
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         seed_path = Path("/app/seed_data/test_data.json")
         dataset_path = Path("/app/seed_data/dataset")
 
@@ -165,16 +164,19 @@ class Command(BaseCommand):
                     with open(photo_file, "rb") as photo_f:
                         # `photo_f` is a binary file (BufferedReader); cast to Any for Django File
                         _f = cast(Any, photo_f)
-                        photo_obj.photo.save(photo_file.name, File(_f), save=True)
+                        photo_field = cast(Any, photo_obj.photo)
+                        photo_field.save(photo_file.name, File(_f), save=True)
 
                     primary_label = " (PRIMARY)" if is_primary else ""
                     msg = f"[OK] Photo {idx + 1}/{len(photo_files)}: {photo_obj.photo.name}{primary_label}"
                     self.stdout.write(self.style.SUCCESS(msg))
 
-                self.stdout.write(self.style.SUCCESS(f"Total photos for {student.encrypted_name}: {len(photo_files)}\n"))
+                total_msg = f"Total photos for {student.encrypted_name}: {len(photo_files)}\n"
+                self.stdout.write(self.style.SUCCESS(total_msg))
 
             elif model_name == "students.faceembeddingmetadata":
-                # Create a FaceEmbeddingMetadata entry linked to the student's primary photo
+                # Create a FaceEmbeddingMetadata entry linked to the
+                # student's primary photo
                 student = created_objects.get("student")
                 if not student:
                     self.stdout.write(self.style.WARNING("[SKIP] No student available for embedding"))
@@ -205,7 +207,7 @@ class Command(BaseCommand):
                         if captured_at.tzinfo is None:
                             from django.utils import timezone as dj_tz
 
-                            captured_at = dj_tz.make_aware(captured_at, dt_timezone.utc)
+                            captured_at = dj_tz.make_aware(captured_at, UTC)
                     else:
                         captured_at = timezone.now()
                 except Exception:
@@ -220,7 +222,7 @@ class Command(BaseCommand):
                     is_primary=is_primary,
                     captured_at=captured_at,
                 )
-                fem.save()
-                self.stdout.write(self.style.SUCCESS(f"[OK] Seeded face embedding for {student.encrypted_name}"))
+                cast(Any, fem).save()
+                self.stdout.write(self.style.SUCCESS("[OK] Seeded face embedding for " + student.encrypted_name))
 
         self.stdout.write(self.style.SUCCESS("\n=== Seed complete! ==="))
