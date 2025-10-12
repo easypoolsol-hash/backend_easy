@@ -4,19 +4,30 @@ Handles automatic embedding generation for student photos.
 Industry Standard: Clean architecture - ML logic separated in ml_models/
 """
 
-import logging
-from typing import Any
-from django.core.files.base import File
-from PIL import Image
-import numpy as np
+from __future__ import annotations
+
 from importlib import import_module
+import logging
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
+from numpy.typing import NDArray
+from PIL import Image
+
+if TYPE_CHECKING:
+    from django.core.files.base import File
+else:
+    from django.core.files.base import File as FileType
+
+    File = FileType  # type: ignore[misc, assignment]
+
+from ml_models.face_recognition.preprocessing.face_detector import FaceDetector
 
 from ..face_recognition_config import (
-    get_enabled_models,
     FACE_RECOGNITION_CONFIG,
+    get_enabled_models,
 )
-from ..models import StudentPhoto, FaceEmbeddingMetadata
-from ml_models.face_recognition.preprocessing.face_detector import FaceDetector
+from ..models import FaceEmbeddingMetadata, StudentPhoto
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +37,10 @@ class FaceRecognitionService:
     Service for processing student photos and generating face embeddings.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.enabled_models = get_enabled_models()
         self.config = FACE_RECOGNITION_CONFIG
-        self._model_instances = {}
+        self._model_instances: dict[str, Any] = {}
         self._face_detector = FaceDetector()  # Real MediaPipe detector
 
     def process_student_photo(self, student_photo: StudentPhoto) -> bool:
@@ -57,8 +68,10 @@ class FaceRecognitionService:
                 logger.warning("No faces detected in photo")
                 return False
 
-            if len(faces) > self.config["max_faces_per_image"]:
-                logger.warning(f"Too many faces detected: {len(faces)} > {self.config['max_faces_per_image']}")
+            max_faces_val = self.config.get("max_faces_per_image", 1)
+            max_faces = int(max_faces_val) if isinstance(max_faces_val, (int, float)) else 1
+            if len(faces) > max_faces:
+                logger.warning(f"Too many faces detected: {len(faces)} > {max_faces}")
                 return False
 
             # Process the best face
@@ -79,19 +92,19 @@ class FaceRecognitionService:
             logger.error(f"Error processing student photo: {e}")
             return False
 
-    def _load_image(self, photo_file: File) -> Image.Image | None:
+    def _load_image(self, photo_file: File[Any]) -> Image.Image | None:
         """Load and validate image from file."""
         try:
-            image = Image.open(photo_file)
-            image.verify()  # Validate image integrity
+            pil_image: Image.Image = Image.open(photo_file)
+            pil_image.verify()  # Validate image integrity
             photo_file.seek(0)  # Reset file pointer
-            image = Image.open(photo_file)  # Re-open after verify
+            pil_image = Image.open(photo_file)  # Re-open after verify
 
             # Convert to RGB if necessary
-            if image.mode != "RGB":
-                image = image.convert("RGB")
+            if pil_image.mode != "RGB":
+                pil_image = pil_image.convert("RGB")
 
-            return image
+            return pil_image
         except Exception as e:
             logger.error(f"Error loading image: {e}")
             return None
@@ -166,7 +179,7 @@ class FaceRecognitionService:
 
         return embeddings
 
-    def _get_model_instance(self, model_name: str, model_config: dict[str, Any]):
+    def _get_model_instance(self, model_name: str, model_config: dict[str, Any]) -> Any:
         """
         Dynamically load model instance (Factory Pattern).
         Industry standard: lazy loading.
@@ -185,7 +198,7 @@ class FaceRecognitionService:
 
         return self._model_instances[model_name]
 
-    def _calculate_embedding_quality(self, embedding: np.ndarray) -> float:
+    def _calculate_embedding_quality(self, embedding: NDArray[np.floating[Any]]) -> float:
         """Calculate quality score for embedding."""
         # Simple quality metric based on vector magnitude and variance
         magnitude = np.linalg.norm(embedding)
@@ -194,7 +207,7 @@ class FaceRecognitionService:
         quality = min(float(magnitude / 10.0), 1.0) * min(float(variance * 100.0), 1.0)
         return float(quality)
 
-    def _save_embeddings(self, student_photo: StudentPhoto, embedding_data: dict[str, Any]):
+    def _save_embeddings(self, student_photo: StudentPhoto, embedding_data: dict[str, Any]) -> None:
         """Save embeddings to database."""
         for model_name, data in embedding_data.items():
             FaceEmbeddingMetadata.objects.create(

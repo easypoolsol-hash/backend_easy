@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import timedelta
 import hashlib
 import logging
@@ -132,7 +134,7 @@ def activate_kiosk_view(request: Request) -> Response:
     return Response(response_data, status=status.HTTP_200_OK)
 
 
-class KioskViewSet(viewsets.ModelViewSet):  # type: ignore[type-arg]
+class KioskViewSet(viewsets.ModelViewSet):
     """ViewSet for kiosk management (admin only)"""
 
     queryset = Kiosk.objects.all()
@@ -194,7 +196,7 @@ def kiosk_log(request: Request) -> Response:
     return Response({"status": "ok", "logged_count": len(log_entries), "kiosk_id": kiosk.kiosk_id})
 
 
-class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):  # type: ignore[type-arg]
+class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only ViewSet for device logs (admin only)"""
 
     queryset = DeviceLog.objects.select_related("kiosk").order_by("-timestamp")

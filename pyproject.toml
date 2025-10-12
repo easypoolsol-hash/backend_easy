@@ -141,6 +141,7 @@ follow_imports = "silent"
 warn_unused_configs = true
 show_error_codes = true
 cache_dir = ".cache/mypy"
+mypy_path = "app"
 
 [tool.django-stubs]
 django_settings_module = "bus_kiosk_backend.settings"

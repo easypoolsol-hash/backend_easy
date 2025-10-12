@@ -3,9 +3,10 @@ Face Detection using MediaPipe
 Fast, accurate, production-ready.
 """
 
-import numpy as np
-import mediapipe as mp
 from dataclasses import dataclass
+
+import mediapipe as mp
+import numpy as np
 
 from ml_models.config import FACE_DETECTION_CONFIG
 
@@ -25,7 +26,7 @@ class FaceDetector:
     Industry standard for production.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = FACE_DETECTION_CONFIG
         self.detector = mp.solutions.face_detection.FaceDetection(min_detection_confidence=self.config["min_detection_confidence"])
 
