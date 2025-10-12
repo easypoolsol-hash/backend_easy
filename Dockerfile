@@ -54,6 +54,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Set working directory
 WORKDIR /app
 
+# Copy ML models directory first (required by application)
+COPY --chown=django:django ml_models/ /app/ml_models/
+
 # Copy application code (changes frequently, so placed after dependencies)
 COPY --chown=django:django app/ .
 
