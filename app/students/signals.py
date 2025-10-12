@@ -14,7 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=StudentPhoto)
-def process_student_photo_embedding(sender: type[StudentPhoto], instance: StudentPhoto, created: bool, **kwargs: Any) -> None:
+def process_student_photo_embedding(
+    sender: type[StudentPhoto],
+    instance: StudentPhoto,
+    created: bool,
+    **kwargs: Any,
+) -> None:
     """
     Automatically process student photos for face embeddings when uploaded.
 
@@ -40,7 +45,7 @@ def process_student_photo_embedding(sender: type[StudentPhoto], instance: Studen
         from .tasks import process_student_photo_embedding_task
 
         process_student_photo_embedding_task.delay(instance.photo_id)
-        logger.info(f"Queued embedding generation for photo {instance.photo_id}")
+        logger.info(f"Queued embedding for photo {instance.photo_id}")
     except Exception as e:
         # Log error but don't crash - photo upload should still succeed
         photo_id = instance.photo_id
