@@ -66,6 +66,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      USE_FILE_LOGGING: 'false'  # Console-only logging for CI/tests
     ports:
       # Publish web port so tests running on the CI runner can access the container
       - "8000:8000"
@@ -97,6 +98,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      USE_FILE_LOGGING: 'false'  # Console-only logging for CI/tests
     depends_on:
       - postgres
       - redis
