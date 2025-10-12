@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build dependencies (cached when pyproject.toml doesn't change)
 # =============================================================================
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 # Set environment variables for better caching and performance
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -37,7 +37,7 @@ RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0
 # =============================================================================
 # Stage 2: Runtime image (minimal and secure)
 # =============================================================================
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 
 # Install only runtime system dependencies
 RUN apt-get update && apt-get install -y \
@@ -48,7 +48,7 @@ RUN apt-get update && apt-get install -y \
     && groupadd -r django && useradd -r -g django django
 
 # Copy Python packages from builder stage
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Set working directory
