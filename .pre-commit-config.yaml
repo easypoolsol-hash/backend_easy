@@ -1,0 +1,129 @@
+# Pre-commit hooks for backend API
+# Industry standard: Auto-regenerate OpenAPI schema on code changes
+# Used by: Google, Netflix, Stripe, Uber
+
+repos:
+  # Local hooks (run in this repo)
+  - repo: local
+    hooks:
+      # OpenAPI Schema Regeneration (CRITICAL - Zero Drift Policy)
+      - id: openapi-schema
+        name: Regenerate OpenAPI Schema
+        entry: python app/manage.py spectacular --file openapi-schema.yaml
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        always_run: true
+        files: \.(py)$
+        types: [python]
+        verbose: true
+
+      # Copy schema to Flutter project (keeps frontend in sync)
+      - id: copy-schema-to-flutter
+        name: Copy OpenAPI Schema to Flutter
+        entry: powershell
+        args: ["-Command", "Copy-Item openapi-schema.yaml ../bus_kiosk_easy/bus_kiok/openapi-schema.yaml -Force"]
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        always_run: true
+        require_serial: true
+        verbose: true
+
+      # Regenerate Flutter API client (enforces zero drift)
+      # CONSTITUTIONAL: Generates to packages/ (industry standard location)
+      - id: regenerate-flutter-api
+        name: Regenerate Flutter API Client from Schema
+        entry: powershell
+        args: ["-Command", "cd ../bus_kiosk_easy; npx @openapitools/openapi-generator-cli generate -i bus_kiok/openapi-schema.yaml -g dart-dio -o packages/bus_kiosk_api --additional-properties=pubName=bus_kiosk_api,useEnumExtension=true"]
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        always_run: true
+        require_serial: true
+        verbose: true
+
+      # Constitutional API Drift Validator (uses industry tool: openapi-diff)
+      - id: validate-api-drift
+        name: Validate API Drift (Zero-Drift Guarantee)
+        entry: bash
+        args: ["scripts/check_api_drift.sh"]
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        always_run: false  # Only run if API files changed
+        files: \.(yaml|yml)$
+        verbose: true
+
+  # Additional fast/modern hooks (consolidated from config/ into root)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=15000']  # Allow up to 15MB (for ML model files)
+      - id: check-merge-conflict
+      - id: debug-statements
+
+  # Ruff - fast linter/formatter replacement for flake8/isort
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.13.3
+    hooks:
+      - id: ruff-format
+      - id: ruff
+
+  # Black - DISABLED: conflicts with ruff-format
+  # - repo: https://github.com/psf/black
+  #   rev: 24.8.0
+  #   hooks:
+  #     - id: black
+  #       language_version: python3.10
+
+  # Standard Python hooks (bonus - code quality)
+  # Type checking and security
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: python
+        files: ^app/.*\.py$
+        args: [--strict]
+        additional_dependencies: [django-stubs]
+
+  # Pylint - DISABLED: version incompatibility with pylint-django
+  # - repo: local
+  #   hooks:
+  #     - id: pylint
+  #       name: pylint
+  #       entry: pylint
+  #       language: system
+  #       files: \.py$
+  #       args: [bus_kiosk_backend, buses, events, kiosks, students, users, --errors-only]
+  #       pass_filenames: false
+
+  # Security scanning (optional)
+  - repo: local
+    hooks:
+      - id: bandit
+        name: bandit
+        entry: python -m bandit
+        language: system
+        files: \.py$
+        exclude: ^.*(?:test|generated|migrations).*\.py$
+        args: [-r, app, -x, "**/test*", -c, pyproject.toml, -f, txt]
+        pass_filenames: false
+
+  # Test runner (optional) - DISABLED: too slow for pre-commit
+  # - repo: local
+  #   hooks:
+  #     - id: pytest
+  #       name: pytest
+  #       entry: python -m pytest
+  #       language: system
+  #       pass_filenames: false
+  #       args: ["app/tests/unit/", "--tb=short", "--maxfail=3"]
+  #       files: ^(app/.*\.py|tests/.*\.py)$
+  #       types: [python]
