@@ -3,6 +3,8 @@ MobileFaceNet TFLite Inference
 Optimized for production - matches frontend exactly.
 """
 
+from typing import cast
+
 import numpy as np
 import tensorflow as tf
 
@@ -89,9 +91,8 @@ class MobileFaceNet(BaseFaceRecognitionModel):
 
     @property
     def input_shape(self) -> tuple[int, int, int]:
-        shape = MOBILEFACENET_CONFIG["input_shape"]
-        return (int(shape[0]), int(shape[1]), int(shape[2]))
+        return cast(tuple[int, int, int], MOBILEFACENET_CONFIG["input_shape"])
 
     @property
     def embedding_dims(self) -> int:
-        return int(MOBILEFACENET_CONFIG["output_dims"])
+        return cast(int, MOBILEFACENET_CONFIG["output_dims"])
