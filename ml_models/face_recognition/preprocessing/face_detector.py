@@ -60,7 +60,8 @@ class FaceDetector:
             height = int(bbox_rel.height * h)
 
             # Validate minimum size
-            min_w, min_h = self.config["min_face_size"]
+            min_face_size = self.config["min_face_size"]
+            min_w, min_h = int(min_face_size[0]), int(min_face_size[1])
             if width < min_w or height < min_h:
                 continue
 
@@ -70,7 +71,7 @@ class FaceDetector:
         detections.sort(key=lambda d: d.confidence, reverse=True)
 
         # Limit to max_faces
-        max_faces = self.config["max_faces"]
+        max_faces = int(self.config["max_faces"])
         return detections[:max_faces]
 
     def crop_face(self, image: np.ndarray, detection: FaceDetection) -> np.ndarray:

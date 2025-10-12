@@ -89,8 +89,9 @@ class MobileFaceNet(BaseFaceRecognitionModel):
 
     @property
     def input_shape(self) -> tuple[int, int, int]:
-        return MOBILEFACENET_CONFIG["input_shape"]
+        shape = MOBILEFACENET_CONFIG["input_shape"]
+        return (int(shape[0]), int(shape[1]), int(shape[2]))
 
     @property
     def embedding_dims(self) -> int:
-        return MOBILEFACENET_CONFIG["output_dims"]
+        return int(MOBILEFACENET_CONFIG["output_dims"])
