@@ -5,16 +5,19 @@ Run: python app/manage.py shell < test_embedding_generation.py
 
 import os
 import sys
+
 import django
 
 # Setup Django
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bus_kiosk_backend.settings')
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
 django.setup()
 
-from students.models import StudentPhoto, FaceEmbeddingMetadata
-from students.services.face_recognition_service import FaceRecognitionService
+# ruff: noqa: E402 - imports after django.setup() are required
 import logging
+
+from students.models import FaceEmbeddingMetadata, StudentPhoto
+from students.services.face_recognition_service import FaceRecognitionService
 
 # Enable debug logging
 logging.basicConfig(level=logging.DEBUG)
@@ -75,6 +78,7 @@ except StudentPhoto.DoesNotExist:
 except Exception as e:
     print(f"\n✗ ERROR: {type(e).__name__}: {e}")
     import traceback
+
     traceback.print_exc()
 
 print("\n" + "=" * 60)

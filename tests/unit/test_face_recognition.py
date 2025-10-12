@@ -6,10 +6,10 @@ Tests embedding generation, face detection, and auto-processing.
 import io
 from unittest.mock import Mock, patch
 
-import numpy as np
-import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+import numpy as np
 from PIL import Image
+import pytest
 
 from students.models import FaceEmbeddingMetadata, StudentPhoto
 from students.services.face_recognition_service import FaceRecognitionService
@@ -24,6 +24,7 @@ def real_face_image():
 
     # Add simple features (eyes, nose simulation)
     from PIL import ImageDraw
+
     draw = ImageDraw.Draw(img)
 
     # Eyes
@@ -41,17 +42,13 @@ def real_face_image():
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
 
-    return SimpleUploadedFile(
-        name="test_face.jpg", content=img_bytes.read(), content_type="image/jpeg"
-    )
+    return SimpleUploadedFile(name="test_face.jpg", content=img_bytes.read(), content_type="image/jpeg")
 
 
 @pytest.fixture
 def mock_face_detector():
     """Mock FaceDetector that finds one valid face."""
-    with patch(
-        "ml_models.face_recognition.preprocessing.face_detector.FaceDetector"
-    ) as MockDetector:
+    with patch("ml_models.face_recognition.preprocessing.face_detector.FaceDetector") as MockDetector:
         detector_instance = Mock()
 
         # Mock successful face detection
@@ -60,9 +57,7 @@ def mock_face_detector():
         mock_detection.confidence = 0.95
 
         detector_instance.detect.return_value = [mock_detection]
-        detector_instance.crop_face.return_value = np.random.randint(
-            0, 255, (112, 112, 3), dtype=np.uint8
-        )
+        detector_instance.crop_face.return_value = np.random.randint(0, 255, (112, 112, 3), dtype=np.uint8)
 
         MockDetector.return_value = detector_instance
         yield MockDetector
@@ -92,9 +87,7 @@ def mock_mobilefacenet():
 class TestFaceRecognitionSignal:
     """Test automatic embedding generation via Django signals."""
 
-    def test_signal_fires_on_photo_creation(
-        self, real_face_image, mock_face_detector, mock_mobilefacenet
-    ):
+    def test_signal_fires_on_photo_creation(self, real_face_image, mock_face_detector, mock_mobilefacenet):
         """Test that creating a photo triggers signal and generates embeddings."""
         student = StudentFactory()
 
@@ -120,9 +113,7 @@ class TestFaceRecognitionSignal:
 
         final_count = FaceEmbeddingMetadata.objects.filter(student_photo=photo).count()
 
-        assert (
-            initial_count == final_count
-        ), "Signal should only fire on creation, not update"
+        assert initial_count == final_count, "Signal should only fire on creation, not update"
 
     def test_signal_skips_when_no_photo_file(self):
         """Test signal gracefully handles missing photo file."""
@@ -148,9 +139,7 @@ class TestFaceRecognitionService:
         assert service._face_detector is None, "Face detector should be lazy-loaded"
         assert service._model_instances == {}, "Models should be lazy-loaded"
 
-    def test_process_photo_success(
-        self, real_face_image, mock_face_detector, mock_mobilefacenet
-    ):
+    def test_process_photo_success(self, real_face_image, mock_face_detector, mock_mobilefacenet):
         """Test successful photo processing with valid face."""
         student = StudentFactory()
         photo = StudentPhotoFactory.build(student=student)
@@ -168,9 +157,7 @@ class TestFaceRecognitionService:
 
     def test_process_photo_no_face_detected(self, real_face_image):
         """Test processing fails gracefully when no face detected."""
-        with patch(
-            "ml_models.face_recognition.preprocessing.face_detector.FaceDetector"
-        ) as MockDetector:
+        with patch("ml_models.face_recognition.preprocessing.face_detector.FaceDetector") as MockDetector:
             detector_instance = Mock()
             detector_instance.detect.return_value = []  # No faces
             MockDetector.return_value = detector_instance
@@ -187,9 +174,7 @@ class TestFaceRecognitionService:
 
     def test_process_photo_multiple_faces_rejected(self, real_face_image):
         """Test that photos with multiple faces are rejected."""
-        with patch(
-            "ml_models.face_recognition.preprocessing.face_detector.FaceDetector"
-        ) as MockDetector:
+        with patch("ml_models.face_recognition.preprocessing.face_detector.FaceDetector") as MockDetector:
             detector_instance = Mock()
 
             # Return multiple faces
@@ -214,9 +199,7 @@ class TestFaceRecognitionService:
 
             assert result is False, "Should reject photos with multiple faces"
 
-    def test_lazy_loading_triggers_on_first_use(
-        self, real_face_image, mock_face_detector
-    ):
+    def test_lazy_loading_triggers_on_first_use(self, real_face_image, mock_face_detector):
         """Test that face detector loads on first use."""
         service = FaceRecognitionService()
 
@@ -298,9 +281,7 @@ class TestEmbeddingGeneration:
 
         # Validate embedding
         assert embedding.shape == (192,), f"Expected (192,), got {embedding.shape}"
-        assert np.allclose(
-            np.linalg.norm(embedding), 1.0, atol=0.01
-        ), "Embedding should be L2 normalized"
+        assert np.allclose(np.linalg.norm(embedding), 1.0, atol=0.01), "Embedding should be L2 normalized"
 
 
 @pytest.mark.django_db
@@ -312,9 +293,7 @@ class TestEdgeCases:
         student = StudentFactory()
 
         # Create corrupted file
-        corrupted = SimpleUploadedFile(
-            name="corrupted.jpg", content=b"not_an_image", content_type="image/jpeg"
-        )
+        corrupted = SimpleUploadedFile(name="corrupted.jpg", content=b"not_an_image", content_type="image/jpeg")
 
         photo = StudentPhotoFactory.build(student=student)
         photo.photo = corrupted
@@ -325,14 +304,10 @@ class TestEdgeCases:
 
         assert result is False, "Should handle corrupted images gracefully"
 
-    def test_embedding_quality_threshold(
-        self, real_face_image, mock_face_detector, mock_mobilefacenet
-    ):
+    def test_embedding_quality_threshold(self, real_face_image, mock_face_detector, mock_mobilefacenet):
         """Test that low-quality embeddings are rejected."""
         # Mock low-quality embedding
-        mock_mobilefacenet.generate_embedding.return_value = np.zeros(
-            192, dtype=np.float32
-        )
+        mock_mobilefacenet.generate_embedding.return_value = np.zeros(192, dtype=np.float32)
 
         student = StudentFactory()
         photo = StudentPhotoFactory.build(student=student)
@@ -340,7 +315,7 @@ class TestEdgeCases:
         photo.save()
 
         service = FaceRecognitionService()
-        result = service.process_student_photo(photo)
+        service.process_student_photo(photo)
 
         # Depending on quality threshold, might fail
         # This tests the quality scoring logic
@@ -354,9 +329,7 @@ class TestEdgeCases:
 class TestIntegration:
     """Integration tests with real flow."""
 
-    def test_end_to_end_photo_upload_to_embedding(
-        self, real_face_image, mock_face_detector, mock_mobilefacenet
-    ):
+    def test_end_to_end_photo_upload_to_embedding(self, real_face_image, mock_face_detector, mock_mobilefacenet):
         """Test complete flow: upload photo → detect face → generate embedding."""
         student = StudentFactory()
 
@@ -373,6 +346,4 @@ class TestIntegration:
         for embedding in embeddings:
             assert len(embedding.embedding) > 0, "Embedding vector should exist"
             assert embedding.quality_score > 0, "Quality score should be positive"
-            assert embedding.model_name in [
-                "MobileFaceNet"
-            ], "Model name should be valid"
+            assert embedding.model_name in ["MobileFaceNet"], "Model name should be valid"

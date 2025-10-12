@@ -15,19 +15,16 @@ Usage:
     pytest tests/
 """
 
-import io
 from pathlib import Path
 
-import numpy as np
-import pytest
-from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+import numpy as np
 from PIL import Image, ImageDraw
+import pytest
 
 from students.models import FaceEmbeddingMetadata, StudentPhoto
 from students.services.face_recognition_service import FaceRecognitionService
 from tests.factories import StudentFactory
-
 
 # Test fixtures directory
 TEST_IMAGES_DIR = Path(__file__).parent.parent / "fixtures" / "test_images"
@@ -175,9 +172,7 @@ def face_image_file(setup_test_images):
     image_path = setup_test_images / "face_frontal.jpg"
 
     with open(image_path, "rb") as f:
-        return SimpleUploadedFile(
-            name="test_face.jpg", content=f.read(), content_type="image/jpeg"
-        )
+        return SimpleUploadedFile(name="test_face.jpg", content=f.read(), content_type="image/jpeg")
 
 
 @pytest.mark.django_db
@@ -254,9 +249,7 @@ class TestRealTFLiteModel:
 
             # Check L2 normalization
             norm = np.linalg.norm(embedding)
-            assert np.isclose(
-                norm, 1.0, atol=0.01
-            ), f"Embedding should be L2 normalized, got norm={norm}"
+            assert np.isclose(norm, 1.0, atol=0.01), f"Embedding should be L2 normalized, got norm={norm}"
 
         except FileNotFoundError as e:
             pytest.skip(f"Model file not found: {e}")
@@ -276,9 +269,7 @@ class TestRealTFLiteModel:
             embedding2 = model.generate_embedding(test_face)
 
             # Should be identical
-            assert np.allclose(
-                embedding1, embedding2
-            ), "Same input should produce same embedding"
+            assert np.allclose(embedding1, embedding2), "Same input should produce same embedding"
 
         except FileNotFoundError as e:
             pytest.skip(f"Model file not found: {e}")
@@ -295,9 +286,7 @@ class TestRealEndToEnd:
         student = StudentFactory()
 
         # Create photo with test image
-        photo = StudentPhoto.objects.create(
-            student=student, photo=face_image_file, is_primary=True
-        )
+        photo = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=True)
 
         # Process with real service
         service = FaceRecognitionService()
@@ -312,19 +301,13 @@ class TestRealEndToEnd:
             for emb in embeddings:
                 assert len(emb.embedding) == 192, "Should have 192-dim embedding"
                 assert emb.quality_score >= 0.0, "Quality score should be valid"
-                print(
-                    f"✓ Generated embedding: model={emb.model_name}, "
-                    f"quality={emb.quality_score:.3f}"
-                )
+                print(f"✓ Generated embedding: model={emb.model_name}, quality={emb.quality_score:.3f}")
         else:
             # Might fail due to:
             # 1. Face not detected (synthetic face not realistic enough)
             # 2. Quality too low
             # 3. Model loading issue
-            print(
-                "⚠ Face processing failed (expected with synthetic images) - "
-                "check logs above"
-            )
+            print("⚠ Face processing failed (expected with synthetic images) - check logs above")
             pytest.skip("Face processing failed - may need real human face photo")
 
     def test_signal_auto_generates_embedding(self, face_image_file):
@@ -332,9 +315,7 @@ class TestRealEndToEnd:
         student = StudentFactory()
 
         # Create photo (should trigger signal)
-        photo = StudentPhoto.objects.create(
-            student=student, photo=face_image_file, is_primary=True
-        )
+        photo = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=True)
 
         # Check if embeddings were auto-generated
         embeddings = FaceEmbeddingMetadata.objects.filter(student_photo=photo)
@@ -343,10 +324,7 @@ class TestRealEndToEnd:
             print(f"✓ Signal auto-generated {embeddings.count()} embeddings")
             assert embeddings.count() >= 1
         else:
-            print(
-                "⚠ Signal did not generate embeddings - "
-                "may need real human face photo"
-            )
+            print("⚠ Signal did not generate embeddings - may need real human face photo")
             # Don't fail - synthetic face might not pass quality checks
 
     def test_multiple_photos_same_student(self, face_image_file):
@@ -354,26 +332,18 @@ class TestRealEndToEnd:
         student = StudentFactory()
 
         # Upload 2 photos
-        photo1 = StudentPhoto.objects.create(
-            student=student, photo=face_image_file, is_primary=True
-        )
+        photo1 = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=True)
 
         # Create new file object for second photo
         face_image_file.seek(0)
-        photo2 = StudentPhoto.objects.create(
-            student=student, photo=face_image_file, is_primary=False
-        )
+        photo2 = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=False)
 
         # Check both processed
         embeddings1 = FaceEmbeddingMetadata.objects.filter(student_photo=photo1)
         embeddings2 = FaceEmbeddingMetadata.objects.filter(student_photo=photo2)
 
         # At least one should work
-        total_embeddings = embeddings1.count() + embeddings2.count()
-        print(
-            f"Photo1 embeddings: {embeddings1.count()}, "
-            f"Photo2 embeddings: {embeddings2.count()}"
-        )
+        print(f"Photo1 embeddings: {embeddings1.count()}, Photo2 embeddings: {embeddings2.count()}")
 
 
 @pytest.mark.django_db
