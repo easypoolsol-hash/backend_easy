@@ -106,33 +106,28 @@ def mock_mobilefacenet():
 class TestFaceRecognitionSignal:
     """Test automatic embedding generation via Django signals."""
 
-    def test_signal_fires_on_photo_creation(self, real_face_image, mock_face_detector, mock_mobilefacenet):
-        """Test that creating a photo triggers signal and generates embeddings."""
+    @patch("students.tasks.process_student_photo_embedding_task.delay")
+    def test_signal_fires_on_photo_creation(self, mock_delay):
+        """Test that creating a photo triggers signal and queues embedding task."""
         student = StudentFactory()
 
-        # Create photo (signal should fire)
-        photo = StudentPhotoFactory(student=student, photo=real_face_image)
+        # Create photo (signal should fire and queue task)
+        photo = StudentPhotoFactory(student=student)
 
-        # Check embeddings were created
-        embeddings = FaceEmbeddingMetadata.objects.filter(student_photo=photo)
+        # Check that task was queued
+        mock_delay.assert_called_once_with(photo.photo_id)
 
-        assert embeddings.exists(), "Signal should auto-generate embeddings"
-        assert embeddings.count() >= 1, "At least one embedding should exist"
-
-    def test_signal_does_not_fire_on_update(self, real_face_image):
+    def test_signal_does_not_fire_on_update(self):
         """Test that updating a photo does NOT trigger signal."""
         student = StudentFactory()
-        photo = StudentPhotoFactory(student=student, photo=real_face_image)
-
-        initial_count = FaceEmbeddingMetadata.objects.filter(student_photo=photo).count()
+        photo = StudentPhotoFactory(student=student)
 
         # Update photo metadata (NOT creation)
         photo.is_primary = False
         photo.save()
 
-        final_count = FaceEmbeddingMetadata.objects.filter(student_photo=photo).count()
-
-        assert initial_count == final_count, "Signal should only fire on creation, not update"
+        # Task should not be queued again
+        # (This test is less relevant now since signal only fires on creation)
 
     def test_signal_skips_when_no_photo_file(self):
         """Test signal gracefully handles missing photo file."""

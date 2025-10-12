@@ -1,3 +1,4 @@
+from typing import Any
 import uuid
 
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -52,27 +53,27 @@ class BoardingEvent(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(confidence_score__gte=0.0) & models.Q(confidence_score__lte=1.0),
+                condition=(models.Q(confidence_score__gte=0.0) & models.Q(confidence_score__lte=1.0)),
                 name="chk_confidence_score_range",
             ),
         ]
         # Note: Monthly partitioning by timestamp would be implemented in PostgreSQL migration
         # Partitioning is not directly supported in Django ORM, requires raw SQL in migrations
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Generate ULID if not provided"""
         if not self.event_id:
             self.event_id = str(ulid.new())
         super().save(*args, **kwargs)
 
     @property
-    def gps_coords(self):
+    def gps_coords(self) -> tuple[float, float] | None:
         """Return GPS coordinates as a tuple for compatibility"""
         if self.latitude is not None and self.longitude is not None:
             return (self.latitude, self.longitude)
         return None
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"BoardingEvent({self.event_id[:8]}...): {self.student} at {self.timestamp}"
 
 
@@ -117,7 +118,7 @@ class AttendanceRecord(models.Model):
             models.Index(fields=["date"], name="idx_attendance_date"),
         ]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Auto-calculate status based on boarding times"""
         if self.morning_boarded and self.afternoon_boarded:
             self.status = "present"
@@ -127,5 +128,5 @@ class AttendanceRecord(models.Model):
             self.status = "partial"
         super().save(*args, **kwargs)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Attendance({self.student} on {self.date}): {self.status}"

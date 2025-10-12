@@ -1,13 +1,16 @@
 import logging
 import time
+from typing import Any
 
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task
-def process_student_attendance(student_name, boarding_time, bus_id=None, face_confidence=None):
+@shared_task  # type: ignore[misc]
+def process_student_attendance(
+    student_name: str, boarding_time: str, bus_id: str | None = None, face_confidence: float | None = None
+) -> dict[str, Any]:
     """
     Process boarding event asynchronously after kiosk approval
     - Store attendance record in database
@@ -51,8 +54,8 @@ def process_student_attendance(student_name, boarding_time, bus_id=None, face_co
         }
 
 
-@shared_task
-def calculate_daily_attendance():
+@shared_task  # type: ignore[misc]
+def calculate_daily_attendance() -> dict[str, Any]:
     """
     Calculate daily attendance for all students
     This runs as a scheduled task every day
@@ -77,3 +80,45 @@ def calculate_daily_attendance():
         "present_students": present_students,
         "attendance_rate": round(attendance_rate, 1),
     }
+
+
+@shared_task  # type: ignore[misc]
+def process_student_photo_embedding_task(photo_id: str) -> dict[str, Any]:
+    """
+    Process student photo for face embeddings asynchronously.
+
+    This task runs in the Celery worker, avoiding HTTP context issues
+    and allowing better resource management for ML processing.
+    """
+    try:
+        from .models import StudentPhoto
+        from .services.face_recognition_service import FaceRecognitionService
+
+        logger.info(f"Starting async embedding generation for photo {photo_id}")
+
+        # Get the photo instance
+        try:
+            photo = StudentPhoto.objects.get(photo_id=photo_id)
+        except StudentPhoto.DoesNotExist:
+            logger.error(f"Photo {photo_id} not found")
+            return {"status": "error", "error": "Photo not found"}
+
+        # Initialize the face recognition service
+        service = FaceRecognitionService()
+
+        # Process the photo
+        success = service.process_student_photo(photo)
+
+        if success:
+            logger.info(f"Successfully generated embeddings for photo {photo_id}")
+            # TODO: Send success notification
+            return {"status": "success", "photo_id": photo_id}
+        else:
+            logger.warning(f"Failed to generate embeddings for photo {photo_id}")
+            # TODO: Send failure notification
+            return {"status": "failed", "photo_id": photo_id}
+
+    except Exception as e:
+        logger.error(f"Error in async embedding generation for photo {photo_id}: {e}")
+        # TODO: Send error notification
+        return {"status": "error", "photo_id": photo_id, "error": str(e)}
