@@ -68,3 +68,4 @@ test-fast:
 	@echo "✅ Tests passed!"
 
 #docker-compose -f /opt/backend_easy/docker-compose.prod.yml exec -w /app web python3 manage.py migrate
+#ssh -i C:\Users\lalit\.ssh\deploy_backend_key.key ubuntu@13.204.150.134

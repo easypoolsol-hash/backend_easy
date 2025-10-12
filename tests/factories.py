@@ -124,6 +124,7 @@ class StudentFactory(DjangoModelFactory):
 
     class Meta:
         model = Student
+        skip_postgeneration_save = True
 
     school = factory.SubFactory(SchoolFactory)
     grade = "5"

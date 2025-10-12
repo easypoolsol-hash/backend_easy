@@ -2988,7 +2988,14 @@ components:
           format: date-time
           description: When the boarding event occurred
         gps_coords:
-          type: string
+          type: array
+          items:
+            type: number
+            format: double
+          minLength: 2
+          maxLength: 2
+          nullable: true
+          description: Return GPS coordinates as a tuple for compatibility
           readOnly: true
         bus_route:
           type: string

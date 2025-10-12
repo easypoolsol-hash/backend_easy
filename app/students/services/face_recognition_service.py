@@ -77,8 +77,8 @@ class FaceRecognitionService:
                 logger.error("Failed to generate embeddings")
                 return False
 
-            # Save embeddings to database
-            self._save_embeddings(student_photo, embedding_data)
+            # Save embeddings to database with face detection confidence as quality
+            self._save_embeddings(student_photo, embedding_data, best_face["confidence"])
 
             logger.info(f"Successfully processed photo for student {student_photo.student}")
             return True
@@ -155,12 +155,18 @@ class FaceRecognitionService:
         """
         import numpy as np
 
+        face_confidence = face_data["confidence"]
         embeddings = {}
         face_image = face_data["image"]
 
         for model_name, model_config in self.enabled_models.items():
             try:
                 logger.debug(f"Generating embedding with model: {model_name}")
+
+                # Check if face detection confidence meets threshold
+                if face_confidence < model_config["quality_threshold"]:
+                    logger.warning(f"Face detection confidence too low for {model_name}: {face_confidence} < {model_config['quality_threshold']}")
+                    continue
 
                 # Get or create model instance
                 model = self._get_model_instance(model_name, model_config)
@@ -171,15 +177,13 @@ class FaceRecognitionService:
                 # Generate embedding (model handles preprocessing internally)
                 embedding = model.generate_embedding(face_array)
 
-                # Validate embedding quality
-                quality_score = self._calculate_embedding_quality(embedding)
-                if quality_score < model_config["quality_threshold"]:
-                    logger.warning(f"Embedding quality too low for {model_name}: {quality_score} < {model_config['quality_threshold']}")
+                # Validate embedding (basic check)
+                if embedding is None or len(embedding) == 0:
+                    logger.error(f"Model {model_name} returned empty embedding")
                     continue
 
                 embeddings[model_name] = {
                     "vector": embedding.tolist(),
-                    "quality_score": quality_score,
                     "dimensions": len(embedding),
                 }
 
@@ -219,13 +223,13 @@ class FaceRecognitionService:
         quality = min(float(magnitude / 10.0), 1.0) * min(float(variance * 100.0), 1.0)
         return float(quality)
 
-    def _save_embeddings(self, student_photo: StudentPhoto, embedding_data: dict[str, Any]) -> None:
+    def _save_embeddings(self, student_photo: StudentPhoto, embedding_data: dict[str, Any], face_confidence: float) -> None:
         """Save embeddings to database."""
         for model_name, data in embedding_data.items():
             FaceEmbeddingMetadata.objects.create(
                 student_photo=student_photo,
                 model_name=model_name,
                 embedding=data["vector"],
-                quality_score=data["quality_score"],
+                quality_score=face_confidence,  # Face detection confidence
                 captured_at=student_photo.captured_at,
             )
