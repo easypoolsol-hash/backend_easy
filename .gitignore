@@ -219,3 +219,9 @@ bandit_output.json
 # Exception: openapi-schema.yaml in root is the SSOT
 app/openapi-schema.yaml
 app/schema.yaml
+
+# Test fixtures - ignore real face photos
+tests/fixtures/test_images/real_face_*.jpg
+tests/fixtures/test_images/real_face_*.png
+tests/fixtures/test_images/*.png
+!tests/fixtures/test_images/README.md

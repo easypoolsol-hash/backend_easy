@@ -59,12 +59,12 @@ class MobileFaceNet(BaseFaceRecognitionModel):
         image = cv2.resize(image, (112, 112))
 
         # Normalize: (pixel - 127.5) / 128.0
-        mean = np.array(MOBILEFACENET_CONFIG["mean"])
-        std = np.array(MOBILEFACENET_CONFIG["std"])
+        mean = np.array(MOBILEFACENET_CONFIG["mean"], dtype=np.float32)
+        std = np.array(MOBILEFACENET_CONFIG["std"], dtype=np.float32)
         image = (image.astype(np.float32) - mean) / std
 
-        # Add batch dimension
-        image = np.expand_dims(image, axis=0)
+        # Add batch dimension and ensure float32
+        image = np.expand_dims(image, axis=0).astype(np.float32)
 
         return image
 
