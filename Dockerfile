@@ -40,18 +40,11 @@ RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0
 FROM python:3.12-slim-bookworm AS runtime
 
 # Install only runtime system dependencies
-# Add OpenCV / MediaPipe native dependencies (libGL, X11 libs, ffmpeg, etc.) so
-# python packages like opencv-python and mediapipe can import successfully.
+# LIGHTWEIGHT: Minimal deps - only what's absolutely needed
 RUN apt-get update && apt-get install -y \
     curl \
-    ffmpeg \
-    libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    postgresql-client \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && groupadd -r django && useradd -r -g django django

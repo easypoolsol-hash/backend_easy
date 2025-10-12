@@ -1,16 +1,19 @@
 """
 MobileFaceNet TFLite Inference
 Optimized for production - matches frontend exactly.
+LAZY LOADING: TensorFlow is imported only when model is actually loaded.
 """
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
-import tensorflow as tf
 
 from ml_models.config import MOBILEFACENET_CONFIG
 
 from .base import BaseFaceRecognitionModel
+
+if TYPE_CHECKING:
+    pass
 
 
 class MobileFaceNet(BaseFaceRecognitionModel):
@@ -30,8 +33,10 @@ class MobileFaceNet(BaseFaceRecognitionModel):
             raise ValueError("Model must be .tflite format")
 
     def _load_model(self) -> None:
-        """Load TFLite model."""
-        self.interpreter = tf.lite.Interpreter(model_path=str(self.model_path))
+        """Load TFLite model - lazy import tflite-runtime here."""
+        import tflite_runtime.interpreter as tflite
+
+        self.interpreter = tflite.Interpreter(model_path=str(self.model_path))
         self.interpreter.allocate_tensors()
 
         # Get input/output details

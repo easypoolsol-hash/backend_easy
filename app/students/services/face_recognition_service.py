@@ -10,18 +10,12 @@ from importlib import import_module
 import logging
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
-from numpy.typing import NDArray
-from PIL import Image
-
 if TYPE_CHECKING:
     from django.core.files.base import File
 else:
     from django.core.files.base import File as FileType
 
     File = FileType  # type: ignore[misc, assignment]
-
-from ml_models.face_recognition.preprocessing.face_detector import FaceDetector
 
 from ..face_recognition_config import (
     FACE_RECOGNITION_CONFIG,
@@ -35,13 +29,14 @@ logger = logging.getLogger(__name__)
 class FaceRecognitionService:
     """
     Service for processing student photos and generating face embeddings.
+    LAZY LOADING: ML libraries only loaded when photo is processed.
     """
 
     def __init__(self) -> None:
         self.enabled_models = get_enabled_models()
         self.config = FACE_RECOGNITION_CONFIG
         self._model_instances: dict[str, Any] = {}
-        self._face_detector = FaceDetector()  # Real MediaPipe detector
+        self._face_detector = None  # Lazy load on first use
 
     def process_student_photo(self, student_photo: StudentPhoto) -> bool:
         """
@@ -92,10 +87,12 @@ class FaceRecognitionService:
             logger.error(f"Error processing student photo: {e}")
             return False
 
-    def _load_image(self, photo_file: File[Any]) -> Image.Image | None:
+    def _load_image(self, photo_file: File[Any]) -> Any:
         """Load and validate image from file."""
+        from PIL import Image
+
         try:
-            pil_image: Image.Image = Image.open(photo_file)
+            pil_image = Image.open(photo_file)
             pil_image.verify()  # Validate image integrity
             photo_file.seek(0)  # Reset file pointer
             pil_image = Image.open(photo_file)  # Re-open after verify
@@ -109,11 +106,22 @@ class FaceRecognitionService:
             logger.error(f"Error loading image: {e}")
             return None
 
-    def _detect_faces(self, image: Image.Image) -> list[dict[str, Any]]:
+    def _detect_faces(self, image: Any) -> list[dict[str, Any]]:
         """
-        Detect faces using MediaPipe (industry standard).
+        Detect faces using OpenCV (lightweight).
         Returns list of face dictionaries with bbox and confidence.
         """
+        import numpy as np
+        from PIL import Image
+
+        # Lazy load face detector on first use
+        if self._face_detector is None:
+            from ml_models.face_recognition.preprocessing.face_detector import (
+                FaceDetector,
+            )
+
+            self._face_detector = FaceDetector()
+
         # Convert PIL to numpy
         img_array = np.array(image)
 
@@ -145,6 +153,8 @@ class FaceRecognitionService:
         """
         Generate embeddings for all enabled models.
         """
+        import numpy as np
+
         embeddings = {}
         face_image = face_data["image"]
 
@@ -198,8 +208,10 @@ class FaceRecognitionService:
 
         return self._model_instances[model_name]
 
-    def _calculate_embedding_quality(self, embedding: NDArray[np.floating[Any]]) -> float:
+    def _calculate_embedding_quality(self, embedding: Any) -> float:
         """Calculate quality score for embedding."""
+        import numpy as np
+
         # Simple quality metric based on vector magnitude and variance
         magnitude = np.linalg.norm(embedding)
         variance = np.var(embedding)

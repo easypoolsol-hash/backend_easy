@@ -41,11 +41,10 @@ dependencies = [
     "redis>=5.0.0,<6.0",
     "django-redis>=5.4.0,<6.0",
 
-    # Image Processing & Machine Learning
+    # Image Processing & Machine Learning (LIGHTWEIGHT - No TensorFlow/MediaPipe)
     "Pillow>=10.0.0,<11.0",
-    "tensorflow>=2.14.0,<3.0",  # Includes TFLite interpreter
-    "mediapipe>=0.10.14,<1.0",  # Face detection
-    "opencv-python-headless>=4.10.0,<5.0",  # Image processing (no GUI)
+    "tflite-runtime>=2.14.0",  # Lightweight TFLite only (no TensorFlow)
+    "opencv-python-headless>=4.10.0,<5.0",  # For face detection + preprocessing
     "numpy>=1.24.3,<2.0",  # ML array operations
 
     # Monitoring & Observability
