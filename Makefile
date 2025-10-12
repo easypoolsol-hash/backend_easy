@@ -1,7 +1,7 @@
 # Industrial Django Linting Pipeline (Optimized)
 # Fast, comprehensive, no redundancy
 
-.PHONY: lint lint-all lint-fix format check clean setup-dev ci
+.PHONY: lint lint-all lint-fix format check clean setup-dev ci test test-fast
 
 # Primary linting (fastest - ruff handles most rules)
 lint:
@@ -55,5 +55,16 @@ setup-dev:
 ci: clean lint
 	@echo "🚀 CI/CD pipeline completed successfully!"
 
+# Run all tests
+test:
+	@echo "🧪 Running all tests..."
+	python -m pytest tests/ -v --tb=short
+	@echo "✅ All tests passed!"
+
+# Run tests (fast - stop on first failure)
+test-fast:
+	@echo "🧪 Running tests (fast mode)..."
+	python -m pytest tests/ -x --tb=short --disable-warnings
+	@echo "✅ Tests passed!"
 
 #docker-compose -f /opt/backend_easy/docker-compose.prod.yml exec -w /app web python3 manage.py migrate
