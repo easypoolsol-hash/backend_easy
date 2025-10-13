@@ -55,6 +55,27 @@ repos:
         files: \.(yaml|yml)$
         verbose: true
 
+      # Snapshot Contract Sync (same pattern as OpenAPI)
+      - id: copy-snapshot-contract
+        name: Copy Snapshot Contract to Frontend
+        entry: powershell
+        args: ["-Command", "Copy-Item imperial_governance/constitutional_core/contracts/snapshot_interface_contract.yaml ../bus_kiosk_easy/imperial_governance/constitutional_core/contracts/snapshot_interface_contract.yaml -Force"]
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: snapshot_interface_contract\.yaml
+        verbose: true
+
+      # Validate Snapshot Contract Compliance
+      - id: validate-snapshot-contract
+        name: Validate Snapshot Contract
+        entry: python -m pytest tests/unit/test_snapshot_generator.py -v --tb=short
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: (kiosks/services\.py|snapshot_interface_contract\.yaml)
+        verbose: true
+
   # Additional fast/modern hooks (consolidated from config/ into root)
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
