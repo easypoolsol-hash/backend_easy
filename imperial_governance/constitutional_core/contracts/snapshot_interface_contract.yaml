@@ -1,0 +1,83 @@
+# Snapshot Interface Contract
+# Backend snapshot generation ↔ Frontend database consumption
+
+contract:
+  name: snapshot_interface
+  version: "1.0.0"
+  type: inter_realm_data_contract
+  producer: backend_snapshot_generator
+  consumer: frontend_kiosk_database
+
+schema:
+  version: "1.0.0"
+
+tables:
+  students:
+    columns:
+      student_id: {type: TEXT, constraints: [PRIMARY KEY]}
+      name: {type: TEXT, constraints: [NOT NULL]}
+      status: {type: TEXT, default: "'active'"}
+
+    indexes:
+      idx_students_status: [status]
+
+    rules:
+      - only_active_students
+      - only_assigned_to_kiosk_bus
+      - names_must_be_decrypted
+
+  face_embeddings:
+    columns:
+      id: {type: INTEGER, constraints: [PRIMARY KEY, AUTOINCREMENT]}
+      student_id: {type: TEXT, constraints: [NOT NULL], foreign_key: students.student_id}
+      embedding_vector: {type: BLOB, constraints: [NOT NULL]}
+      quality_score: {type: REAL, constraints: [NOT NULL]}
+      model_name: {type: TEXT}
+
+    indexes:
+      idx_embeddings_student: [student_id]
+
+    rules:
+      - vector_must_be_binary_blob
+      - vector_format_192_floats_little_endian
+      - vector_must_be_l2_normalized
+      - no_averaging_multiple_embeddings
+
+  sync_metadata:
+    columns:
+      key: {type: TEXT, constraints: [PRIMARY KEY]}
+      value: {type: TEXT, constraints: [NOT NULL]}
+
+    required_keys:
+      - schema_version
+      - sync_timestamp
+      - bus_id
+      - student_count
+      - embedding_count
+      - content_hash
+
+encoding:
+  embedding_vector:
+    format: binary_blob
+    data_type: float32_little_endian
+    count: 192
+    size_bytes: 768
+    python_pack: "struct.pack('192f', *embedding_list)"
+    dart_unpack: "ByteData.getFloat32(offset, Endian.little)"
+
+validation:
+  backend_generation:
+    - pragma_integrity_check
+    - all_required_metadata_keys_present
+    - student_count_matches_actual
+    - embedding_count_matches_actual
+
+  frontend_consumption:
+    - pragma_integrity_check
+    - schema_version_matches
+    - all_required_tables_exist
+    - all_required_columns_exist
+
+enforcement:
+  backend: tests/constitutional/test_snapshot_contract.py
+  frontend: test/constitutional/snapshot_contract_test.dart

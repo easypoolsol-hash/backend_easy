@@ -1,7 +1,7 @@
 import hashlib
-import json
 import os
 import sqlite3
+import struct
 import tempfile
 from typing import Any
 
@@ -66,29 +66,35 @@ class SnapshotGenerator:
         return db_bytes, metadata
 
     def _create_schema(self, cursor):
-        """Creates the necessary tables in the snapshot database."""
+        """Creates schema following snapshot_interface_contract.yaml"""
         cursor.execute(
             """
             CREATE TABLE students (
                 student_id TEXT PRIMARY KEY,
-                name TEXT NOT NULL
+                name TEXT NOT NULL,
+                status TEXT DEFAULT 'active'
             )
             """
         )
+        cursor.execute("CREATE INDEX idx_students_status ON students(status)")
+
         cursor.execute(
             """
-            CREATE TABLE embeddings (
-                embedding_id TEXT PRIMARY KEY,
+            CREATE TABLE face_embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 student_id TEXT NOT NULL,
-                embedding TEXT NOT NULL, -- Stored as a JSON string of the vector
-                model_name TEXT NOT NULL,
+                embedding_vector BLOB NOT NULL,
+                quality_score REAL NOT NULL,
+                model_name TEXT,
                 FOREIGN KEY (student_id) REFERENCES students (student_id)
             )
             """
         )
+        cursor.execute("CREATE INDEX idx_embeddings_student ON face_embeddings(student_id)")
+
         cursor.execute(
             """
-            CREATE TABLE metadata (
+            CREATE TABLE sync_metadata (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             )
@@ -110,38 +116,44 @@ class SnapshotGenerator:
         return students, student_ids, embedding_ids
 
     def _populate_data(self, cursor, students):
-        """Populates the snapshot tables with real data. NO MOCKS."""
+        """Populates snapshot following contract: binary embeddings, decrypted names."""
         student_rows = []
         embedding_rows = []
 
         for student in students:
-            student_rows.append((str(student.student_id), student.name))
+            # Contract: names must be decrypted
+            decrypted_name = student.encrypted_name
+            student_rows.append((str(student.student_id), decrypted_name, "active"))
 
             for photo in student.photos.all():
                 for embedding_meta in photo.face_embeddings.all():
-                    embedding_json = json.dumps(embedding_meta.embedding)
+                    # Contract: convert JSON list to binary BLOB (192 floats, little-endian)
+                    embedding_list = embedding_meta.embedding  # List[float] from JSONField
+                    embedding_blob = struct.pack(f"{len(embedding_list)}f", *embedding_list)
+
                     embedding_rows.append(
                         (
-                            str(embedding_meta.embedding_id),
                             str(student.student_id),
-                            embedding_json,
+                            embedding_blob,
+                            embedding_meta.quality_score,
                             embedding_meta.model_name,
                         )
                     )
 
-        cursor.executemany("INSERT INTO students (student_id, name) VALUES (?, ?)", student_rows)
+        cursor.executemany("INSERT INTO students (student_id, name, status) VALUES (?, ?, ?)", student_rows)
         cursor.executemany(
-            "INSERT INTO embeddings (embedding_id, student_id, embedding, model_name) VALUES (?, ?, ?, ?)",
+            "INSERT INTO face_embeddings (student_id, embedding_vector, quality_score, model_name) VALUES (?, ?, ?, ?)",
             embedding_rows,
         )
 
     def _populate_metadata(self, cursor, student_count, embedding_count, content_hash):
-        """Stores metadata about the snapshot build."""
+        """Stores metadata following contract required_keys."""
         metadata_rows = [
+            ("schema_version", "1.0.0"),
             ("sync_timestamp", self.sync_timestamp),
             ("bus_id", str(self.bus_id)),
             ("student_count", str(student_count)),
             ("embedding_count", str(embedding_count)),
             ("content_hash", content_hash),
         ]
-        cursor.executemany("INSERT INTO metadata (key, value) VALUES (?, ?)", metadata_rows)
+        cursor.executemany("INSERT INTO sync_metadata (key, value) VALUES (?, ?)", metadata_rows)

@@ -1,6 +1,6 @@
-import json
 from pathlib import Path
 import sqlite3
+import struct
 import tempfile
 
 import pytest
@@ -43,15 +43,25 @@ class TestSnapshotGenerator:
             assert str(student1.student_id) in student_ids  # type: ignore[attr-defined]
             assert str(student2.student_id) not in student_ids  # type: ignore[attr-defined]
 
-            # Check embeddings table
-            cursor.execute("SELECT embedding_id, student_id, embedding FROM embeddings")
+            # Check face_embeddings table
+            cursor.execute("SELECT id, student_id, embedding_vector, quality_score FROM face_embeddings")
             embedding_rows = cursor.fetchall()
             assert len(embedding_rows) == 1
-            db_emb_id, db_student_id, db_embedding_json = embedding_rows[0]
+            db_emb_id, db_student_id, db_embedding_blob, db_quality = embedding_rows[0]
 
-            assert db_emb_id == str(emb1.embedding_id)  # type: ignore[attr-defined]
+            assert isinstance(db_emb_id, int)  # INTEGER AUTOINCREMENT
             assert db_student_id == str(student1.student_id)  # type: ignore[attr-defined]
-            assert json.loads(db_embedding_json) == [1.0, 2.0]
+
+            # Verify binary BLOB format (2 floats = 8 bytes)
+            assert isinstance(db_embedding_blob, bytes)
+            assert len(db_embedding_blob) == 8  # 2 floats * 4 bytes
+
+            # Decode binary and verify values
+            decoded_floats = struct.unpack("2f", db_embedding_blob)
+            assert list(decoded_floats) == [1.0, 2.0]
+
+            # Verify quality_score exists
+            assert db_quality == emb1.quality_score  # type: ignore[attr-defined]
 
             conn.close()
         finally:
@@ -110,7 +120,7 @@ class TestSnapshotGenerator:
 
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             tables = {row[0] for row in cursor.fetchall()}
-            assert {"students", "embeddings", "metadata"}.issubset(tables)
+            assert {"students", "face_embeddings", "sync_metadata"}.issubset(tables)
 
             conn.close()
         finally:
