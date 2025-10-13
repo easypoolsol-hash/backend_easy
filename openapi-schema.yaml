@@ -3287,7 +3287,7 @@ components:
         database_hash:
           type: string
           description: Database content hash
-          maxLength: 32
+          maxLength: 64
         student_count:
           type: integer
           minimum: 0

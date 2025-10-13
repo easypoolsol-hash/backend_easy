@@ -50,6 +50,35 @@ class KioskAdmin(admin.ModelAdmin):
         ),
     )
 
+    @display(description="Status")
+    def status_display(self, obj):
+        """Display comprehensive status with health indicators"""
+        try:
+            status = obj.status
+            colors = {
+                "ok": "green",
+                "warning": "orange",
+                "critical": "red",
+            }
+            color = colors.get(status.status, "gray")
+            is_online = obj.is_online
+            online_color = "green" if is_online else "red"
+            online_text = "Online" if is_online else "Offline"
+
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">● {}</span> | <span style="color: {};">● {}</span>',
+                color,
+                status.get_status_display().upper(),
+                online_color,
+                online_text,
+            )
+        except KioskStatus.DoesNotExist:
+            # No status yet - show only online status
+            is_online = obj.is_online
+            color = "green" if is_online else "red"
+            text = "Online" if is_online else "Offline"
+            return format_html('<span style="color: {};">● {}</span>', color, text)
+
     @display(description="Online Status")
     def is_online_display(self, obj):
         """Display online status with color coding"""

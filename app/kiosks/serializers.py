@@ -129,7 +129,7 @@ class HeartbeatSerializer(serializers.Serializer):
     timestamp = serializers.DateTimeField(help_text="Heartbeat timestamp")
     database_version = serializers.CharField(max_length=50, help_text="Current database version on kiosk")
     database_hash = serializers.CharField(
-        max_length=32,
+        max_length=64,
         required=False,
         allow_blank=True,
         help_text="Database content hash",

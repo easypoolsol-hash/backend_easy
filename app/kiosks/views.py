@@ -367,7 +367,7 @@ def heartbeat(request: Request, kiosk_id: str) -> Response:
             status=status.HTTP_403_FORBIDDEN,
         )
 
-    # Validate request
+    # Validate request - now using proper JSON from dart generator
     serializer = HeartbeatSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
