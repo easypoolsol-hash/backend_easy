@@ -23,7 +23,7 @@ status TEXT NOT NULL DEFAULT 'active'
 ```sql
 embedding_id INTEGER PRIMARY KEY
 student_id TEXT NOT NULL
-embedding_data BLOB NOT NULL  -- 192 floats (768 bytes)
+embedding_vector BLOB NOT NULL  -- 192 floats (768 bytes)
 quality_score REAL NOT NULL
 ```
 - Contains face recognition vectors for students on THIS bus

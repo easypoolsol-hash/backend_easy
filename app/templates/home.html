@@ -3,165 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Imperial Bus Kiosk System</title>
+    <title>EasyPool - Trusted School Bus Safety Solutions</title>
+    {% load static %}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FDB713',
+                        secondary: '#1F2937',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 50px;
-        }
-        .header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-        }
-        .feature-card {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
-        }
-        .feature-card h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-        .feature-card p {
-            color: #666;
-            line-height: 1.6;
-        }
-        .actions {
-            text-align: center;
-            margin-bottom: 50px;
-        }
-        .btn {
-            display: inline-block;
-            padding: 15px 30px;
-            margin: 10px;
-            border: none;
-            border-radius: 25px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1.1em;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        .btn-primary:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-        .btn-secondary {
-            background: #764ba2;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background: #6a4190;
-            transform: translateY(-2px);
-        }
-        .status {
-            background: rgba(255,255,255,0.9);
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .status h3 {
-            margin: 0 0 10px 0;
-            color: #333;
-        }
-        .status p {
-            margin: 0;
-            color: #666;
-        }
-        .footer {
-            text-align: center;
-            color: white;
-            opacity: 0.8;
-            font-size: 0.9em;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🏫 Imperial Bus Kiosk System</h1>
-            <p>Smart Transportation Management for Schools</p>
-        </div>
+<body class="bg-white">
 
-        <div class="status">
-            <h3>System Status: Online</h3>
-            <p>Current Time: {{ current_time }}</p>
+    <!-- Navigation -->
+    <nav class="bg-white fixed w-full top-0 z-50 shadow-sm border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <div class="flex items-center space-x-4">
+                    <div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg class="w-8 h-8 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                    </div>
+                    <span class="text-3xl font-bold text-secondary">EasyPool</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="https://school-portal-lilac.vercel.app/" target="_blank" class="bg-primary text-secondary px-8 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-all duration-300 inline-block">
+                        Login
+                    </a>
+                </div>
+            </div>
         </div>
+    </nav>
 
-        <div class="features">
-            <div class="feature-card">
-                <h3>👤 Student Management</h3>
-                <p>Secure student registration with face recognition technology. Track attendance and manage student information with privacy protection.</p>
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-br from-yellow-50 to-white min-h-screen flex items-center justify-center pt-20">
+        <div class="max-w-6xl mx-auto px-4 text-center py-20" data-aos="fade-up">
+            <div class="inline-block bg-primary/10 text-secondary px-4 py-2 rounded-full text-sm font-semibold mb-6">
+                Innovative School Bus Safety Technology
             </div>
-            <div class="feature-card">
-                <h3>🚌 Bus Tracking</h3>
-                <p>Real-time bus monitoring with capacity tracking, route management, and automated boarding events.</p>
+            <h1 class="text-5xl md:text-6xl font-bold text-secondary mb-6 leading-tight">
+                Safety You Can Trust.<br/>
+                <span class="text-primary">Peace of Mind Guaranteed.</span>
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+                Keep every child safe with real-time tracking, automated attendance, and instant parent notifications.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button class="bg-primary text-secondary px-10 py-4 rounded-lg text-lg font-semibold hover:bg-yellow-500 transition-all duration-300 shadow-lg">
+                    Start Free Trial
+                </button>
+                <button class="border-2 border-gray-300 text-secondary px-10 py-4 rounded-lg text-lg font-semibold hover:border-primary transition-all duration-300">
+                    Watch Demo
+                </button>
             </div>
-            <div class="feature-card">
-                <h3>📊 Analytics & Reports</h3>
-                <p>Comprehensive reporting on attendance, bus utilization, and transportation efficiency for data-driven decisions.</p>
-            </div>
-            <div class="feature-card">
-                <h3>🔒 Secure Access</h3>
-                <p>Role-based authentication with JWT tokens ensuring secure access for administrators, drivers, and school staff.</p>
-            </div>
-            <div class="feature-card">
-                <h3>📱 Kiosk Integration</h3>
-                <p>Physical kiosk devices for automated check-in/check-out with face recognition and real-time data synchronization.</p>
-            </div>
-            <div class="feature-card">
-                <h3>⚡ Real-time Updates</h3>
-                <p>Live boarding events, notifications, and instant updates across all connected devices and systems.</p>
-            </div>
+            <p class="text-sm text-gray-500 mt-6">✓ No credit card required  ✓ Setup in 24 hours</p>
         </div>
+    </section>
 
-        <div class="actions">
-            <a href="/admin/" class="btn btn-primary">🔑 Admin Panel</a>
-            <a href="/docs/simple/" class="btn btn-secondary">📋 API Documentation</a>
-            <a href="/docs/schema/" class="btn btn-secondary">📖 OpenAPI Schema</a>
-            <a href="/health/" class="btn btn-secondary">❤️ Health Check</a>
+    <!-- Trust Indicators -->
+    <section class="py-16 bg-white border-y border-gray-100">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div data-aos="fade-up" data-aos-delay="100">
+                    <div class="text-4xl font-bold text-primary mb-2">
+                        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-gray-600 font-semibold">Quick Setup</div>
+                </div>
+                <div data-aos="fade-up" data-aos-delay="200">
+                    <div class="text-4xl font-bold text-primary mb-2">
+                        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-gray-600 font-semibold">Secure & Reliable</div>
+                </div>
+                <div data-aos="fade-up" data-aos-delay="300">
+                    <div class="text-4xl font-bold text-primary mb-2">
+                        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-gray-600 font-semibold">Advanced Technology</div>
+                </div>
+                <div data-aos="fade-up" data-aos-delay="400">
+                    <div class="text-4xl font-bold text-primary mb-2">
+                        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-gray-600 font-semibold">Dedicated Support</div>
+                </div>
+            </div>
         </div>
+    </section>
 
-        <div class="footer">
-            <p>&copy; 2024 Imperial Bus Kiosk System. Built with Django & Django REST Framework.</p>
+    <!-- Features Section -->
+    <section class="py-24 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-aos="fade-up">
+                <h2 class="text-4xl md:text-5xl font-bold text-secondary mb-4">
+                    Complete Safety, Simplified
+                </h2>
+                <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                    Everything you need to ensure student safety and parent peace of mind
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-secondary">Automated Attendance</h3>
+                    <p class="text-gray-600 leading-relaxed">Accurate, real-time attendance tracking as students board and exit. Zero manual errors.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-secondary">Instant Parent Alerts</h3>
+                    <p class="text-gray-600 leading-relaxed">Parents receive SMS & app notifications the moment their child boards or exits safely.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-secondary">Live GPS Tracking</h3>
+                    <p class="text-gray-600 leading-relaxed">Track exact bus location in real-time. Know arrival times and route deviations instantly.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-secondary">Data Security</h3>
+                    <p class="text-gray-600 leading-relaxed">Bank-grade encryption. Your data is protected with industry-leading security standards.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-secondary">Easy Setup</h3>
+                    <p class="text-gray-600 leading-relaxed">Get started in 24 hours. Simple installation with full training and ongoing support.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3 text-secondary">Detailed Reports</h3>
+                    <p class="text-gray-600 leading-relaxed">Complete attendance records, route history, and analytics for better decision making.</p>
+                </div>
+            </div>
         </div>
-    </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-24 bg-white">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-6 text-secondary" data-aos="fade-up">
+                Simple. Reliable. Proven.
+            </h2>
+            <p class="text-xl text-gray-600 text-center mb-16 max-w-2xl mx-auto" data-aos="fade-up" data-aos-delay="100">
+                Three simple steps to complete peace of mind
+            </p>
+
+            <div class="grid md:grid-cols-3 gap-12">
+                <div class="text-center" data-aos="fade-up" data-aos-delay="100">
+                    <div class="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 text-secondary text-3xl font-bold shadow-lg">1</div>
+                    <h3 class="text-2xl font-bold mb-4 text-secondary">Quick Setup</h3>
+                    <p class="text-gray-600 text-lg leading-relaxed">Our team installs hardware in your buses and trains your staff. Ready in 24 hours.</p>
+                </div>
+
+                <div class="text-center" data-aos="fade-up" data-aos-delay="200">
+                    <div class="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 text-secondary text-3xl font-bold shadow-lg">2</div>
+                    <h3 class="text-2xl font-bold mb-4 text-secondary">Automatic Tracking</h3>
+                    <p class="text-gray-600 text-lg leading-relaxed">System automatically tracks attendance, location, and sends real-time alerts to parents.</p>
+                </div>
+
+                <div class="text-center" data-aos="fade-up" data-aos-delay="300">
+                    <div class="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 text-secondary text-3xl font-bold shadow-lg">3</div>
+                    <h3 class="text-2xl font-bold mb-4 text-secondary">Complete Peace of Mind</h3>
+                    <p class="text-gray-600 text-lg leading-relaxed">Parents stay informed, schools stay organized, and children stay safe. Simple as that.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonial Section -->
+    <section class="py-24 bg-gradient-to-br from-yellow-50 to-white">
+        <div class="max-w-4xl mx-auto px-4 text-center" data-aos="fade-up">
+            <h2 class="text-3xl md:text-4xl font-bold text-secondary mb-6">Why Choose EasyPool?</h2>
+            <div class="bg-white p-10 rounded-3xl shadow-lg border border-gray-100">
+                <svg class="w-12 h-12 text-primary mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+                <p class="text-xl md:text-2xl text-gray-700 mb-6 leading-relaxed">
+                    Built by experts who understand the critical importance of student safety. Our cutting-edge technology ensures reliable real-time tracking, instant parent communication, and complete peace of mind for schools and families.
+                </p>
+                <div class="font-semibold text-secondary text-lg">Modern Technology for Modern Schools</div>
+                <div class="text-gray-500">Trusted, Tested, and Ready to Serve</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 bg-secondary">
+        <div class="max-w-4xl mx-auto px-4 text-center" data-aos="fade-up">
+            <h2 class="text-4xl md:text-5xl font-bold text-white mb-6">
+                Ready to Keep Your Students Safe?
+            </h2>
+            <p class="text-xl text-gray-300 mb-10">
+                Be among the first schools to implement cutting-edge safety technology
+            </p>
+            <button class="bg-primary text-secondary px-12 py-4 rounded-lg text-lg font-semibold hover:bg-yellow-500 transition-all duration-300 shadow-lg">
+                Get Started Today
+            </button>
+            <p class="text-sm text-gray-400 mt-6">✓ Free demo available  ✓ Special launch pricing for early adopters</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                        </svg>
+                        <span class="text-2xl font-bold text-secondary">EasyPool</span>
+                    </div>
+                    <p class="text-gray-600">Trusted school bus safety solutions for peace of mind.</p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4 text-secondary">Solutions</h4>
+                    <ul class="space-y-2 text-gray-600">
+                        <li><a href="#" class="hover:text-primary transition">Attendance Tracking</a></li>
+                        <li><a href="#" class="hover:text-primary transition">GPS Tracking</a></li>
+                        <li><a href="#" class="hover:text-primary transition">Parent App</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4 text-secondary">Company</h4>
+                    <ul class="space-y-2 text-gray-600">
+                        <li><a href="https://admin-easypool.vercel.app" target="_blank" class="hover:text-primary transition font-semibold">🔑 Admin Portal</a></li>
+                        <li><a href="#" class="hover:text-primary transition">About Us</a></li>
+                        <li><a href="#" class="hover:text-primary transition">Contact</a></li>
+                        <li><a href="#" class="hover:text-primary transition">Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4 text-secondary">Contact</h4>
+                    <p class="text-gray-600 mb-2">📧 easypoolsol@gmail.com</p>
+                    <p class="text-gray-600 mb-2">📱 +91 8777642338</p>
+                    <p class="text-gray-600 mb-2">📱 +91 7980826417</p>
+                    <p class="text-gray-600">🌐 www.easypool.in</p>
+                </div>
+            </div>
+            <div class="border-t border-gray-200 mt-8 pt-8 text-center text-gray-600">
+                <p>&copy; 2025 EasyPool. All rights reserved. | Keeping students safe, one ride at a time.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- WhatsApp Floating Button -->
+    <a href="https://wa.me/+918777642338" target="_blank" class="fixed bottom-6 right-6 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition-all duration-300 hover:scale-110 shadow-lg z-50" title="Chat on WhatsApp">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+        </svg>
+    </a>
+
+    <script>
+        AOS.init({
+            duration: 800,
+            once: true,
+            offset: 100
+        });
+    </script>
 </body>
 </html>
