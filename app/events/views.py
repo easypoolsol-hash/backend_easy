@@ -8,6 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from kiosks.authentication import KioskJWTAuthentication
 from kiosks.permissions import IsKiosk
 from students.models import Student
 
@@ -24,6 +25,7 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
     """ViewSet for boarding events"""
 
     queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
+    authentication_classes = [KioskJWTAuthentication]
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]

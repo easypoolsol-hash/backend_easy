@@ -492,9 +492,7 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':
@@ -521,9 +519,7 @@ paths:
               $ref: '#/components/schemas/BoardingEventCreate'
         required: true
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '201':
@@ -546,9 +542,7 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':
@@ -582,9 +576,7 @@ paths:
               $ref: '#/components/schemas/BoardingEvent'
         required: true
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':
@@ -617,9 +609,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedBoardingEvent'
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':
@@ -641,9 +631,7 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '204':
@@ -667,9 +655,7 @@ paths:
               $ref: '#/components/schemas/BoardingEvent'
         required: true
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':
@@ -685,9 +671,7 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
       - KioskJWTAuth: []
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':
