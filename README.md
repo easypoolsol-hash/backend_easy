@@ -1,6 +1,6 @@
 # Bus Kiosk Backend
 
-A Django-based backend service for bus kiosk management system.
+A Django-based backend service for bus kiosk management system with auto-generated OpenAPI client.
 
 ## 🚀 Quick Start
 

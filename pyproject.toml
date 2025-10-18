@@ -7,7 +7,7 @@ name = "bus-kiosk-backend"
 version = "1.0.0"
 description = "Industrial Django backend for bus kiosk face recognition system"
 license = {text = "MIT"}
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 authors = [
     {name = "Imperial Bus Kiosk Team", email = "team@imperial-easypool.com"},
 ]
