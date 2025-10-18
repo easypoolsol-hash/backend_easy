@@ -33,10 +33,10 @@ class MobileFaceNet(BaseFaceRecognitionModel):
             raise ValueError("Model must be .tflite format")
 
     def _load_model(self) -> None:
-        """Load TFLite model - lazy import tflite_runtime here."""
-        import tflite_runtime.interpreter as tflite
+        """Load TFLite model - lazy import ai_edge_litert here."""
+        from ai_edge_litert.interpreter import Interpreter
 
-        self.interpreter = tflite.Interpreter(model_path=str(self.model_path))
+        self.interpreter = Interpreter(model_path=str(self.model_path))
         self.interpreter.allocate_tensors()
 
         # Get input/output details
