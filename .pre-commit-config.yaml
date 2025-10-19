@@ -32,12 +32,12 @@ repos:
 
       # Regenerate Flutter API client (enforces zero drift)
       # CONSTITUTIONAL: Generates to packages/ (industry standard location)
-      # SERIALIZATION: Uses json_serializable 6.7.1 (stable, production-ready)
-      # NOTE: Avoiding 6.8.0+ which uses experimental null-aware-elements
+      # SERIALIZATION: Uses json_serializable with null-aware-elements (stable in 2025, Dart 3.5+)
+      # BEST PRACTICE 2025: Use dart run instead of flutter pub run (deprecated)
       - id: regenerate-flutter-api
         name: Regenerate Flutter API Client from Schema
         entry: powershell
-        args: ["-Command", "cd ../bus_kiosk_easy; npx @openapitools/openapi-generator-cli generate -i bus_kiok/openapi-schema.yaml -g dart-dio -o packages/bus_kiosk_api --additional-properties=pubName=bus_kiosk_api,useEnumExtension=true,serializationLibrary=json_serializable; cd packages/bus_kiosk_api; (Get-Content pubspec.yaml) -replace 'json_serializable: ''\\^6\\.[0-9]+\\.[0-9]+''', 'json_serializable: ''6.7.1''' | Set-Content pubspec.yaml; (Get-Content pubspec.yaml) -replace 'json_annotation: ''\\^4\\.[0-9]+\\.[0-9]+''', 'json_annotation: ''4.8.1''' | Set-Content pubspec.yaml; (Get-Content build.yaml) -replace 'include_if_null: false', 'include_if_null: true' | Set-Content build.yaml; flutter pub get; flutter pub run build_runner build --delete-conflicting-outputs"]
+        args: ["-Command", "cd ../bus_kiosk_easy; npx @openapitools/openapi-generator-cli generate -i bus_kiok/openapi-schema.yaml -g dart-dio -o packages/bus_kiosk_api --additional-properties=pubName=bus_kiosk_api,useEnumExtension=true,serializationLibrary=json_serializable; cd packages/bus_kiosk_api; flutter pub get; dart run build_runner build --delete-conflicting-outputs"]
         language: system
         pass_filenames: false
         stages: [commit]
