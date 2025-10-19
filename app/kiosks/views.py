@@ -9,7 +9,6 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import (
@@ -288,15 +287,15 @@ def check_updates(request: Request, kiosk_id: str) -> Response:
 @extend_schema(
     responses={
         200: {
-            'content': {
-                'application/octet-stream': {
-                    'schema': {
-                        'type': 'string',
-                        'format': 'binary',
+            "content": {
+                "application/octet-stream": {
+                    "schema": {
+                        "type": "string",
+                        "format": "binary",
                     }
                 }
             },
-            'description': 'SQLite database snapshot file'
+            "description": "SQLite database snapshot file",
         }
     },
     operation_id="kiosk_download_snapshot",
