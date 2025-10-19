@@ -1076,11 +1076,11 @@ paths:
       responses:
         '200':
           content:
-            application/json:
+            application/octet-stream:
               schema:
                 type: string
                 format: binary
-          description: ''
+          description: 'Binary SQLite database snapshot'
   /api/v1/kiosks/activate/:
     post:
       operationId: kiosk_activate

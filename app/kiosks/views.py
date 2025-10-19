@@ -9,6 +9,7 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import (
@@ -286,20 +287,10 @@ def check_updates(request: Request, kiosk_id: str) -> Response:
 
 @extend_schema(
     responses={
-        200: {
-            "content": {
-                "application/octet-stream": {
-                    "schema": {
-                        "type": "string",
-                        "format": "binary",
-                    }
-                }
-            },
-            "description": "SQLite database snapshot file",
-        }
+        (200, "application/octet-stream"): OpenApiTypes.BINARY,
     },
     operation_id="kiosk_download_snapshot",
-    description="Generate and download a kiosk database snapshot.",
+    description="Download kiosk database snapshot (binary SQLite file). Returns raw binary data with x-snapshot-checksum header for verification.",
 )
 @api_view(["GET"])
 @authentication_classes([KioskJWTAuthentication])
