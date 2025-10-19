@@ -3,6 +3,7 @@ from django.contrib.admin import display
 from django.utils.html import format_html
 
 from .models import (
+    BusLocation,
     DeviceLog,
     Kiosk,
     KioskActivationToken,
@@ -361,6 +362,92 @@ class KioskActivationTokenAdmin(admin.ModelAdmin):
 
     # Prevent manual creation/editing -
     # tokens should be generated via admin action
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(BusLocation)
+class BusLocationAdmin(admin.ModelAdmin):
+    """Admin interface for GPS location tracking"""
+
+    list_display = [
+        "kiosk",
+        "coordinates_display",
+        "speed",
+        "accuracy",
+        "timestamp",
+        "created_at",
+    ]
+    list_filter = ["kiosk__kiosk_id", "timestamp", "created_at"]
+    search_fields = ["kiosk__kiosk_id", "kiosk__bus__license_plate"]
+    readonly_fields = ["location_id", "created_at", "map_preview"]
+    date_hierarchy = "timestamp"
+    ordering = ["-timestamp"]
+
+    fieldsets = (
+        ("Location Info", {"fields": ("location_id", "kiosk", "timestamp")}),
+        (
+            "GPS Coordinates",
+            {
+                "fields": (
+                    "latitude",
+                    "longitude",
+                    "accuracy",
+                    "speed",
+                    "heading",
+                    "map_preview",
+                )
+            },
+        ),
+        ("Metadata", {"fields": ("created_at",)}),
+    )
+
+    @display(description="Coordinates")
+    def coordinates_display(self, obj):
+        """Display GPS coordinates with link to Google Maps"""
+        maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
+        return format_html(
+            '<a href="{}" target="_blank">{:.6f}, {:.6f}</a>',
+            maps_url,
+            obj.latitude,
+            obj.longitude,
+        )
+
+    @display(description="Map Preview")
+    def map_preview(self, obj):
+        """Show embedded map preview if Google Maps API key is available"""
+        from django.conf import settings
+
+        api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", "")
+        if not api_key:
+            return format_html(
+                '<div style="padding: 20px; background: #f5f5f5; '
+                'border-radius: 5px; text-align: center;">'
+                "<p>Google Maps API Key not configured</p>"
+                '<p><a href="https://www.google.com/maps?q={},{}" '
+                'target="_blank">View on Google Maps</a></p>'
+                "</div>",
+                obj.latitude,
+                obj.longitude,
+            )
+
+        return format_html(
+            '<iframe width="100%" height="300" frameborder="0" '
+            'style="border:0" src="https://www.google.com/maps/embed/v1/'
+            'place?key={}&q={},{}&zoom=15" allowfullscreen></iframe>',
+            api_key,
+            obj.latitude,
+            obj.longitude,
+        )
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        return super().get_queryset(request).select_related("kiosk__bus")
+
+    # Prevent manual editing - GPS logs come from kiosk devices
     def has_add_permission(self, request):
         return False
 
