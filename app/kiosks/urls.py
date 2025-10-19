@@ -9,6 +9,7 @@ from .views import (
     download_snapshot,
     heartbeat,
     kiosk_log,
+    update_location,
 )
 
 # Create a router for the kiosks app
@@ -41,6 +42,11 @@ urlpatterns = [
                     "<str:kiosk_id>/heartbeat/",
                     heartbeat,
                     name="kiosk-heartbeat-sync",
+                ),
+                path(
+                    "<str:kiosk_id>/location/",
+                    update_location,
+                    name="kiosk-location",
                 ),
                 # Router commented out for testing
                 # path("", include(router.urls)),

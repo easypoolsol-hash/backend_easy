@@ -368,3 +368,48 @@ class KioskActivationToken(models.Model):
     def __str__(self):
         status = "USED" if self.is_used else "VALID" if self.is_valid() else "EXPIRED"
         return f"{self.kiosk.kiosk_id} - {status} ({self.created_at.date()})"
+
+
+class BusLocation(models.Model):
+    """
+    Continuous GPS location tracking for buses.
+
+    Backend simply stores GPS updates sent by kiosk.
+    Kiosk app decides when to send (based on distance/time thresholds).
+
+    Independent of boarding events - pure location tracking.
+    """
+
+    location_id = models.BigAutoField(primary_key=True, help_text="Auto-incrementing location entry ID")
+
+    kiosk = models.ForeignKey(Kiosk, on_delete=models.CASCADE, related_name="locations", help_text="Kiosk/bus that sent this location update")
+
+    latitude = models.FloatField(help_text="GPS latitude coordinate")
+
+    longitude = models.FloatField(help_text="GPS longitude coordinate")
+
+    accuracy = models.FloatField(null=True, blank=True, help_text="GPS accuracy in meters")
+
+    speed = models.FloatField(null=True, blank=True, help_text="Speed in km/h")
+
+    heading = models.FloatField(null=True, blank=True, help_text="Heading/bearing in degrees (0-360)")
+
+    timestamp = models.DateTimeField(help_text="When this location was recorded by the kiosk")
+
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this location was received by the server")
+
+    class Meta:
+        db_table = "bus_locations"
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["kiosk", "-timestamp"], name="idx_busloc_kiosk_time"),
+            models.Index(fields=["-timestamp"], name="idx_busloc_timestamp"),
+        ]
+
+    def __str__(self):
+        return f"{self.kiosk.kiosk_id} at ({self.latitude}, {self.longitude}) - {self.timestamp}"
+
+    @property
+    def coordinates(self):
+        """Return coordinates as tuple (lat, lng)"""
+        return (self.latitude, self.longitude)

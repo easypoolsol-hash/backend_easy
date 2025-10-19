@@ -1,0 +1,53 @@
+<!-- Auto-refreshing recent boarding events -->
+{% if recent_events %}
+    {% for event in recent_events %}
+    <div class="flex items-center space-x-4 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+        <!-- Student Icon -->
+        <div class="flex-shrink-0">
+            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <span class="material-icons text-green-600">person</span>
+            </div>
+        </div>
+
+        <!-- Event Details -->
+        <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+                {{ event.student.name }}
+                {% if event.student.grade %}
+                    <span class="text-gray-500 font-normal">({{ event.student.grade }})</span>
+                {% endif %}
+            </p>
+            <p class="text-xs text-gray-500">
+                Boarded via {{ event.kiosk_id|default:"Unknown Kiosk" }}
+                {% if event.confidence_score %}
+                    <span class="text-gray-400">• Confidence: {{ event.confidence_score|floatformat:0 }}%</span>
+                {% endif %}
+            </p>        </div>
+
+        <!-- Timestamp -->
+        <div class="flex-shrink-0 text-right">
+            <p class="text-xs font-medium text-gray-600">
+                {{ event.timestamp|date:"g:i A" }}
+            </p>
+            <p class="text-xs text-gray-400">
+                {{ event.timestamp|timesince }} ago
+            </p>
+        </div>
+
+        <!-- Status Indicator -->
+        <div class="flex-shrink-0">
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <span class="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                Boarded
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <!-- No events state -->
+    <div class="text-center py-12 text-gray-400">
+        <span class="material-icons text-6xl mb-4">event_busy</span>
+        <p class="text-lg font-medium">No boarding events today</p>
+        <p class="text-sm mt-2">Events will appear here as students board buses</p>
+    </div>
+{% endif %}

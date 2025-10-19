@@ -15,20 +15,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-# Load environment variables from .env file
-try:
-    from dotenv import load_dotenv
-
-    # Look for .env in backend_easy directory (parent of app)
-    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-except ImportError:
-    # dotenv not installed - will use system environment variables
-    pass
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 # Logging configuration - Environment-based (12-factor app pattern)
 # CI/Docker: Set USE_FILE_LOGGING=false for console-only logging
 # Production: Leave default (true) for file logging

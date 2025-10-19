@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import DeviceLog, Kiosk, KioskStatus
+from .models import BusLocation, DeviceLog, Kiosk, KioskStatus
 
 
 class KioskSerializer(serializers.ModelSerializer):
@@ -217,3 +217,32 @@ class KioskActivationResponseSerializer(serializers.Serializer):
     kiosk_id = serializers.CharField(help_text="Activated kiosk ID")
     bus_id = serializers.UUIDField(help_text="Assigned bus ID", allow_null=True, required=False)
     activation_token_destroyed = serializers.BooleanField(help_text="Confirms token is now garbage")
+
+
+class BusLocationSerializer(serializers.ModelSerializer):
+    """Serializer for GPS location updates from kiosk"""
+
+    class Meta:
+        model = BusLocation
+        fields = [
+            "location_id",
+            "latitude",
+            "longitude",
+            "accuracy",
+            "speed",
+            "heading",
+            "timestamp",
+        ]
+        read_only_fields = ["location_id"]
+
+    def validate_latitude(self, value):
+        """Validate latitude is valid"""
+        if not (-90 <= value <= 90):
+            raise serializers.ValidationError("Latitude must be between -90 and 90")
+        return value
+
+    def validate_longitude(self, value):
+        """Validate longitude is valid"""
+        if not (-180 <= value <= 180):
+            raise serializers.ValidationError("Longitude must be between -180 and 180")
+        return value

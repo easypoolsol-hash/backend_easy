@@ -1058,10 +1058,46 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/kiosks/{kiosk_id}/location/:
+    post:
+      operationId: kiosk_update_location
+      description: Update bus GPS location. Kiosk sends location when bus moves significantly
+        or every 2 minutes.
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusLocation'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BusLocation'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BusLocation'
+        required: true
+      security:
+      - KioskJWTAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocation'
+          description: ''
   /api/v1/kiosks/{kiosk_id}/snapshot/:
     get:
       operationId: kiosk_download_snapshot
-      description: Generate and download a kiosk database snapshot.
+      description: Download kiosk database snapshot (binary SQLite file). Returns
+        raw binary data with x-snapshot-checksum header for verification.
       parameters:
       - in: path
         name: kiosk_id
@@ -1080,7 +1116,7 @@ paths:
               schema:
                 type: string
                 format: binary
-          description: 'Binary SQLite database snapshot'
+          description: ''
   /api/v1/kiosks/activate/:
     post:
       operationId: kiosk_activate
@@ -3151,6 +3187,46 @@ components:
       - created_at
       - license_plate
       - updated_at
+    BusLocation:
+      type: object
+      description: Serializer for GPS location updates from kiosk
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+          description: Auto-incrementing location entry ID
+        latitude:
+          type: number
+          format: double
+          description: GPS latitude coordinate
+        longitude:
+          type: number
+          format: double
+          description: GPS longitude coordinate
+        accuracy:
+          type: number
+          format: double
+          nullable: true
+          description: GPS accuracy in meters
+        speed:
+          type: number
+          format: double
+          nullable: true
+          description: Speed in km/h
+        heading:
+          type: number
+          format: double
+          nullable: true
+          description: Heading/bearing in degrees (0-360)
+        timestamp:
+          type: string
+          format: date-time
+          description: When this location was recorded by the kiosk
+      required:
+      - latitude
+      - location_id
+      - longitude
+      - timestamp
     CheckUpdatesResponse:
       type: object
       description: Serializer for check updates response

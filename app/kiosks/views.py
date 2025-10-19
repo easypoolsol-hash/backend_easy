@@ -27,6 +27,7 @@ from .authentication import KioskJWTAuthentication, activate_kiosk
 from .models import DeviceLog, Kiosk, KioskStatus
 from .permissions import IsKiosk
 from .serializers import (
+    BusLocationSerializer,
     CheckUpdatesResponseSerializer,
     CheckUpdatesSerializer,
     DeviceLogSerializer,
@@ -426,3 +427,42 @@ def heartbeat(request: Request, kiosk_id: str) -> Response:
     kiosk.save(update_fields=["last_heartbeat"])
 
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    request=BusLocationSerializer,
+    responses={201: BusLocationSerializer},
+    operation_id="kiosk_update_location",
+    description="Update bus GPS location. Kiosk sends location when bus moves significantly or every 2 minutes.",
+)
+@api_view(["POST"])
+@authentication_classes([KioskJWTAuthentication])
+@permission_classes([IsKiosk])
+def update_location(request: Request, kiosk_id: str) -> Response:
+    """
+    Receive GPS location update from kiosk.
+
+    Kiosk decides when to send (distance/time thresholds managed in app).
+    Backend simply stores the location for real-time tracking.
+    """
+    try:
+        kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
+    except Kiosk.DoesNotExist:
+        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Verify authenticated kiosk matches requested kiosk_id
+    kiosk_user = cast(Kiosk, request.user)
+    if kiosk_user.kiosk_id != kiosk_id:
+        return Response(
+            {"detail": "Not authorized for this kiosk"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Validate and save location
+    serializer = BusLocationSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    # Create location record
+    location = serializer.save(kiosk=kiosk)
+
+    return Response(BusLocationSerializer(location).data, status=status.HTTP_201_CREATED)
