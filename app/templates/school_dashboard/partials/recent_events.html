@@ -12,16 +12,13 @@
         <!-- Event Details -->
         <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 truncate">
-                {{ event.student.name }}
+                {{ event.student.encrypted_name }}
                 {% if event.student.grade %}
                     <span class="text-gray-500 font-normal">({{ event.student.grade }})</span>
                 {% endif %}
             </p>
             <p class="text-xs text-gray-500">
                 Boarded via {{ event.kiosk_id|default:"Unknown Kiosk" }}
-                {% if event.confidence_score %}
-                    <span class="text-gray-400">• Confidence: {{ event.confidence_score|floatformat:0 }}%</span>
-                {% endif %}
             </p>        </div>
 
         <!-- Timestamp -->
