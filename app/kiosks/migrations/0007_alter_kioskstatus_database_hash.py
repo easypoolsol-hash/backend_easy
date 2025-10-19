@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             name="database_hash",
             field=models.CharField(
                 blank=True,
-                help_text="Content hash of kiosk database (for integrity)",
+                help_text="SHA-256 hash of kiosk database content (for integrity)",
                 max_length=64,
             ),
         ),

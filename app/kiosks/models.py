@@ -149,9 +149,9 @@ class KioskStatus(models.Model):
     last_heartbeat = models.DateTimeField(help_text="Last heartbeat received from kiosk")
     database_version = models.CharField(max_length=50, help_text="Timestamp of current database version")
     database_hash = models.CharField(
-        max_length=32,
+        max_length=64,
         blank=True,
-        help_text="Content hash of kiosk database (for integrity)",
+        help_text="SHA-256 hash of kiosk database content (for integrity)",
     )
     student_count = models.IntegerField(default=0, help_text="Number of students in kiosk database")
     embedding_count = models.IntegerField(default=0, help_text="Number of embeddings in kiosk database")

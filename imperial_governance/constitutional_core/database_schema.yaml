@@ -175,6 +175,57 @@ tables:
     constraints:
       - fk_bus: FOREIGN KEY (bus_id) REFERENCES buses
 
+  kiosk_status:
+    comment: "Sync and health status for each kiosk. Updated via heartbeat API."
+    fields:
+      kiosk_id: VARCHAR(100) PRIMARY KEY
+      last_heartbeat: TIMESTAMP NOT NULL
+      database_version: VARCHAR(50) NOT NULL  # Timestamp of current database version
+      database_hash: VARCHAR(64) NOT NULL  # SHA-256 hash of kiosk database content
+      student_count: INTEGER DEFAULT 0  # Number of students in kiosk database
+      embedding_count: INTEGER DEFAULT 0  # Number of embeddings in kiosk database
+      battery_level: INTEGER  # Battery level percentage (0-100)
+      is_charging: BOOLEAN DEFAULT false
+      storage_available_mb: INTEGER
+      camera_active: BOOLEAN DEFAULT false
+      network_type: VARCHAR(20)  # wifi, 4g, none
+      app_version: VARCHAR(20)
+      last_face_detected: TIMESTAMP
+      faces_detected_today: INTEGER DEFAULT 0
+      students_identified_today: INTEGER DEFAULT 0
+      status: VARCHAR(20) DEFAULT 'ok'  # ok/warning/critical
+      last_error: TEXT
+      updated_at: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - idx_kiosk_status_status: (status)
+      - idx_kiosk_status_heartbeat: (last_heartbeat)
+
+    constraints:
+      - fk_kiosk: FOREIGN KEY (kiosk_id) REFERENCES kiosks ON DELETE CASCADE
+      - chk_status: CHECK (status IN ('ok', 'warning', 'critical'))
+      - chk_battery: CHECK (battery_level IS NULL OR (battery_level >= 0 AND battery_level <= 100))
+
+  kiosk_activation_tokens:
+    comment: "One-time activation tokens for kiosks (like Windows license key). Tokens are valid for 24 hours and can only be used once."
+    fields:
+      token_id: BIGSERIAL PRIMARY KEY
+      kiosk_id: VARCHAR(100) NOT NULL
+      token_hash: VARCHAR(64) NOT NULL UNIQUE  # HMAC-SHA256 hash of activation token
+      created_at: TIMESTAMP DEFAULT NOW()
+      expires_at: TIMESTAMP NOT NULL
+      is_used: BOOLEAN DEFAULT false
+      used_at: TIMESTAMP
+      used_by_ip: INET
+
+    indexes:
+      - idx_activation_token_hash: (token_hash)
+      - idx_activation_kiosk_used: (kiosk_id, is_used)
+      - idx_activation_expires: (expires_at)
+
+    constraints:
+      - fk_kiosk: FOREIGN KEY (kiosk_id) REFERENCES kiosks ON DELETE CASCADE
+
   device_logs:
     fields:
       log_id: BIGSERIAL PRIMARY KEY

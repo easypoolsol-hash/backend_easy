@@ -146,6 +146,27 @@ kiosk_endpoints:
     errors:
       400: INVALID_GPS_DATA
 
+  GET /kiosk/{kiosk_id}/snapshot:
+    description: Download SQLite database snapshot with student embeddings
+    auth: JWT
+    rate_limit: 10/hour
+    response:
+      content_type: application/octet-stream
+      format: binary
+      headers:
+        Content-Disposition: 'attachment; filename="snapshot_{timestamp}.db"'
+        x-snapshot-checksum: SHA-256 hash of file
+      body: SQLite database file (binary)
+    errors:
+      404: KIOSK_NOT_FOUND
+      403: NOT_AUTHORIZED_FOR_THIS_KIOSK
+      500: SNAPSHOT_GENERATION_FAILED
+    notes:
+      - Kiosk can only download snapshot for its assigned bus
+      - Response is raw binary SQLite database
+      - Client MUST verify checksum before using
+      - File size typically 5-50 MB depending on student count
+
   GET /kiosk/sync/faces:
     description: Download face embeddings for recognition
     auth: API_KEY

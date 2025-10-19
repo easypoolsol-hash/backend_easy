@@ -286,7 +286,19 @@ def check_updates(request: Request, kiosk_id: str) -> Response:
 
 
 @extend_schema(
-    responses={200: OpenApiTypes.BINARY},
+    responses={
+        200: {
+            'content': {
+                'application/octet-stream': {
+                    'schema': {
+                        'type': 'string',
+                        'format': 'binary',
+                    }
+                }
+            },
+            'description': 'SQLite database snapshot file'
+        }
+    },
     operation_id="kiosk_download_snapshot",
     description="Generate and download a kiosk database snapshot.",
 )
@@ -324,7 +336,9 @@ def download_snapshot(request: Request, kiosk_id: str) -> Response | HttpRespons
         snapshot_bytes, metadata = generator.generate()
 
         # 2. Create a direct file response.
-        response = HttpResponse(snapshot_bytes, content_type="application/x-sqlite3")
+        # Use application/octet-stream (industry standard for binary file transfer)
+        # This is the IANA-registered MIME type for arbitrary binary data
+        response = HttpResponse(snapshot_bytes, content_type="application/octet-stream")
         response["Content-Disposition"] = f'attachment; filename="snapshot_{metadata["sync_timestamp"]}.db"'
         response["x-snapshot-checksum"] = calculate_checksum(snapshot_bytes)
 
