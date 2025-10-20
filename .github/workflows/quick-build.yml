@@ -43,27 +43,18 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PUSH_PAT }}
 
-    - name: Build and push Docker image
-      run: |
-        export DOCKER_BUILDKIT=1
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
 
-        # Build image
-        docker build \
-          --target runtime \
-          --tag ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest \
-          --tag ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          --build-arg BUILDKIT_INLINE_CACHE=1 \
-          --progress=plain \
-          --push \
-          .
-
-    - name: Output image information
-      run: |
-        echo "⚡ Quick Build Complete!"
-        echo "⚠️  Tests were SKIPPED"
-        echo "📦 Images pushed:"
-        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest"
-        echo "   ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-        echo ""
-        echo "🚀 Ready for CD deployment"
-        echo "Reason: ${{ github.event.inputs.reason }}"
+    - name: Build and push
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
