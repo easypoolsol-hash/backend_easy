@@ -195,18 +195,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build runtime image
-        run: |
-          export DOCKER_BUILDKIT=1
-          IMAGE_TAG=${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test
-          docker build --target runtime --tag "$IMAGE_TAG" .
-          # Also tag the image without the registry/user prefix so docker-compose
-          # (which references `bus_kiosk_backend:test`) can find the image after load.
-          docker tag "$IMAGE_TAG" "${{ env.IMAGE_NAME }}:test" || true
-      - name: Save image artifact
-        run: |
-          # Save both tags into the tar so the load recreates both names locally.
-          docker save ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}:test ${{ env.IMAGE_NAME }}:test -o /tmp/image.tar
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME || 'testuser' }}/${{ env.IMAGE_NAME }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
