@@ -117,14 +117,14 @@ class SecurityHeadersMiddleware:
         response["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=()"
 
-        # Content Security Policy (allows specific CDNs for school dashboard)
+        # Content Security Policy (allows specific CDNs for school dashboard and Google Maps)
         response["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://maps.googleapis.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "img-src 'self' data: https:; "
+            "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://maps.googleapis.com; "
             "media-src 'none'; "
             "object-src 'none'; "
             "frame-src 'none'; "

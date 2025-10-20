@@ -346,6 +346,8 @@ OPENAPI_FAIL_ON_ERROR = False  # Log warnings instead of failing requests
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Security headers middleware (CSP, OWASP headers)
+    "bus_kiosk_backend.middleware.SecurityHeadersMiddleware",
     # OpenAPI validation middleware (must be early in the pipeline)
     "bus_kiosk_backend.middleware.openapi_validation.OpenAPIValidationMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
