@@ -52,7 +52,11 @@ class StudentAdmin(admin.ModelAdmin):
 
     @display(description="Name")
     def get_name(self, obj):
-        return obj.encrypted_name
+        try:
+            return obj.encrypted_name
+        except Exception:
+            # If decryption fails, return the raw name (likely not encrypted)
+            return obj.name
 
 
 class FaceEmbeddingInline(admin.TabularInline):
@@ -120,15 +124,24 @@ class ParentAdmin(admin.ModelAdmin):
 
     @display(description="Name")
     def get_name(self, obj):
-        return obj.encrypted_name
+        try:
+            return obj.encrypted_name
+        except Exception:
+            return obj.name
 
     @display(description="Phone")
     def get_phone(self, obj):
-        return obj.encrypted_phone
+        try:
+            return obj.encrypted_phone
+        except Exception:
+            return obj.phone
 
     @display(description="Email")
     def get_email(self, obj):
-        return obj.encrypted_email
+        try:
+            return obj.encrypted_email
+        except Exception:
+            return obj.email
 
 
 @admin.register(StudentParent)

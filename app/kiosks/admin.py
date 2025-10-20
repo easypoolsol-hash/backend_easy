@@ -409,11 +409,13 @@ class BusLocationAdmin(admin.ModelAdmin):
     def coordinates_display(self, obj):
         """Display GPS coordinates with link to Google Maps"""
         maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
+        lat_str = f"{obj.latitude:.6f}"
+        lng_str = f"{obj.longitude:.6f}"
         return format_html(
-            '<a href="{}" target="_blank">{:.6f}, {:.6f}</a>',
+            '<a href="{}" target="_blank">{}, {}</a>',
             maps_url,
-            obj.latitude,
-            obj.longitude,
+            lat_str,
+            lng_str,
         )
 
     @display(description="Map Preview")
