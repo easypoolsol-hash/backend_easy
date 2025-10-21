@@ -19,8 +19,16 @@ class TestBusTrackingWebSocket(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        # Create test user
-        self.user = User.objects.create_user(username="testadmin", email="admin@test.com", password="testpass123", is_school_admin=True)
+        # Create test user with school_admin role
+        from users.models import Role
+
+        school_admin_role = Role.objects.get_or_create(name="school_admin")[0]
+        self.user = User.objects.create_user(
+            username="testadmin",
+            email="admin@test.com",
+            password="testpass123",
+            role=school_admin_role
+        )
 
         # Create test route
         self.route = Route.objects.create(
