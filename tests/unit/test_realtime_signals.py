@@ -1,6 +1,4 @@
-"""Unit tests for realtime signal handlers."""
-
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, patch
 
 from django.utils import timezone
 import pytest
@@ -32,7 +30,7 @@ class TestBusLocationSignal:
     def test_signal_publishes_new_location(self, mock_get_channel_layer, setup_bus):
         """Test that signal publishes when new location is created."""
         # Setup mock channel layer
-        mock_channel_layer = Mock()
+        mock_channel_layer = AsyncMock()
         mock_get_channel_layer.return_value = mock_channel_layer
 
         kiosk = setup_bus["kiosk"]
@@ -42,7 +40,7 @@ class TestBusLocationSignal:
         BusLocation.objects.create(kiosk=kiosk, latitude=22.5726, longitude=88.3639, speed=35.0, heading=180.0, timestamp=timezone.now())
 
         # Verify channel layer group_send was called
-        mock_channel_layer.group_send.assert_called_once()
+        mock_channel_layer.group_send.assert_awaited_once()
 
         # Verify call arguments
         call_args = mock_channel_layer.group_send.call_args
@@ -60,7 +58,7 @@ class TestBusLocationSignal:
     @patch("realtime.signals.get_channel_layer")
     def test_signal_ignores_updates(self, mock_get_channel_layer, setup_bus):
         """Test that signal ignores location updates (only new creates)."""
-        mock_channel_layer = Mock()
+        mock_channel_layer = AsyncMock()
         mock_get_channel_layer.return_value = mock_channel_layer
 
         kiosk = setup_bus["kiosk"]
@@ -76,12 +74,12 @@ class TestBusLocationSignal:
         location.save()
 
         # Verify NO new call was made
-        mock_channel_layer.group_send.assert_not_called()
+        mock_channel_layer.group_send.assert_not_awaited()
 
     @patch("realtime.signals.get_channel_layer")
     def test_signal_ignores_unassigned_kiosk(self, mock_get_channel_layer):
         """Test that signal ignores locations from unassigned kiosks."""
-        mock_channel_layer = Mock()
+        mock_channel_layer = AsyncMock()
         mock_get_channel_layer.return_value = mock_channel_layer
 
         # Create kiosk without bus
@@ -91,7 +89,7 @@ class TestBusLocationSignal:
         BusLocation.objects.create(kiosk=kiosk, latitude=22.5726, longitude=88.3639, timestamp=timezone.now())
 
         # Verify NO call was made
-        mock_channel_layer.group_send.assert_not_called()
+        mock_channel_layer.group_send.assert_not_awaited()
 
     @patch("realtime.signals.get_channel_layer")
     def test_signal_handles_missing_channel_layer(self, mock_get_channel_layer, setup_bus):
