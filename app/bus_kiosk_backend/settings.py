@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # Third-party apps
+    "channels",  # Django Channels for WebSocket support
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",  # For token rotation security
@@ -114,6 +115,7 @@ INSTALLED_APPS = [
     "kiosks",
     "tests",  # Test app for comprehensive testing
     "school_dashboard",  # School dashboard web interface
+    "realtime",  # Real-time WebSocket communication
 ]
 
 # Custom user model
@@ -204,6 +206,21 @@ CELERY_TASK_ROUTES = {
 
 # Celery Beat Settings
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# Django Channels Configuration (WebSocket Support)
+ASGI_APPLICATION = "bus_kiosk_backend.asgi.application"
+
+# Channel Layers - Redis backend for WebSocket communication
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
+            "capacity": 1500,  # Max messages per channel
+            "expiry": 10,  # Message expiry in seconds
+        },
+    },
+}
 
 # Logging Configuration - Environment-based
 # Build handlers list based on USE_FILE_LOGGING environment variable

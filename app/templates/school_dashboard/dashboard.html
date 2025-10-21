@@ -114,49 +114,34 @@
 <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap" async defer></script>
 <script>
 let map;
-let markers = [];
+let markers = {};  // Changed to object for easy updates by bus_id
+let busSocket;
 
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 20.5937, lng: 78.9629 },
-        zoom: 5
+        center: { lat: 22.5726, lng: 88.3639 },  // Kolkata center
+        zoom: 12
     });
+
+    // Initial load via HTTP
     loadBusLocations();
-    setInterval(loadBusLocations, 30000);
+
+    // Connect to WebSocket for real-time updates
+    connectWebSocket();
 }
 
 function loadBusLocations() {
+    // Initial load of all bus locations
     fetch('{% url "school_dashboard:bus_locations" %}')
         .then(response => response.json())
         .then(data => {
-            markers.forEach(marker => marker.setMap(null));
-            markers = [];
             if (data.features && data.features.length > 0) {
                 const bounds = new google.maps.LatLngBounds();
                 data.features.forEach(feature => {
                     const coords = feature.geometry.coordinates;
                     const props = feature.properties;
-                    const position = { lat: coords[1], lng: coords[0] };
-                    const marker = new google.maps.Marker({
-                        position: position,
-                        map: map,
-                        title: props.bus_name,
-                        icon: {
-                            path: google.maps.SymbolPath.CIRCLE,
-                            scale: 10,
-                            fillColor: props.status === 'Active' ? '#EAB308' : '#9CA3AF',
-                            fillOpacity: 1,
-                            strokeColor: '#ffffff',
-                            strokeWeight: 2
-                        }
-                    });
-                    const lastUpdate = new Date(props.last_update);
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: '<div class="p-2"><h4 class="font-bold text-gray-900">' + props.bus_name + '</h4><p class="text-sm text-gray-600">Status: ' + props.status + '</p><p class="text-sm text-gray-600">Last Student: ' + props.student_name + '</p><p class="text-xs text-gray-400 mt-1">Updated: ' + lastUpdate.toLocaleTimeString() + '</p></div>'
-                    });
-                    marker.addListener('click', () => { infoWindow.open(map, marker); });
-                    markers.push(marker);
-                    bounds.extend(position);
+                    createOrUpdateMarker(props.kiosk_id, coords[1], coords[0], props);
+                    bounds.extend({ lat: coords[1], lng: coords[0] });
                 });
                 if (data.features.length > 0) {
                     map.fitBounds(bounds);
@@ -166,6 +151,95 @@ function loadBusLocations() {
         })
         .catch(error => console.error('Error loading bus locations:', error));
 }
+
+function connectWebSocket() {
+    // Determine WebSocket protocol (ws:// or wss://)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/bus-tracking/`;
+
+    busSocket = new WebSocket(wsUrl);
+
+    busSocket.onopen = function(e) {
+        console.log('[WebSocket] Connected to bus tracking');
+    };
+
+    busSocket.onmessage = function(event) {
+        const message = JSON.parse(event.data);
+
+        if (message.type === 'location_update') {
+            const data = message.data;
+            // Update marker in real-time
+            createOrUpdateMarker(
+                data.bus_id,
+                data.latitude,
+                data.longitude,
+                {
+                    bus_name: data.license_plate,
+                    status: data.status,
+                    speed: data.speed,
+                    last_update: data.timestamp
+                }
+            );
+        }
+    };
+
+    busSocket.onclose = function(event) {
+        if (event.wasClean) {
+            console.log(`[WebSocket] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+        } else {
+            console.log('[WebSocket] Connection died, attempting reconnect...');
+        }
+        // Reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    busSocket.onerror = function(error) {
+        console.error('[WebSocket] Error:', error);
+    };
+}
+
+function createOrUpdateMarker(busId, lat, lng, props) {
+    const position = { lat: lat, lng: lng };
+
+    if (markers[busId]) {
+        // Update existing marker
+        markers[busId].setPosition(position);
+    } else {
+        // Create new marker
+        const marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            title: props.bus_name,
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: props.status === 'Active' ? '#EAB308' : '#9CA3AF',
+                fillOpacity: 1,
+                strokeColor: '#ffffff',
+                strokeWeight: 2
+            }
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+            content: `<div class="p-2">
+                <h4 class="font-bold text-gray-900">${props.bus_name}</h4>
+                <p class="text-sm text-gray-600">Status: ${props.status}</p>
+                <p class="text-sm text-gray-600">Speed: ${props.speed || 0} km/h</p>
+                <p class="text-xs text-gray-400 mt-1">Updated: ${new Date(props.last_update).toLocaleTimeString()}</p>
+            </div>`
+        });
+
+        marker.addListener('click', () => { infoWindow.open(map, marker); });
+        markers[busId] = marker;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (busSocket) {
+        busSocket.close();
+    }
+});
 </script>
 {% else %}
 <script>

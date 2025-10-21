@@ -41,6 +41,11 @@ dependencies = [
     "redis>=5.0.0,<6.0",
     "django-redis>=5.4.0,<6.0",
 
+    # Real-time Communication (WebSocket)
+    "channels>=4.1.0,<5.0",  # Django Channels for WebSocket support
+    "channels-redis>=4.2.0,<5.0",  # Redis channel layer for Channels
+    "daphne>=4.1.0,<5.0",  # ASGI server for Channels (replaces Gunicorn for WebSocket)
+
     # Image Processing & Machine Learning (LIGHTWEIGHT)
     "Pillow>=10.0.0,<11.0",
     "ai-edge-litert>=1.0.0,<2.0",  # Google LiteRT - TFLite interpreter (~5-8MB, Python 3.12 compatible)
@@ -115,6 +120,7 @@ testing = [
     "pytest>=8.0.0,<9.0",
     "pytest-django>=4.5.0,<5.0",
     "pytest-cov>=4.0.0,<5.0",
+    "pytest-asyncio>=0.23.0,<1.0",  # Async test support for WebSocket
     # Schemathesis contract testing pinned to 3.x for a stable loader API
     "schemathesis>=3.39.0,<4.0",
     "prance>=0.20.0,<26.0",
@@ -194,7 +200,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 # Django-aware import sorting
-known-first-party = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
+known-first-party = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks", "realtime", "school_dashboard"]
 force-sort-within-sections = true
 
 [tool.pytest.ini_options]
@@ -212,6 +218,8 @@ addopts = [
     "--cov=buses",
     "--cov=events",
     "--cov=kiosks",
+    "--cov=realtime",
+    "--cov=school_dashboard",
     "--cov-report=xml",
     "--cov-report=term-missing",
     "--cov-fail-under=30",
@@ -234,7 +242,7 @@ exclude_dirs = ["tests", "migrations", "node_modules"]
 skips = ["B101", "B601", "B110", "B103", "B311"]  # Skip assert checks, shell usage, try/except/pass, file permissions, and random usage (Django patterns)
 
 [tool.coverage.run]
-source = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks"]
+source = ["bus_kiosk_backend", "users", "students", "buses", "events", "kiosks", "realtime", "school_dashboard"]
 omit = [
     "*/migrations/*",
     "*/tests/*",
