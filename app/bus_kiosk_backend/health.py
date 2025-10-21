@@ -302,40 +302,58 @@ def health_check(request):
     Basic health check endpoint - fast and lightweight.
 
     Returns system status and basic metrics for load balancers and monitoring systems.
+    Checks critical services: Django app, database, and Redis cache.
     """
     start_time = time.time()
+    checks = {}
+    overall_status = "healthy"
 
-    # Basic checks only
+    # Check 1: Database connectivity
     try:
-        # Quick database ping
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-
-        response_time = time.time() - start_time
-
-        return JsonResponse(
-            {
-                "status": "healthy",
-                "timestamp": time.time(),
-                "service": "bus-kiosk-backend",
-                "version": "1.0.0",
-                "response_time_ms": round(response_time * 1000, 2),
-                "environment": os.getenv("DJANGO_SETTINGS_MODULE", "unknown"),
-            }
-        )
+        with health_check_timeout(2.0):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+        checks["database"] = "healthy"
     except Exception as e:
-        logger.error(f"Basic health check failed: {e}")
-        return JsonResponse(
-            {
-                "status": "unhealthy",
-                "timestamp": time.time(),
-                "service": "bus-kiosk-backend",
-                "version": "1.0.0",
-                "error": str(e),
-                "response_time_ms": round((time.time() - start_time) * 1000, 2),
-            },
-            status=503,
-        )
+        logger.error(f"Database health check failed: {e}")
+        checks["database"] = f"unhealthy: {e!s}"
+        overall_status = "unhealthy"
+
+    # Check 2: Redis/Cache connectivity
+    try:
+        from django.core.cache import cache
+
+        with health_check_timeout(1.0):
+            test_key = f"health_check_{int(time.time())}"
+            cache.set(test_key, "ok", 10)
+            if cache.get(test_key) != "ok":
+                raise Exception("Cache set/get mismatch")
+            cache.delete(test_key)
+        checks["redis"] = "healthy"
+    except Exception as e:
+        logger.error(f"Redis health check failed: {e}")
+        checks["redis"] = f"unhealthy: {e!s}"
+        overall_status = "unhealthy"
+
+    response_time = time.time() - start_time
+
+    response_data = {
+        "status": overall_status,
+        "timestamp": time.time(),
+        "service": "bus-kiosk-backend",
+        "version": "1.0.0",
+        "response_time_ms": round(response_time * 1000, 2),
+        "environment": os.getenv("DJANGO_SETTINGS_MODULE", "unknown"),
+        "checks": checks,
+    }
+
+    # Return 503 if unhealthy (important for load balancers)
+    status_code = 200 if overall_status == "healthy" else 503
+
+    if overall_status != "healthy":
+        logger.warning(f"Health check returned unhealthy status: {response_data}")
+
+    return JsonResponse(response_data, status=status_code)
 
 
 @require_GET
