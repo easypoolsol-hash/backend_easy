@@ -40,6 +40,7 @@ def publish_bus_location_update(sender, instance, created, **kwargs):
         "longitude": instance.longitude,
         "speed": instance.speed or 0,
         "heading": instance.heading or 0,
+        "status": bus.status,  # CRITICAL: Required by frontend WebSocket consumer
         "timestamp": instance.timestamp.isoformat(),
     }
 

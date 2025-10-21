@@ -111,7 +111,6 @@
 
 <!-- Google Maps Script -->
 {% if google_maps_api_key %}
-<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap" async defer></script>
 <script>
 let map;
 let markers = {};  // Changed to object for easy updates by bus_id
@@ -120,7 +119,8 @@ let busSocket;
 function initMap() {
     map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: 22.5726, lng: 88.3639 },  // Kolkata center
-        zoom: 12
+        zoom: 12,
+        mapId: 'EASYPOOL_MAP_ID'  // Required for AdvancedMarkerElement
     });
 
     // Initial load via HTTP
@@ -198,26 +198,33 @@ function connectWebSocket() {
     };
 }
 
-function createOrUpdateMarker(busId, lat, lng, props) {
+async function createOrUpdateMarker(busId, lat, lng, props) {
     const position = { lat: lat, lng: lng };
 
     if (markers[busId]) {
-        // Update existing marker
-        markers[busId].setPosition(position);
+        // Update existing marker position
+        markers[busId].marker.position = position;
     } else {
-        // Create new marker
-        const marker = new google.maps.Marker({
+        // Create pin element with custom styling
+        const pinColor = props.status === 'Active' ? '#EAB308' : '#9CA3AF';
+        const pinElement = document.createElement('div');
+        pinElement.innerHTML = `
+            <div style="
+                width: 24px;
+                height: 24px;
+                background-color: ${pinColor};
+                border: 3px solid white;
+                border-radius: 50%;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            "></div>`;
+
+        // Use AdvancedMarkerElement (new API)
+        const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+        const marker = new AdvancedMarkerElement({
             position: position,
             map: map,
             title: props.bus_name,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 10,
-                fillColor: props.status === 'Active' ? '#EAB308' : '#9CA3AF',
-                fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 2
-            }
+            content: pinElement
         });
 
         const infoWindow = new google.maps.InfoWindow({
@@ -230,7 +237,7 @@ function createOrUpdateMarker(busId, lat, lng, props) {
         });
 
         marker.addListener('click', () => { infoWindow.open(map, marker); });
-        markers[busId] = marker;
+        markers[busId] = { marker: marker, infoWindow: infoWindow };
     }
 }
 
@@ -244,6 +251,19 @@ window.addEventListener('beforeunload', function() {
 {% else %}
 <script>
     document.getElementById('map').innerHTML = '<div class="flex items-center justify-center h-full bg-gray-50 rounded-lg"><div class="text-center text-gray-500"><span class="material-icons text-6xl mb-4">map</span><p class="text-lg font-medium">Google Maps API Key Required</p><p class="text-sm mt-2">Set GOOGLE_MAPS_API_KEY in environment</p></div></div>';
+</script>
+{% endif %}
+
+<!-- Load Google Maps API with async loading pattern -->
+{% if google_maps_api_key %}
+<script>
+(function() {
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&loading=async&callback=initMap&libraries=marker';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+})();
 </script>
 {% endif %}
 {% endblock %}
