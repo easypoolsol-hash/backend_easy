@@ -25,16 +25,11 @@ django_asgi_app = get_asgi_application()
 # Import WebSocket routing after Django setup
 from realtime.routing import websocket_urlpatterns  # noqa: E402
 
-application = ProtocolTypeRouter({
-    # HTTP requests
-    "http": django_asgi_app,
-
-    # WebSocket requests
-    "websocket": AllowedHostsOriginValidator(
-        AuthMiddlewareStack(
-            URLRouter(
-                websocket_urlpatterns
-            )
-        )
-    ),
-})
+application = ProtocolTypeRouter(
+    {
+        # HTTP requests
+        "http": django_asgi_app,
+        # WebSocket requests
+        "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(URLRouter(websocket_urlpatterns))),
+    }
+)

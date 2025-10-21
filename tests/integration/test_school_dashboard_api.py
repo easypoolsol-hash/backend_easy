@@ -1,12 +1,13 @@
 """Integration tests for school dashboard API endpoints."""
 
-import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from django.contrib.auth import get_user_model
+import pytest
+
 from buses.models import Bus, Route
-from kiosks.models import Kiosk, BusLocation
+from kiosks.models import BusLocation, Kiosk
 
 User = get_user_model()
 
@@ -19,12 +20,7 @@ class TestSchoolDashboardAPI:
     def setup_data(self):
         """Set up test data."""
         # Create admin user
-        admin = User.objects.create_user(
-            username="admin",
-            email="admin@test.com",
-            password="testpass123",
-            is_school_admin=True
-        )
+        admin = User.objects.create_user(username="admin", email="admin@test.com", password="testpass123", is_school_admin=True)
 
         # Create route
         route = Route.objects.create(
@@ -33,55 +29,23 @@ class TestSchoolDashboardAPI:
                 {"name": "Stop 1", "lat": 22.5726, "lon": 88.3639, "sequence": 1},
                 {"name": "Stop 2", "lat": 22.5826, "lon": 88.3739, "sequence": 2},
             ],
-            schedule={"morning": {"start": "07:00", "end": "09:00"}}
+            schedule={"morning": {"start": "07:00", "end": "09:00"}},
         )
 
         # Create buses
-        bus1 = Bus.objects.create(
-            license_plate="WB01AB1234",
-            route=route,
-            capacity=50,
-            status="active"
-        )
+        bus1 = Bus.objects.create(license_plate="WB01AB1234", route=route, capacity=50, status="active")
 
-        bus2 = Bus.objects.create(
-            license_plate="WB02CD5678",
-            route=route,
-            capacity=40,
-            status="active"
-        )
+        bus2 = Bus.objects.create(license_plate="WB02CD5678", route=route, capacity=40, status="active")
 
         # Create kiosks
-        kiosk1 = Kiosk.objects.create(
-            kiosk_id="KIOSK001",
-            bus=bus1,
-            is_active=True
-        )
+        kiosk1 = Kiosk.objects.create(kiosk_id="KIOSK001", bus=bus1, is_active=True)
 
-        kiosk2 = Kiosk.objects.create(
-            kiosk_id="KIOSK002",
-            bus=bus2,
-            is_active=True
-        )
+        kiosk2 = Kiosk.objects.create(kiosk_id="KIOSK002", bus=bus2, is_active=True)
 
         # Create bus locations
-        location1 = BusLocation.objects.create(
-            kiosk=kiosk1,
-            latitude=22.5726,
-            longitude=88.3639,
-            speed=45.0,
-            heading=90.0,
-            timestamp=timezone.now()
-        )
+        location1 = BusLocation.objects.create(kiosk=kiosk1, latitude=22.5726, longitude=88.3639, speed=45.0, heading=90.0, timestamp=timezone.now())
 
-        location2 = BusLocation.objects.create(
-            kiosk=kiosk2,
-            latitude=22.5826,
-            longitude=88.3739,
-            speed=30.0,
-            heading=180.0,
-            timestamp=timezone.now()
-        )
+        location2 = BusLocation.objects.create(kiosk=kiosk2, latitude=22.5826, longitude=88.3739, speed=30.0, heading=180.0, timestamp=timezone.now())
 
         return {
             "admin": admin,
@@ -154,12 +118,7 @@ class TestSchoolDashboardAPI:
     def test_bus_locations_api_requires_admin_role(self, setup_data):
         """Test that API requires school admin role."""
         # Create regular user (not admin)
-        regular_user = User.objects.create_user(
-            username="regular",
-            email="regular@test.com",
-            password="testpass123",
-            is_school_admin=False
-        )
+        regular_user = User.objects.create_user(username="regular", email="regular@test.com", password="testpass123", is_school_admin=False)
 
         client = Client()
         client.force_login(regular_user)
@@ -177,20 +136,12 @@ class TestSchoolDashboardAPI:
         kiosk1 = setup_data["kiosk1"]
 
         # Create older location
-        old_location = BusLocation.objects.create(
-            kiosk=kiosk1,
-            latitude=22.5000,
-            longitude=88.3000,
-            timestamp=timezone.now() - timezone.timedelta(hours=1)
+        BusLocation.objects.create(
+            kiosk=kiosk1, latitude=22.5000, longitude=88.3000, timestamp=timezone.now() - timezone.timedelta(hours=1)
         )
 
         # Create newer location
-        new_location = BusLocation.objects.create(
-            kiosk=kiosk1,
-            latitude=22.6000,
-            longitude=88.4000,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=kiosk1, latitude=22.6000, longitude=88.4000, timestamp=timezone.now())
 
         client = Client()
         client.force_login(setup_data["admin"])
@@ -200,10 +151,7 @@ class TestSchoolDashboardAPI:
         data = response.json()
 
         # Find the feature for this kiosk
-        kiosk1_features = [
-            f for f in data["features"]
-            if f["properties"]["kiosk_id"] == "KIOSK001"
-        ]
+        kiosk1_features = [f for f in data["features"] if f["properties"]["kiosk_id"] == "KIOSK001"]
 
         assert len(kiosk1_features) == 1
         feature = kiosk1_features[0]
@@ -216,17 +164,9 @@ class TestSchoolDashboardAPI:
     def test_bus_locations_api_handles_unassigned_kiosk(self, setup_data):
         """Test that API handles kiosks without assigned bus."""
         # Create kiosk without bus
-        unassigned_kiosk = Kiosk.objects.create(
-            kiosk_id="KIOSK_UNASSIGNED",
-            is_active=True
-        )
+        unassigned_kiosk = Kiosk.objects.create(kiosk_id="KIOSK_UNASSIGNED", is_active=True)
 
-        BusLocation.objects.create(
-            kiosk=unassigned_kiosk,
-            latitude=22.5500,
-            longitude=88.3500,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=unassigned_kiosk, latitude=22.5500, longitude=88.3500, timestamp=timezone.now())
 
         client = Client()
         client.force_login(setup_data["admin"])
@@ -236,10 +176,7 @@ class TestSchoolDashboardAPI:
         data = response.json()
 
         # Find the unassigned kiosk feature
-        unassigned_features = [
-            f for f in data["features"]
-            if f["properties"]["kiosk_id"] == "KIOSK_UNASSIGNED"
-        ]
+        unassigned_features = [f for f in data["features"] if f["properties"]["kiosk_id"] == "KIOSK_UNASSIGNED"]
 
         assert len(unassigned_features) == 1
         feature = unassigned_features[0]
@@ -251,12 +188,7 @@ class TestSchoolDashboardAPI:
     def test_bus_locations_api_empty_when_no_locations(self):
         """Test that API returns empty features when no locations exist."""
         # Create admin without any bus locations
-        admin = User.objects.create_user(
-            username="admin_empty",
-            email="admin_empty@test.com",
-            password="testpass123",
-            is_school_admin=True
-        )
+        admin = User.objects.create_user(username="admin_empty", email="admin_empty@test.com", password="testpass123", is_school_admin=True)
 
         client = Client()
         client.force_login(admin)
@@ -289,23 +221,14 @@ class TestSchoolDashboardAPI:
 
         # Bus moves (new location created)
         kiosk1 = setup_data["kiosk1"]
-        new_location = BusLocation.objects.create(
-            kiosk=kiosk1,
-            latitude=22.6000,
-            longitude=88.4000,
-            speed=60.0,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=kiosk1, latitude=22.6000, longitude=88.4000, speed=60.0, timestamp=timezone.now())
 
         # Second call - should get NEW state (not automatically pushed)
         response2 = client.get(url)
         data2 = response2.json()
 
         # Find the updated bus in response
-        kiosk1_features = [
-            f for f in data2["features"]
-            if f["properties"]["kiosk_id"] == "KIOSK001"
-        ]
+        kiosk1_features = [f for f in data2["features"] if f["properties"]["kiosk_id"] == "KIOSK001"]
 
         # Should have new location (because we made new HTTP request)
         assert len(kiosk1_features) == 1
@@ -334,12 +257,7 @@ class TestSchoolDashboardViews:
     def test_dashboard_view_requires_admin_role(self):
         """Test that dashboard view requires school admin role."""
         # Create regular user
-        regular_user = User.objects.create_user(
-            username="regular",
-            email="regular@test.com",
-            password="testpass123",
-            is_school_admin=False
-        )
+        regular_user = User.objects.create_user(username="regular", email="regular@test.com", password="testpass123", is_school_admin=False)
 
         client = Client()
         client.force_login(regular_user)
@@ -352,12 +270,7 @@ class TestSchoolDashboardViews:
 
     def test_dashboard_view_accessible_to_admin(self):
         """Test that dashboard view is accessible to school admin."""
-        admin = User.objects.create_user(
-            username="admin",
-            email="admin@test.com",
-            password="testpass123",
-            is_school_admin=True
-        )
+        admin = User.objects.create_user(username="admin", email="admin@test.com", password="testpass123", is_school_admin=True)
 
         client = Client()
         client.force_login(admin)

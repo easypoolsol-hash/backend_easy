@@ -1,10 +1,10 @@
 """Signal handlers for publishing real-time updates."""
 
-import json
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
 from kiosks.models import BusLocation
 
 
@@ -33,18 +33,15 @@ def publish_bus_location_update(sender, instance, created, **kwargs):
 
     # Prepare event data
     event_data = {
-        'type': 'bus_location_update',
-        'bus_id': str(bus.bus_id),
-        'license_plate': bus.license_plate,
-        'latitude': instance.latitude,
-        'longitude': instance.longitude,
-        'speed': instance.speed or 0,
-        'heading': instance.heading or 0,
-        'timestamp': instance.timestamp.isoformat(),
+        "type": "bus_location_update",
+        "bus_id": str(bus.bus_id),
+        "license_plate": bus.license_plate,
+        "latitude": instance.latitude,
+        "longitude": instance.longitude,
+        "speed": instance.speed or 0,
+        "heading": instance.heading or 0,
+        "timestamp": instance.timestamp.isoformat(),
     }
 
     # Publish to channel (group send)
-    async_to_sync(channel_layer.group_send)(
-        'bus_updates',
-        event_data
-    )
+    async_to_sync(channel_layer.group_send)("bus_updates", event_data)

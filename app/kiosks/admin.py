@@ -420,7 +420,7 @@ class BusLocationAdmin(admin.ModelAdmin):
 
     @display(description="Map Preview")
     def map_preview(self, obj):
-        """Show embedded map preview if Google Maps API key is available"""
+        """Show map with custom yellow bus icon"""
         from django.conf import settings
 
         api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", "")
@@ -436,13 +436,50 @@ class BusLocationAdmin(admin.ModelAdmin):
                 obj.longitude,
             )
 
+        # Modern map with yellow bus icon (AdvancedMarkerElement)
+        map_id = f"map_{obj.location_id}"
         return format_html(
-            '<iframe width="100%" height="300" frameborder="0" '
-            'style="border:0" src="https://www.google.com/maps/embed/v1/'
-            'place?key={}&q={},{}&zoom=15" allowfullscreen></iframe>',
+            '<div id="{}" style="width:100%; height:300px;"></div>'
+            '<script>'
+            '(function() {{'
+            '  if (window.initMap_{}_done) return;'
+            '  window.initMap_{}_done = true;'
+            '  const script = document.createElement("script");'
+            '  script.src = "https://maps.googleapis.com/maps/api/js?key={}&libraries=marker&loading=async&callback=initMap_{}";'
+            '  script.async = true;'
+            '  script.defer = true;'
+            '  document.head.appendChild(script);'
+            '}})();'
+            'async function initMap_{}() {{'
+            '  const {{ Map }} = await google.maps.importLibrary("maps");'
+            '  const {{ AdvancedMarkerElement, PinElement }} = await google.maps.importLibrary("marker");'
+            '  const pos = {{ lat: {}, lng: {} }};'
+            '  const map = new Map(document.getElementById("{}"), {{'
+            '    zoom: 15, center: pos, mapId: "BUS_LOCATION_MAP"'
+            '  }});'
+            '  const busSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");'
+            '  busSvg.setAttribute("width", "32");'
+            '  busSvg.setAttribute("height", "32");'
+            '  busSvg.setAttribute("viewBox", "0 0 24 24");'
+            '  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");'
+            '  path.setAttribute("d", "M12 2C10.9 2 10 2.9 10 4H6C4.9 4 4 4.9 4 6V17C4 18.1 4.9 19 6 19H7V20C7 20.6 7.4 21 8 21C8.6 21 9 20.6 9 20V19H15V20C15 20.6 15.4 21 16 21C16.6 21 17 20.6 17 20V19H18C19.1 19 20 18.1 20 17V6C20 4.9 19.1 4 18 4H14C14 2.9 13.1 2 12 2"
+            "M6 8H18V14H6V8Z");'
+            '  path.setAttribute("fill", "#FFD700");'
+            '  path.setAttribute("stroke", "#FFA500");'
+            '  path.setAttribute("stroke-width", "1");'
+            '  busSvg.appendChild(path);'
+            '  new AdvancedMarkerElement({{ map: map, position: pos, content: busSvg, title: "Bus Location" }});'
+            '}}'
+            '</script>',
+            map_id,
+            map_id,
+            map_id,
             api_key,
+            map_id,
+            map_id,
             obj.latitude,
             obj.longitude,
+            map_id,
         )
 
     def get_queryset(self, request):

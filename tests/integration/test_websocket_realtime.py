@@ -1,14 +1,14 @@
 """Integration tests for WebSocket real-time bus tracking."""
 
-import json
 from channels.testing import WebsocketCommunicator
-from django.test import TestCase
 from django.contrib.auth import get_user_model
-import pytest
-from buses.models import Bus, Route
-from kiosks.models import Kiosk, BusLocation
-from bus_kiosk_backend.asgi import application
+from django.test import TestCase
 from django.utils import timezone
+import pytest
+
+from bus_kiosk_backend.asgi import application
+from buses.models import Bus, Route
+from kiosks.models import BusLocation, Kiosk
 
 User = get_user_model()
 
@@ -20,12 +20,7 @@ class TestBusTrackingWebSocket(TestCase):
     def setUp(self):
         """Set up test data."""
         # Create test user
-        self.user = User.objects.create_user(
-            username="testadmin",
-            email="admin@test.com",
-            password="testpass123",
-            is_school_admin=True
-        )
+        self.user = User.objects.create_user(username="testadmin", email="admin@test.com", password="testpass123", is_school_admin=True)
 
         # Create test route
         self.route = Route.objects.create(
@@ -34,29 +29,20 @@ class TestBusTrackingWebSocket(TestCase):
                 {"name": "Stop 1", "lat": 22.5726, "lon": 88.3639, "sequence": 1},
                 {"name": "Stop 2", "lat": 22.5826, "lon": 88.3739, "sequence": 2},
             ],
-            schedule={"morning": {"start": "07:00", "end": "09:00"}}
+            schedule={"morning": {"start": "07:00", "end": "09:00"}},
         )
 
         # Create test bus
-        self.bus = Bus.objects.create(
-            license_plate="WB01AB1234",
-            route=self.route,
-            capacity=50,
-            status="active"
-        )
+        self.bus = Bus.objects.create(license_plate="WB01AB1234", route=self.route, capacity=50, status="active")
 
         # Create test kiosk
-        self.kiosk = Kiosk.objects.create(
-            kiosk_id="TEST_KIOSK_001",
-            bus=self.bus,
-            is_active=True
-        )
+        self.kiosk = Kiosk.objects.create(kiosk_id="TEST_KIOSK_001", bus=self.bus, is_active=True)
 
     @pytest.mark.asyncio
     async def test_websocket_connection_authenticated(self):
         """Test WebSocket connection with authenticated user."""
         communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        communicator.scope['user'] = self.user
+        communicator.scope["user"] = self.user
 
         connected, _ = await communicator.connect()
         self.assertTrue(connected, "WebSocket should connect for authenticated user")
@@ -69,7 +55,7 @@ class TestBusTrackingWebSocket(TestCase):
         from django.contrib.auth.models import AnonymousUser
 
         communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        communicator.scope['user'] = AnonymousUser()
+        communicator.scope["user"] = AnonymousUser()
 
         connected, _ = await communicator.connect()
         self.assertFalse(connected, "WebSocket should reject unauthenticated user")
@@ -79,36 +65,30 @@ class TestBusTrackingWebSocket(TestCase):
         """Test that bus location updates are broadcast to connected clients."""
         # Connect WebSocket
         communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        communicator.scope['user'] = self.user
+        communicator.scope["user"] = self.user
 
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
 
         # Create a new bus location (triggers signal)
-        location = BusLocation.objects.create(
-            kiosk=self.kiosk,
-            latitude=22.5726,
-            longitude=88.3639,
-            speed=45.5,
-            heading=90.0,
-            accuracy=10.0,
-            timestamp=timezone.now()
+        BusLocation.objects.create(
+            kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=45.5, heading=90.0, accuracy=10.0, timestamp=timezone.now()
         )
 
         # Receive message from WebSocket
         response = await communicator.receive_json_from(timeout=5)
 
         # Verify message structure
-        self.assertEqual(response['type'], 'location_update')
-        self.assertIn('data', response)
+        self.assertEqual(response["type"], "location_update")
+        self.assertIn("data", response)
 
-        data = response['data']
-        self.assertEqual(data['bus_id'], str(self.bus.bus_id))
-        self.assertEqual(data['license_plate'], 'WB01AB1234')
-        self.assertEqual(data['latitude'], 22.5726)
-        self.assertEqual(data['longitude'], 88.3639)
-        self.assertEqual(data['speed'], 45.5)
-        self.assertEqual(data['heading'], 90.0)
+        data = response["data"]
+        self.assertEqual(data["bus_id"], str(self.bus.bus_id))
+        self.assertEqual(data["license_plate"], "WB01AB1234")
+        self.assertEqual(data["latitude"], 22.5726)
+        self.assertEqual(data["longitude"], 88.3639)
+        self.assertEqual(data["speed"], 45.5)
+        self.assertEqual(data["heading"], 90.0)
 
         await communicator.disconnect()
 
@@ -117,32 +97,26 @@ class TestBusTrackingWebSocket(TestCase):
         """Test that multiple connected clients all receive updates."""
         # Connect two clients
         comm1 = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        comm1.scope['user'] = self.user
+        comm1.scope["user"] = self.user
         connected1, _ = await comm1.connect()
         self.assertTrue(connected1)
 
         comm2 = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        comm2.scope['user'] = self.user
+        comm2.scope["user"] = self.user
         connected2, _ = await comm2.connect()
         self.assertTrue(connected2)
 
         # Create bus location
-        BusLocation.objects.create(
-            kiosk=self.kiosk,
-            latitude=22.5800,
-            longitude=88.3700,
-            speed=30.0,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=self.kiosk, latitude=22.5800, longitude=88.3700, speed=30.0, timestamp=timezone.now())
 
         # Both clients should receive the update
         response1 = await comm1.receive_json_from(timeout=5)
         response2 = await comm2.receive_json_from(timeout=5)
 
-        self.assertEqual(response1['type'], 'location_update')
-        self.assertEqual(response2['type'], 'location_update')
-        self.assertEqual(response1['data']['latitude'], 22.5800)
-        self.assertEqual(response2['data']['latitude'], 22.5800)
+        self.assertEqual(response1["type"], "location_update")
+        self.assertEqual(response2["type"], "location_update")
+        self.assertEqual(response1["data"]["latitude"], 22.5800)
+        self.assertEqual(response2["data"]["latitude"], 22.5800)
 
         await comm1.disconnect()
         await comm2.disconnect()
@@ -151,7 +125,7 @@ class TestBusTrackingWebSocket(TestCase):
     async def test_websocket_reconnection(self):
         """Test WebSocket reconnection behavior."""
         communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        communicator.scope['user'] = self.user
+        communicator.scope["user"] = self.user
 
         # Connect
         connected, _ = await communicator.connect()
@@ -162,7 +136,7 @@ class TestBusTrackingWebSocket(TestCase):
 
         # Reconnect
         communicator2 = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        communicator2.scope['user'] = self.user
+        communicator2.scope["user"] = self.user
         reconnected, _ = await communicator2.connect()
         self.assertTrue(reconnected, "Should be able to reconnect")
 
@@ -183,35 +157,14 @@ class TestBusTrackingWebSocket(TestCase):
         from django.urls import reverse
 
         # Create second bus
-        bus2 = Bus.objects.create(
-            license_plate="WB02CD5678",
-            route=self.route,
-            capacity=40,
-            status="active"
-        )
+        bus2 = Bus.objects.create(license_plate="WB02CD5678", route=self.route, capacity=40, status="active")
 
-        kiosk2 = Kiosk.objects.create(
-            kiosk_id="KIOSK002",
-            bus=bus2,
-            is_active=True
-        )
+        kiosk2 = Kiosk.objects.create(kiosk_id="KIOSK002", bus=bus2, is_active=True)
 
         # Create existing locations for both buses
-        location1 = BusLocation.objects.create(
-            kiosk=self.kiosk,
-            latitude=22.5726,
-            longitude=88.3639,
-            speed=45.0,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=45.0, timestamp=timezone.now())
 
-        location2 = BusLocation.objects.create(
-            kiosk=kiosk2,
-            latitude=22.5826,
-            longitude=88.3739,
-            speed=30.0,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=kiosk2, latitude=22.5826, longitude=88.3739, speed=30.0, timestamp=timezone.now())
 
         # Step 1: HTTP GET initial load (synchronous)
         client = Client()
@@ -230,36 +183,28 @@ class TestBusTrackingWebSocket(TestCase):
 
         # Step 2: Connect WebSocket (after initial load)
         communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
-        communicator.scope['user'] = self.user
+        communicator.scope["user"] = self.user
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
 
         # Step 3: Only Bus A moves (creates new location)
-        new_location = BusLocation.objects.create(
-            kiosk=self.kiosk,
-            latitude=22.5750,
-            longitude=88.3650,
-            speed=50.0,
-            timestamp=timezone.now()
-        )
+        BusLocation.objects.create(kiosk=self.kiosk, latitude=22.5750, longitude=88.3650, speed=50.0, timestamp=timezone.now())
 
         # Step 4: WebSocket should send ONLY Bus A update (not both)
         ws_response = await communicator.receive_json_from(timeout=5)
 
-        self.assertEqual(ws_response['type'], 'location_update')
-        self.assertEqual(ws_response['data']['license_plate'], 'WB01AB1234')
-        self.assertEqual(ws_response['data']['latitude'], 22.5750)
+        self.assertEqual(ws_response["type"], "location_update")
+        self.assertEqual(ws_response["data"]["license_plate"], "WB01AB1234")
+        self.assertEqual(ws_response["data"]["latitude"], 22.5750)
 
         # Verify Bus B NOT sent (WebSocket only sends changes)
         # No second message should arrive
         import asyncio
+
         try:
-            await asyncio.wait_for(
-                communicator.receive_json_from(),
-                timeout=1.0
-            )
+            await asyncio.wait_for(communicator.receive_json_from(), timeout=1.0)
             self.fail("Should not receive second message")
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass  # Expected - no second message
 
         await communicator.disconnect()
@@ -267,13 +212,7 @@ class TestBusTrackingWebSocket(TestCase):
     def test_signal_handler_publishes_location(self):
         """Test that signal handler publishes location to channel layer."""
         # This tests the synchronous signal handler
-        location = BusLocation.objects.create(
-            kiosk=self.kiosk,
-            latitude=22.5726,
-            longitude=88.3639,
-            speed=25.0,
-            timestamp=timezone.now()
-        )
+        location = BusLocation.objects.create(kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=25.0, timestamp=timezone.now())
 
         # Signal should have been triggered
         # (Actual message delivery tested in async tests above)

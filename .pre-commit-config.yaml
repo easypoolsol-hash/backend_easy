@@ -95,7 +95,7 @@ repos:
     rev: v0.13.3
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]  # Auto-fix + fail if changes made
+        args: [--fix]  # Auto-fix
         files: \.py$
       - id: ruff-format
         files: \.py$
