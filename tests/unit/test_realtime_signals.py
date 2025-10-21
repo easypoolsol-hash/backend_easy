@@ -44,16 +44,16 @@ class TestBusLocationSignal:
 
         # Verify call arguments
         call_args = mock_channel_layer.group_send.call_args
-        self.assertEqual(call_args[0][0], "bus_updates")  # Channel name
+        assert call_args[0][0] == "bus_updates"  # Channel name
 
         event_data = call_args[0][1]
-        self.assertEqual(event_data["type"], "bus_location_update")
-        self.assertEqual(event_data["bus_id"], str(bus.bus_id))
-        self.assertEqual(event_data["license_plate"], "TEST123")
-        self.assertEqual(event_data["latitude"], 22.5726)
-        self.assertEqual(event_data["longitude"], 88.3639)
-        self.assertEqual(event_data["speed"], 35.0)
-        self.assertEqual(event_data["heading"], 180.0)
+        assert event_data["type"] == "bus_location_update"
+        assert event_data["bus_id"] == str(bus.bus_id)
+        assert event_data["license_plate"] == "TEST123"
+        assert event_data["latitude"] == 22.5726
+        assert event_data["longitude"] == 88.3639
+        assert event_data["speed"] == 35.0
+        assert event_data["heading"] == 180.0
 
     @patch("realtime.signals.get_channel_layer")
     def test_signal_ignores_updates(self, mock_get_channel_layer, setup_bus):
