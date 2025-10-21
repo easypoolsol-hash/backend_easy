@@ -100,7 +100,8 @@ class OpenAPIValidationMiddleware:
         # - Non-API endpoints
         # - Health checks
         # - Admin endpoints
-        skip_paths = ["/health/", "/admin/", "/static/", "/media/"]
+        # - Kiosk endpoints (custom validation)
+        skip_paths = ["/health/", "/admin/", "/static/", "/media/", "/api/v1/kiosks/"]
         return request.path.startswith("/api/") and not any(request.path.startswith(path) for path in skip_paths)
 
     def _should_validate_response(self, response) -> bool:
