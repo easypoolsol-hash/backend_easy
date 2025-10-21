@@ -77,7 +77,7 @@ class SchoolRoleRequiredMixin(UserPassesTestMixin):
 
     def test_func(self):
         """Check if user has required role."""
-        if not self.request.user.is_authenticated:
+        if not hasattr(self.request, "user") or not self.request.user.is_authenticated:
             return False
 
         # Check if user has school_admin or super_admin role
@@ -180,7 +180,7 @@ def bus_stats_partial(request):
 def bus_locations_api(request):
     """API endpoint for bus locations (returns GeoJSON)."""
     # Check authentication and role
-    if not request.user.is_authenticated:
+    if not hasattr(request, "user") or not request.user.is_authenticated:
         return JsonResponse({"error": "Authentication required"}, status=403)
 
     if not (hasattr(request.user, "is_school_admin") and (request.user.is_school_admin or request.user.is_super_admin)):

@@ -6,8 +6,8 @@ from django.urls import reverse
 from django.utils import timezone
 import pytest
 
-from buses.models import Bus, Route
 from kiosks.models import BusLocation, Kiosk
+from tests.factories import BusFactory, KioskFactory, RouteFactory
 
 User = get_user_model()
 
@@ -17,38 +17,56 @@ class TestSchoolDashboardAPI:
     """Test school dashboard API endpoints."""
 
     @pytest.fixture
-    def setup_data(self):
-        """Set up test data."""
-        # Create admin user
-        admin = User.objects.create_user(username="admin", email="admin@test.com", password="testpass123", is_school_admin=True)
-
+    def setup_data(self, school_admin_user):
+        """Set up test data using factories."""
         # Create route
-        route = Route.objects.create(
+        route = RouteFactory(
             name="Test Route",
             stops=[
-                {"name": "Stop 1", "lat": 22.5726, "lon": 88.3639, "sequence": 1},
-                {"name": "Stop 2", "lat": 22.5826, "lon": 88.3739, "sequence": 2},
+                {
+                    "name": "Stop 1",
+                    "lat": 22.5726,
+                    "lon": 88.3639,
+                    "sequence": 1,
+                },
+                {
+                    "name": "Stop 2",
+                    "lat": 22.5826,
+                    "lon": 88.3739,
+                    "sequence": 2,
+                },
             ],
             schedule={"morning": {"start": "07:00", "end": "09:00"}},
         )
 
         # Create buses
-        bus1 = Bus.objects.create(license_plate="WB01AB1234", route=route, capacity=50, status="active")
-
-        bus2 = Bus.objects.create(license_plate="WB02CD5678", route=route, capacity=40, status="active")
+        bus1 = BusFactory(license_plate="WB01AB1234", route=route, capacity=50, status="active")
+        bus2 = BusFactory(license_plate="WB02CD5678", route=route, capacity=40, status="active")
 
         # Create kiosks
-        kiosk1 = Kiosk.objects.create(kiosk_id="KIOSK001", bus=bus1, is_active=True)
-
-        kiosk2 = Kiosk.objects.create(kiosk_id="KIOSK002", bus=bus2, is_active=True)
+        kiosk1 = KioskFactory(kiosk_id="KIOSK001", bus=bus1, is_active=True)
+        kiosk2 = KioskFactory(kiosk_id="KIOSK002", bus=bus2, is_active=True)
 
         # Create bus locations
-        location1 = BusLocation.objects.create(kiosk=kiosk1, latitude=22.5726, longitude=88.3639, speed=45.0, heading=90.0, timestamp=timezone.now())
-
-        location2 = BusLocation.objects.create(kiosk=kiosk2, latitude=22.5826, longitude=88.3739, speed=30.0, heading=180.0, timestamp=timezone.now())
+        location1 = BusLocation.objects.create(
+            kiosk=kiosk1,
+            latitude=22.5726,
+            longitude=88.3639,
+            speed=45.0,
+            heading=90.0,
+            timestamp=timezone.now(),
+        )
+        location2 = BusLocation.objects.create(
+            kiosk=kiosk2,
+            latitude=22.5826,
+            longitude=88.3739,
+            speed=30.0,
+            heading=180.0,
+            timestamp=timezone.now(),
+        )
 
         return {
-            "admin": admin,
+            "admin": school_admin_user,
             "route": route,
             "bus1": bus1,
             "bus2": bus2,
@@ -115,10 +133,10 @@ class TestSchoolDashboardAPI:
         assert "error" in data
         assert data["error"] == "Authentication required"
 
-    def test_bus_locations_api_requires_admin_role(self, setup_data):
+    def test_bus_locations_api_requires_admin_role(self, setup_data, parent_user):
         """Test that API requires school admin role."""
-        # Create regular user (not admin)
-        regular_user = User.objects.create_user(username="regular", email="regular@test.com", password="testpass123", is_school_admin=False)
+        # Use regular user (not admin)
+        regular_user = parent_user
 
         client = Client()
         client.force_login(regular_user)
@@ -135,11 +153,11 @@ class TestSchoolDashboardAPI:
         """Test that API returns only latest location per bus."""
         kiosk1 = setup_data["kiosk1"]
 
-        # Create older location
-        BusLocation.objects.create(kiosk=kiosk1, latitude=22.5000, longitude=88.3000, timestamp=timezone.now() - timezone.timedelta(hours=1))
+        # Create older location (2 hours ago)
+        BusLocation.objects.create(kiosk=kiosk1, latitude=22.5000, longitude=88.3000, timestamp=timezone.now() - timezone.timedelta(hours=2))
 
-        # Create newer location
-        BusLocation.objects.create(kiosk=kiosk1, latitude=22.6000, longitude=88.4000, timestamp=timezone.now())
+        # Create newer location (definitely in the future from all others)
+        BusLocation.objects.create(kiosk=kiosk1, latitude=22.6000, longitude=88.4000, timestamp=timezone.now() + timezone.timedelta(seconds=10))
 
         client = Client()
         client.force_login(setup_data["admin"])
@@ -183,10 +201,10 @@ class TestSchoolDashboardAPI:
         assert feature["properties"]["bus_name"] == "Kiosk KIOSK_UNASSIGNED"
         assert feature["properties"]["status"] == "Unassigned"
 
-    def test_bus_locations_api_empty_when_no_locations(self):
+    def test_bus_locations_api_empty_when_no_locations(self, school_admin_user):
         """Test that API returns empty features when no locations exist."""
-        # Create admin without any bus locations
-        admin = User.objects.create_user(username="admin_empty", email="admin_empty@test.com", password="testpass123", is_school_admin=True)
+        # Use admin without any bus locations
+        admin = school_admin_user
 
         client = Client()
         client.force_login(admin)
@@ -252,10 +270,10 @@ class TestSchoolDashboardViews:
         assert response.status_code == 302
         assert "/school/login/" in response.url
 
-    def test_dashboard_view_requires_admin_role(self):
+    def test_dashboard_view_requires_admin_role(self, parent_user):
         """Test that dashboard view requires school admin role."""
-        # Create regular user
-        regular_user = User.objects.create_user(username="regular", email="regular@test.com", password="testpass123", is_school_admin=False)
+        # Use regular user
+        regular_user = parent_user
 
         client = Client()
         client.force_login(regular_user)
@@ -266,9 +284,9 @@ class TestSchoolDashboardViews:
         # Should be forbidden
         assert response.status_code == 403
 
-    def test_dashboard_view_accessible_to_admin(self):
+    def test_dashboard_view_accessible_to_admin(self, school_admin_user):
         """Test that dashboard view is accessible to school admin."""
-        admin = User.objects.create_user(username="admin", email="admin@test.com", password="testpass123", is_school_admin=True)
+        admin = school_admin_user
 
         client = Client()
         client.force_login(admin)

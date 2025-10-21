@@ -101,6 +101,24 @@ def test_kiosk(db):
     return kiosk, kiosk._activation_token
 
 
+@pytest.fixture
+def school_admin_user(db):
+    """Creates a school admin user for testing."""
+    from tests.factories import RoleFactory, UserFactory
+
+    school_admin_role = RoleFactory(name="school_admin")
+    return UserFactory(role=school_admin_role)
+
+
+@pytest.fixture
+def parent_user(db):
+    """Creates a parent user for testing."""
+    from tests.factories import RoleFactory, UserFactory
+
+    parent_role = RoleFactory(name="parent")
+    return UserFactory(role=parent_role)
+
+
 # This fixture makes the OpenAPI schema available to all tests, including schemathesis.
 @pytest.fixture(scope="session")
 def schemathesis_schema():

@@ -47,13 +47,16 @@ DATABASES = {
 # Allowed hosts for testing
 ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 
+# Google Maps API Key (test value)
+GOOGLE_MAPS_API_KEY = "test-api-key"
+
 # Basic middleware for tests - minimal set (NO CSRF for API testing)
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     # Removed CSRF middleware - APIs use token auth, not session + CSRF
-    # Removed AuthenticationMiddleware for tests
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -63,7 +66,7 @@ ROOT_URLCONF = "bus_kiosk_backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
