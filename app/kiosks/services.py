@@ -50,12 +50,26 @@ class SnapshotGenerator:
 
             conn.commit()
             conn.close()
+            # Explicitly delete connection to ensure file handle is released on Windows
+            del conn
+            del cursor
 
             with open(db_path, "rb") as f:
                 db_bytes = f.read()
 
         finally:
-            os.remove(db_path)
+            # Force garbage collection to ensure file handles are released
+            import gc
+
+            gc.collect()
+            try:
+                os.remove(db_path)
+            except OSError:
+                # If file is still locked, wait a bit and try again
+                import time
+
+                time.sleep(0.1)
+                os.remove(db_path)
 
         metadata = {
             "sync_timestamp": self.sync_timestamp,
