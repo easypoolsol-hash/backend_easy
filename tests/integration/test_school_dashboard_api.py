@@ -136,9 +136,7 @@ class TestSchoolDashboardAPI:
         kiosk1 = setup_data["kiosk1"]
 
         # Create older location
-        BusLocation.objects.create(
-            kiosk=kiosk1, latitude=22.5000, longitude=88.3000, timestamp=timezone.now() - timezone.timedelta(hours=1)
-        )
+        BusLocation.objects.create(kiosk=kiosk1, latitude=22.5000, longitude=88.3000, timestamp=timezone.now() - timezone.timedelta(hours=1))
 
         # Create newer location
         BusLocation.objects.create(kiosk=kiosk1, latitude=22.6000, longitude=88.4000, timestamp=timezone.now())

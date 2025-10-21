@@ -370,116 +370,359 @@ class KioskActivationTokenAdmin(admin.ModelAdmin):
 
 
 @admin.register(BusLocation)
+
+
 class BusLocationAdmin(admin.ModelAdmin):
+
+
     """Admin interface for GPS location tracking"""
 
-    list_display = [
-        "kiosk",
-        "coordinates_display",
-        "speed",
-        "accuracy",
-        "timestamp",
-        "created_at",
-    ]
-    list_filter = ["kiosk__kiosk_id", "timestamp", "created_at"]
-    search_fields = ["kiosk__kiosk_id", "kiosk__bus__license_plate"]
-    readonly_fields = ["location_id", "created_at", "map_preview"]
-    date_hierarchy = "timestamp"
-    ordering = ["-timestamp"]
 
-    fieldsets = (
-        ("Location Info", {"fields": ("location_id", "kiosk", "timestamp")}),
-        (
-            "GPS Coordinates",
-            {
-                "fields": (
-                    "latitude",
-                    "longitude",
-                    "accuracy",
-                    "speed",
-                    "heading",
-                    "map_preview",
-                )
-            },
-        ),
-        ("Metadata", {"fields": ("created_at",)}),
+
+
+
+    BUS_ICON_SVG_PATH = (
+
+
+        "M12 2C10.9 2 10 2.9 10 4H6C4.9 4 4 4.9 4 6V17C4 18.1 4.9 19 6 19H7V20C7 "
+
+
+        "20.6 7.4 21 8 21C8.6 21 9 20.6 9 20V19H15V20C15 20.6 15.4 21 16 21C16.6 "
+
+
+        "21 17 20.6 17 20V19H18C19.1 19 20 18.1 20 17V6C20 4.9 19.1 4 18 4H14C14 "
+
+
+        "2.9 13.1 2 12 2M6 8H18V14H6V8Z"
+
+
     )
 
+
+
+
+
+    list_display = [
+
+
+        "kiosk",
+
+
+        "coordinates_display",
+
+
+        "speed",
+
+
+        "accuracy",
+
+
+        "timestamp",
+
+
+        "created_at",
+
+
+    ]
+
+
+    list_filter = ["kiosk__kiosk_id", "timestamp", "created_at"]
+
+
+    search_fields = ["kiosk__kiosk_id", "kiosk__bus__license_plate"]
+
+
+    readonly_fields = ["location_id", "created_at", "map_preview"]
+
+
+    date_hierarchy = "timestamp"
+
+
+    ordering = ["-timestamp"]
+
+
+
+
+
+    fieldsets = (
+
+
+        ("Location Info", {"fields": ("location_id", "kiosk", "timestamp")}),
+
+
+        (
+
+
+            "GPS Coordinates",
+
+
+            {
+
+
+                "fields": (
+
+
+                    "latitude",
+
+
+                    "longitude",
+
+
+                    "accuracy",
+
+
+                    "speed",
+
+
+                    "heading",
+
+
+                    "map_preview",
+
+
+                )
+
+
+            },
+
+
+        ),
+
+
+        ("Metadata", {"fields": ("created_at",)}),
+
+
+    )
+
+
+
+
+
     @display(description="Coordinates")
+
+
     def coordinates_display(self, obj):
+
+
         """Display GPS coordinates with link to Google Maps"""
+
+
         maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
+
+
         lat_str = f"{obj.latitude:.6f}"
+
+
         lng_str = f"{obj.longitude:.6f}"
+
+
         return format_html(
+
+
             '<a href="{}" target="_blank">{}, {}</a>',
+
+
             maps_url,
+
+
             lat_str,
+
+
             lng_str,
+
+
         )
 
+
+
+
+
     @display(description="Map Preview")
+
+
     def map_preview(self, obj):
+
+
         """Show map with custom yellow bus icon"""
+
+
         from django.conf import settings
 
+
+
+
+
         api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", "")
+
+
         if not api_key:
+
+
             return format_html(
+
+
                 '<div style="padding: 20px; background: #f5f5f5; '
+
+
                 'border-radius: 5px; text-align: center;">'
+
+
                 "<p>Google Maps API Key not configured</p>"
-                '<p><a href="https://www.google.com/maps?q={},{}" '
+
+
+                '<p><a href="https://www.google.com/maps?q={},{} " '
+
+
                 'target="_blank">View on Google Maps</a></p>'
+
+
                 "</div>",
+
+
                 obj.latitude,
+
+
                 obj.longitude,
+
+
             )
 
+
+
+
+
         # Modern map with yellow bus icon (AdvancedMarkerElement)
+
+
         map_id = f"map_{obj.location_id}"
+
+
         return format_html(
+
+
             '<div id="{}" style="width:100%; height:300px;"></div>'
+
+
             '<script>'
+
+
             '(function() {{'
+
+
             '  if (window.initMap_{}_done) return;'
+
+
             '  window.initMap_{}_done = true;'
+
+
             '  const script = document.createElement("script");'
+
+
             '  script.src = "https://maps.googleapis.com/maps/api/js?key={}&libraries=marker&loading=async&callback=initMap_{}";'
+
+
             '  script.async = true;'
+
+
             '  script.defer = true;'
+
+
             '  document.head.appendChild(script);'
+
+
             '}})();'
+
+
             'async function initMap_{}() {{'
+
+
             '  const {{ Map }} = await google.maps.importLibrary("maps");'
+
+
             '  const {{ AdvancedMarkerElement, PinElement }} = await google.maps.importLibrary("marker");'
+
+
             '  const pos = {{ lat: {}, lng: {} }};'
+
+
             '  const map = new Map(document.getElementById("{}"), {{'
+
+
             '    zoom: 15, center: pos, mapId: "BUS_LOCATION_MAP"'
+
+
             '  }});'
+
+
             '  const busSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");'
+
+
             '  busSvg.setAttribute("width", "32");'
+
+
             '  busSvg.setAttribute("height", "32");'
+
+
             '  busSvg.setAttribute("viewBox", "0 0 24 24");'
+
+
             '  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");'
-            '  path.setAttribute("d", "M12 2C10.9 2 10 2.9 10 4H6C4.9 4 4 4.9 4 6V17C4 18.1 4.9 19 6 19H7V20C7 20.6 7.4 21 8 21C8.6 21 9 20.6 9 20V19H15V20C15 20.6 15.4 21 16 21C16.6 21 17 20.6 17 20V19H18C19.1 19 20 18.1 20 17V6C20 4.9 19.1 4 18 4H14C14 2.9 13.1 2 12 2"
-            "M6 8H18V14H6V8Z");'
+
+
+            '  path.setAttribute("d", "{svg_path}");'
+
+
             '  path.setAttribute("fill", "#FFD700");'
+
+
             '  path.setAttribute("stroke", "#FFA500");'
+
+
             '  path.setAttribute("stroke-width", "1");'
+
+
             '  busSvg.appendChild(path);'
+
+
             '  new AdvancedMarkerElement({{ map: map, position: pos, content: busSvg, title: "Bus Location" }});'
+
+
             '}}'
+
+
             '</script>',
+
+
             map_id,
+
+
             map_id,
+
+
             map_id,
+
+
             api_key,
+
+
             map_id,
+
+
             map_id,
+
+
             obj.latitude,
+
+
             obj.longitude,
+
+
             map_id,
+
+
+            svg_path=self.BUS_ICON_SVG_PATH
+
+
         )
 
     def get_queryset(self, request):
