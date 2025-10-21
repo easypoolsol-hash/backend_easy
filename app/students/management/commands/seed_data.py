@@ -91,24 +91,34 @@ class Command(BaseCommand):
                 self.stdout.write(f"[OK] Kiosk: {kiosk_obj.kiosk_id} ({'created' if created else 'exists'})")
 
             elif model_name == "students.parent":
+                # Check if parent already exists (use first parent as seed is minimal)
                 parent_obj = Parent.objects.first()
-                if not parent_obj:
+                if parent_obj:
+                    created = False
+                    self.stdout.write(f"[OK] Parent: {parent_obj.encrypted_name} (exists - skipping)")
+                else:
+                    # Create new parent only if none exists
                     parent_obj = Parent.objects.create(phone="temp_phone", email="temp_email", name="temp_name")
                     parent_obj.encrypted_phone = fields.get("phone", "")
                     parent_obj.encrypted_email = fields.get("email", "")
                     parent_obj.encrypted_name = fields.get("name", "")
                     parent_obj.save()
                     created = True
-                else:
-                    created = False
+                    self.stdout.write(f"[OK] Parent: {parent_obj.encrypted_name} (created)")
                 created_objects["parent"] = parent_obj
-                self.stdout.write(f"[OK] Parent: {parent_obj.encrypted_name} ({'created' if created else 'exists'})")
 
             elif model_name == "students.student":
-                student_obj = Student.objects.filter(school=cast(School, created_objects.get("school"))).first()
-                if not student_obj:
+                # Check if student exists for this school
+                school_obj = cast(School, created_objects.get("school"))
+                student_obj = Student.objects.filter(school=school_obj).first()
+                if student_obj:
+                    created = False
+                    msg = f"[OK] Student: {student_obj.encrypted_name} (exists - skipping)"
+                    self.stdout.write(msg)
+                else:
+                    # Create new student only if none exists
                     student_obj = Student.objects.create(
-                        school=cast(School, created_objects.get("school")),
+                        school=school_obj,
                         name="temp_name",
                         grade=fields.get("grade", ""),
                         section=fields.get("section", ""),
@@ -118,10 +128,9 @@ class Command(BaseCommand):
                     student_obj.encrypted_name = fields.get("name", "")
                     student_obj.save()
                     created = True
-                else:
-                    created = False
+                    msg = f"[OK] Student: {student_obj.encrypted_name} (created)"
+                    self.stdout.write(msg)
                 created_objects["student"] = student_obj
-                self.stdout.write(f"[OK] Student: {student_obj.encrypted_name} ({'created' if created else 'exists'})")
 
             elif model_name == "students.studentphoto":
                 # Get student folder from dataset
