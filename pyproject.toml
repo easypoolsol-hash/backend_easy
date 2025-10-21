@@ -147,10 +147,8 @@ follow_imports = "silent"
 warn_unused_configs = true
 show_error_codes = true
 cache_dir = ".cache/mypy"
-# Explicitly set namespace_packages to avoid duplicate module detection
-namespace_packages = false
-explicit_package_bases = true
 # Only scan app/ directory to avoid duplicate module names
+# Using files= instead of mypy_path for explicit control
 files = ["app"]
 
 [tool.django-stubs]
