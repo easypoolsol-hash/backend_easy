@@ -210,14 +210,33 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # Django Channels Configuration (WebSocket Support)
 ASGI_APPLICATION = "bus_kiosk_backend.asgi.application"
 
-# Channel Layers - Redis backend for WebSocket communication
+# Channel Layers - Enterprise-grade Redis backend for WebSocket communication
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
-            "capacity": 1500,  # Max messages per channel
-            "expiry": 10,  # Message expiry in seconds
+            # Connection pool configuration for high concurrency
+            "capacity": 5000,  # Max messages per channel (increased for scale)
+            "expiry": 60,  # Message expiry in seconds (1 minute for bus tracking)
+            # Connection pool settings
+            "connection_kwargs": {
+                "max_connections": 50,  # Connection pool size
+                "retry_on_timeout": True,
+                "socket_keepalive": True,
+                "socket_keepalive_options": {
+                    1: 1,  # TCP_KEEPIDLE
+                    2: 1,  # TCP_KEEPINTVL
+                    3: 5,  # TCP_KEEPCNT
+                },
+            },
+            # Channel-specific settings
+            "group_expiry": 86400,  # 24 hours - for persistent bus tracking groups
+            "channel_capacity": {
+                "http.request": 200,
+                "http.response!*": 10,
+                "websocket.send!*": 20,
+            },
         },
     },
 }
