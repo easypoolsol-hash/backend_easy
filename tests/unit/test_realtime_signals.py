@@ -14,11 +14,7 @@ class TestBusLocationSignal:
     @pytest.fixture
     def setup_bus(self):
         """Create test bus and kiosk."""
-        route = Route.objects.create(
-            name="Test Route",
-            stops=[{"name": "Stop 1", "lat": 22.5726, "lon": 88.3639, "sequence": 1}],
-            schedule={"morning": {"start": "07:00", "end": "09:00"}},
-        )
+        route = Route.objects.create(name="Test Route", description="Test route for signals")
 
         bus = Bus.objects.create(license_plate="TEST123", route=route, capacity=40, status="active")
 
@@ -37,7 +33,14 @@ class TestBusLocationSignal:
         bus = setup_bus["bus"]
 
         # Create new location (triggers signal)
-        BusLocation.objects.create(kiosk=kiosk, latitude=22.5726, longitude=88.3639, speed=35.0, heading=180.0, timestamp=timezone.now())
+        BusLocation.objects.create(
+            kiosk=kiosk,
+            latitude=22.5726,
+            longitude=88.3639,
+            speed=35.0,
+            heading=180.0,
+            timestamp=timezone.now(),
+        )
 
         # Verify channel layer group_send was called
         mock_channel_layer.group_send.assert_awaited_once()
