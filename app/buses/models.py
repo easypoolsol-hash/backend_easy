@@ -60,6 +60,20 @@ class Route(models.Model):
         help_text="Route name (e.g., 'Route A', 'North Loop')",
     )
     description = models.TextField(blank=True, help_text="Detailed description of the route")
+    color_code = models.CharField(
+        max_length=7,
+        default="#0072B2",
+        help_text="Hex color for map display (e.g., #FF5733)",
+    )
+    line_pattern = models.CharField(
+        max_length=20,
+        choices=[
+            ("solid", "Solid Line"),
+            ("dashed", "Dashed Line"),
+        ],
+        default="solid",
+        help_text="Line pattern for map visualization",
+    )
     is_active = models.BooleanField(default=True, help_text="Whether this route is currently active")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this route was created")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this route was last updated")
