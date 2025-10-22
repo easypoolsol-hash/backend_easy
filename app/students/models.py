@@ -92,8 +92,9 @@ class Student(models.Model):
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
         try:
             return fernet.decrypt(self.name.encode()).decode()
-        except (ValueError, TypeError):
-            return ENCRYPTED_PLACEHOLDER
+        except Exception:
+            # If decryption fails, assume it's already plaintext (from old data)
+            return self.name
 
     @encrypted_name.setter
     def encrypted_name(self, value):
@@ -223,8 +224,9 @@ class Parent(models.Model):
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
         try:
             return fernet.decrypt(self.phone.encode()).decode()
-        except (ValueError, TypeError):
-            return ENCRYPTED_PLACEHOLDER
+        except Exception:
+            # If decryption fails, assume it's already plaintext (from old data)
+            return self.phone
 
     @encrypted_phone.setter
     def encrypted_phone(self, value):
@@ -251,8 +253,9 @@ class Parent(models.Model):
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
         try:
             return fernet.decrypt(self.email.encode()).decode()
-        except (ValueError, TypeError):
-            return ENCRYPTED_PLACEHOLDER
+        except Exception:
+            # If decryption fails, assume it's already plaintext (from old data)
+            return self.email
 
     @encrypted_email.setter
     def encrypted_email(self, value):
@@ -280,8 +283,9 @@ class Parent(models.Model):
         fernet = Fernet(settings.ENCRYPTION_KEY.encode())
         try:
             return fernet.decrypt(self.name.encode()).decode()
-        except (ValueError, TypeError):
-            return ENCRYPTED_PLACEHOLDER
+        except Exception:
+            # If decryption fails, assume it's already plaintext (from old data)
+            return self.name
 
     @encrypted_name.setter
     def encrypted_name(self, value):
