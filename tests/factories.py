@@ -52,8 +52,7 @@ class RouteFactory(DjangoModelFactory):
         model = Route
 
     name = factory.Sequence(lambda n: f"Test Route {n}")
-    stops: list = []
-    schedule: dict = {}
+    description = ""
     is_active = True
 
 
