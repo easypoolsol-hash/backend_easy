@@ -6,10 +6,47 @@ from django.db import models
 from students.models import Student
 
 
+class BusStop(models.Model):
+    """Physical bus stop location where students board/alight"""
+
+    stop_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="UUID primary key",
+    )
+    name = models.CharField(
+        max_length=200,
+        help_text="Stop name (e.g., 'Main Gate', 'North Entrance')",
+    )
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        help_text="Latitude coordinate",
+    )
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        help_text="Longitude coordinate",
+    )
+    is_active = models.BooleanField(default=True, help_text="Whether this stop is currently active")
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When this stop was created")
+    updated_at = models.DateTimeField(auto_now=True, help_text="When this stop was last updated")
+
+    class Meta:
+        db_table = "bus_stops"
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["is_active"], name="idx_stops_active"),
+            models.Index(fields=["latitude", "longitude"], name="idx_stops_coords"),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
+
+
 class Route(models.Model):
-    """
-    Bus route model with embedded stops and schedule information.
-    """
+    """Bus route composed of ordered bus stops"""
 
     route_id = models.UUIDField(
         primary_key=True,
@@ -23,14 +60,6 @@ class Route(models.Model):
         help_text="Route name (e.g., 'Route A', 'North Loop')",
     )
     description = models.TextField(blank=True, help_text="Detailed description of the route")
-    stops = models.JSONField(
-        default=list,
-        help_text="Array of stop objects: [{name, lat, lon, sequence, estimated_time}]",
-    )
-    schedule = models.JSONField(
-        default=dict,
-        help_text="Schedule data: {morning: {start, end}, afternoon: {start, end}}",
-    )
     is_active = models.BooleanField(default=True, help_text="Whether this route is currently active")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this route was created")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this route was last updated")
@@ -48,12 +77,48 @@ class Route(models.Model):
     @property
     def stop_count(self):
         """Return the number of stops in this route"""
-        return len(self.stops) if self.stops else 0
+        return self.route_stops.count()
 
     @property
     def total_students(self):
-        """Return total number of students assigned to buses on this route"""
+        """Return total students assigned to buses on this route"""
         return Student.objects.filter(assigned_bus__route=self, status="active").count()
+
+
+class RouteStop(models.Model):
+    """Junction table linking routes to stops with sequence and waypoints"""
+
+    route = models.ForeignKey(
+        Route,
+        on_delete=models.CASCADE,
+        related_name="route_stops",
+        help_text="Route this stop belongs to",
+    )
+    bus_stop = models.ForeignKey(
+        BusStop,
+        on_delete=models.CASCADE,
+        related_name="route_stops",
+        help_text="Bus stop on this route",
+    )
+    sequence = models.PositiveIntegerField(help_text="Order of this stop in the route (1-based)")
+    waypoints = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Path coordinates to NEXT stop: [{lat, lon}, ...]",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "route_stops"
+        ordering = ["route", "sequence"]
+        unique_together = [["route", "bus_stop"], ["route", "sequence"]]
+        indexes = [
+            models.Index(fields=["route", "sequence"], name="idx_routestop"),
+        ]
+
+    def __str__(self):
+        return f"{self.route.name} - Stop {self.sequence}: {self.bus_stop.name}"
 
 
 class Bus(models.Model):

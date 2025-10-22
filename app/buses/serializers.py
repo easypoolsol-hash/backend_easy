@@ -1,6 +1,42 @@
 from rest_framework import serializers
 
-from .models import Bus, Route
+from .models import Bus, BusStop, Route, RouteStop
+
+
+class BusStopSerializer(serializers.ModelSerializer):
+    """Serializer for bus stops"""
+
+    class Meta:
+        model = BusStop
+        fields = [
+            "stop_id",
+            "name",
+            "latitude",
+            "longitude",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["stop_id", "created_at", "updated_at"]
+
+
+class RouteStopSerializer(serializers.ModelSerializer):
+    """Serializer for route stops with nested bus stop info"""
+
+    bus_stop_name = serializers.CharField(source="bus_stop.name", read_only=True)
+    latitude = serializers.DecimalField(source="bus_stop.latitude", max_digits=10, decimal_places=7, read_only=True)
+    longitude = serializers.DecimalField(source="bus_stop.longitude", max_digits=10, decimal_places=7, read_only=True)
+
+    class Meta:
+        model = RouteStop
+        fields = [
+            "bus_stop",
+            "bus_stop_name",
+            "latitude",
+            "longitude",
+            "sequence",
+            "waypoints",
+        ]
 
 
 class RouteSerializer(serializers.ModelSerializer):
@@ -8,6 +44,7 @@ class RouteSerializer(serializers.ModelSerializer):
 
     stop_count = serializers.ReadOnlyField()
     total_students = serializers.ReadOnlyField()
+    route_stops = RouteStopSerializer(many=True, read_only=True)
 
     class Meta:
         model = Route
@@ -15,11 +52,10 @@ class RouteSerializer(serializers.ModelSerializer):
             "route_id",
             "name",
             "description",
-            "stops",
-            "schedule",
             "is_active",
             "stop_count",
             "total_students",
+            "route_stops",
             "created_at",
             "updated_at",
         ]

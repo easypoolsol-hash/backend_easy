@@ -54,6 +54,20 @@ class Student(models.Model):
     name: models.TextField = models.TextField(help_text="Encrypted at application layer")
     grade: models.CharField = models.CharField(max_length=10)
     section: models.CharField = models.CharField(max_length=10, blank=True)
+    address_latitude: models.DecimalField = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Student home address latitude",
+    )
+    address_longitude: models.DecimalField = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        null=True,
+        blank=True,
+        help_text="Student home address longitude",
+    )
     assigned_bus: "models.ForeignKey[Bus]" = models.ForeignKey(  # type: ignore[misc]
         "buses.Bus",
         on_delete=models.SET_NULL,

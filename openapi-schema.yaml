@@ -3975,11 +3975,6 @@ components:
         description:
           type: string
           description: Detailed description of the route
-        stops:
-          description: 'Array of stop objects: [{name, lat, lon, sequence, estimated_time}]'
-        schedule:
-          description: 'Schedule data: {morning: {start, end}, afternoon: {start,
-            end}}'
         is_active:
           type: boolean
           description: Whether this route is currently active
@@ -3988,6 +3983,11 @@ components:
           readOnly: true
         total_students:
           type: string
+          readOnly: true
+        route_stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
           readOnly: true
         created_at:
           type: string
@@ -4228,11 +4228,6 @@ components:
         description:
           type: string
           description: Detailed description of the route
-        stops:
-          description: 'Array of stop objects: [{name, lat, lon, sequence, estimated_time}]'
-        schedule:
-          description: 'Schedule data: {morning: {start, end}, afternoon: {start,
-            end}}'
         is_active:
           type: boolean
           description: Whether this route is currently active
@@ -4241,6 +4236,11 @@ components:
           readOnly: true
         total_students:
           type: string
+          readOnly: true
+        route_stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
           readOnly: true
         created_at:
           type: string
@@ -4256,9 +4256,45 @@ components:
       - created_at
       - name
       - route_id
+      - route_stops
       - stop_count
       - total_students
       - updated_at
+    RouteStop:
+      type: object
+      description: Serializer for route stops with nested bus stop info
+      properties:
+        bus_stop:
+          type: string
+          format: uuid
+          description: Bus stop on this route
+        bus_stop_name:
+          type: string
+          readOnly: true
+        latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          readOnly: true
+        longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          readOnly: true
+        sequence:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Order of this stop in the route (1-based)
+        waypoints:
+          description: 'Path coordinates to NEXT stop: [{lat, lon}, ...]'
+      required:
+      - bus_stop
+      - bus_stop_name
+      - latitude
+      - longitude
+      - sequence
     School:
       type: object
       properties:

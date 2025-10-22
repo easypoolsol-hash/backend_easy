@@ -1,6 +1,26 @@
 from django.contrib import admin
 
-from .models import Bus, Route
+from .models import Bus, BusStop, Route, RouteStop
+
+
+@admin.register(BusStop)
+class BusStopAdmin(admin.ModelAdmin):
+    """Admin interface for bus stops"""
+
+    list_display = ["name", "latitude", "longitude", "is_active", "created_at"]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["name"]
+    readonly_fields = ["stop_id", "created_at", "updated_at"]
+    ordering = ["name"]
+
+
+class RouteStopInline(admin.TabularInline):
+    """Inline for managing route stops"""
+
+    model = RouteStop
+    extra = 1
+    fields = ["bus_stop", "sequence", "waypoints"]
+    ordering = ["sequence"]
 
 
 @admin.register(Route)
@@ -12,10 +32,10 @@ class RouteAdmin(admin.ModelAdmin):
     search_fields = ["name", "description"]
     readonly_fields = ["route_id", "created_at", "updated_at"]
     ordering = ["name"]
+    inlines = [RouteStopInline]
 
     fieldsets = (
         ("Route Info", {"fields": ("route_id", "name", "description", "is_active")}),
-        ("Route Data", {"fields": ("stops", "schedule")}),
         (
             "Metadata",
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
