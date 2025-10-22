@@ -7,9 +7,9 @@ from django.test import TestCase
 from django.utils import timezone
 import pytest
 
-from bus_kiosk_backend.asgi import application
 from buses.models import Bus, Route
 from kiosks.models import BusLocation, Kiosk
+from realtime.consumers import BusTrackingConsumer
 
 User = get_user_model()
 
@@ -45,7 +45,10 @@ class TestBusTrackingWebSocket(TestCase):
     @pytest.mark.asyncio
     async def test_websocket_connection_authenticated(self):
         """Test WebSocket connection with authenticated user."""
-        communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        from realtime.consumers import BusTrackingConsumer
+
+        # Test consumer directly
+        communicator = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         communicator.scope["user"] = self.user
 
         connected, _ = await communicator.connect()
@@ -58,7 +61,7 @@ class TestBusTrackingWebSocket(TestCase):
         """Test WebSocket rejects unauthenticated users."""
         from django.contrib.auth.models import AnonymousUser
 
-        communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        communicator = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         communicator.scope["user"] = AnonymousUser()
 
         connected, _ = await communicator.connect()
@@ -68,7 +71,7 @@ class TestBusTrackingWebSocket(TestCase):
     async def test_bus_location_update_broadcast(self):
         """Test that bus location updates are broadcast to connected clients."""
         # Connect WebSocket
-        communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        communicator = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         communicator.scope["user"] = self.user
 
         connected, _ = await communicator.connect()
@@ -100,12 +103,12 @@ class TestBusTrackingWebSocket(TestCase):
     async def test_multiple_clients_receive_updates(self):
         """Test that multiple connected clients all receive updates."""
         # Connect two clients
-        comm1 = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        comm1 = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         comm1.scope["user"] = self.user
         connected1, _ = await comm1.connect()
         self.assertTrue(connected1)
 
-        comm2 = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        comm2 = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         comm2.scope["user"] = self.user
         connected2, _ = await comm2.connect()
         self.assertTrue(connected2)
@@ -128,7 +131,7 @@ class TestBusTrackingWebSocket(TestCase):
     @pytest.mark.asyncio
     async def test_websocket_reconnection(self):
         """Test WebSocket reconnection behavior."""
-        communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        communicator = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         communicator.scope["user"] = self.user
 
         # Connect
@@ -139,7 +142,7 @@ class TestBusTrackingWebSocket(TestCase):
         await communicator.disconnect()
 
         # Reconnect
-        communicator2 = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        communicator2 = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         communicator2.scope["user"] = self.user
         reconnected, _ = await communicator2.connect()
         self.assertTrue(reconnected, "Should be able to reconnect")
@@ -170,11 +173,11 @@ class TestBusTrackingWebSocket(TestCase):
 
         await sync_to_async(BusLocation.objects.create)(kiosk=kiosk2, latitude=22.5826, longitude=88.3739, speed=30.0, timestamp=timezone.now())
 
-        # Step 1: HTTP GET initial load (synchronous)
+        # Step 1: HTTP GET initial load (wrap sync client in sync_to_async)
         client = Client()
-        client.force_login(self.user)
+        await sync_to_async(client.force_login)(self.user)
         url = reverse("school_dashboard:bus_locations")
-        response = client.get(url)
+        response = await sync_to_async(client.get)(url)
 
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -186,7 +189,7 @@ class TestBusTrackingWebSocket(TestCase):
         self.assertIn("WB02CD5678", bus_names)
 
         # Step 2: Connect WebSocket (after initial load)
-        communicator = WebsocketCommunicator(application, "/ws/bus-tracking/")
+        communicator = WebsocketCommunicator(BusTrackingConsumer.as_asgi(), "/ws/bus-tracking/")
         communicator.scope["user"] = self.user
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
