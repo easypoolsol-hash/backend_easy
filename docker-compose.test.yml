@@ -42,6 +42,7 @@ services:
     image: bus_kiosk_backend:test
     container_name: test_web
     working_dir: /app
+    command: daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application
     volumes:
       # Mount only the `app/` directory into /app so the container sees
       # `manage.py` at `/app/manage.py`. Mounting the repo root here would
