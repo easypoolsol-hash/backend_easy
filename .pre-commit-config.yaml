@@ -18,11 +18,11 @@ repos:
         types: [python]
         verbose: true
 
-      # Copy schema to Flutter project (keeps frontend in sync)
+      # Copy schema to Flutter projects (keeps frontends in sync)
       - id: copy-schema-to-flutter
         name: Copy OpenAPI Schema to Flutter
         entry: powershell
-        args: ["-Command", "Copy-Item openapi-schema.yaml ../bus_kiosk_easy/bus_kiok/openapi-schema.yaml -Force"]
+        args: ["-Command", "Copy-Item openapi-schema.yaml ../bus_kiosk_easy/bus_kiok/openapi-schema.yaml -Force; Copy-Item openapi-schema.yaml ../frontend_easy/openapi-schema.yaml -Force"]
         language: system
         pass_filenames: false
         stages: [commit]
