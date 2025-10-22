@@ -50,6 +50,12 @@ class StudentAdmin(admin.ModelAdmin):
     readonly_fields = ["student_id", "created_at", "updated_at"]
     inlines = [StudentPhotoInline]
 
+    def save_model(self, request, obj, form, change):
+        # Auto-encrypt name if plaintext entered
+        if "name" in form.changed_data:
+            obj.name = obj.name  # Setter encrypts automatically
+        super().save_model(request, obj, form, change)
+
     @display(description="Name")
     def get_name(self, obj):
         try:
@@ -121,6 +127,16 @@ class ParentAdmin(admin.ModelAdmin):
     ]
     search_fields = ["phone", "email", "name"]
     readonly_fields = ["parent_id", "created_at"]
+
+    def save_model(self, request, obj, form, change):
+        # Auto-encrypt fields if plaintext entered
+        if "name" in form.changed_data:
+            obj.name = obj.name  # Setter encrypts
+        if "phone" in form.changed_data:
+            obj.phone = obj.phone  # Setter encrypts
+        if "email" in form.changed_data:
+            obj.email = obj.email  # Setter encrypts
+        super().save_model(request, obj, form, change)
 
     @display(description="Name")
     def get_name(self, obj):
