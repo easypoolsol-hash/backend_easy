@@ -30,14 +30,27 @@ repos:
         require_serial: true
         verbose: true
 
-      # Regenerate Flutter API client (enforces zero drift)
+      # Regenerate Bus Kiosk Flutter API client (enforces zero drift)
       # CONSTITUTIONAL: Generates to packages/ (industry standard location)
       # SERIALIZATION: Uses json_serializable with null-aware-elements (stable in 2025, Dart 3.5+)
       # BEST PRACTICE 2025: Use dart run instead of flutter pub run (deprecated)
-      - id: regenerate-flutter-api
-        name: Regenerate Flutter API Client from Schema
+      - id: regenerate-bus-kiosk-api
+        name: Regenerate Bus Kiosk API Client
         entry: powershell
         args: ["-Command", "cd ../bus_kiosk_easy; npx @openapitools/openapi-generator-cli generate -i bus_kiok/openapi-schema.yaml -g dart-dio -o packages/bus_kiosk_api --additional-properties=pubName=bus_kiosk_api,useEnumExtension=true,serializationLibrary=json_serializable; cd packages/bus_kiosk_api; flutter pub get; dart run build_runner build --delete-conflicting-outputs"]
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        always_run: true
+        require_serial: true
+        verbose: true
+
+      # Regenerate Frontend Easy API client (enforces zero drift for web/mobile dashboards)
+      # MATCHES bus_kiosk pattern exactly - dart-dio generator with json_serializable
+      - id: regenerate-frontend-easy-api
+        name: Regenerate Frontend Easy API Client
+        entry: powershell
+        args: ["-Command", "cd ../frontend_easy; npx @openapitools/openapi-generator-cli generate -i openapi-schema.yaml -g dart-dio -o packages/frontend_easy_api --additional-properties=pubName=frontend_easy_api,useEnumExtension=true,serializationLibrary=json_serializable; (Get-Content packages/frontend_easy_api/pubspec.yaml) -replace \"sdk: '[^']*'\", \"sdk: '>=3.9.0 <4.0.0'\" | Set-Content packages/frontend_easy_api/pubspec.yaml; cd packages/frontend_easy_api; flutter pub get; dart run build_runner build --delete-conflicting-outputs"]
         language: system
         pass_filenames: false
         stages: [commit]
