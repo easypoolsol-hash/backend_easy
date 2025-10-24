@@ -50,7 +50,7 @@ repos:
       - id: regenerate-frontend-easy-api
         name: Regenerate Frontend Easy API Client
         entry: powershell
-        args: ["-Command", "cd ../frontend_easy; npx @openapitools/openapi-generator-cli generate -i openapi-schema.yaml -g dart-dio -o packages/frontend_easy_api --additional-properties=pubName=frontend_easy_api,useEnumExtension=true,serializationLibrary=json_serializable; (Get-Content packages/frontend_easy_api/pubspec.yaml) -replace \"sdk: '[^']*'\", \"sdk: '>=3.9.0 <4.0.0'\" | Set-Content packages/frontend_easy_api/pubspec.yaml; cd packages/frontend_easy_api; flutter pub get; dart run build_runner build --delete-conflicting-outputs"]
+        args: ["-Command", "cd ../frontend_easy; npx @openapitools/openapi-generator-cli generate -i openapi-schema.yaml -g dart-dio -o packages/frontend_easy_api --additional-properties=pubName=frontend_easy_api,useEnumExtension=true,serializationLibrary=json_serializable; cd ../backend_easy; powershell -ExecutionPolicy Bypass -File scripts/update_frontend_sdk.ps1; cd ../frontend_easy/packages/frontend_easy_api; flutter pub get; dart run build_runner build --delete-conflicting-outputs"]
         language: system
         pass_filenames: false
         stages: [commit]
