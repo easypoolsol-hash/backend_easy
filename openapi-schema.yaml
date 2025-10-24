@@ -4015,10 +4015,10 @@ components:
           type: boolean
           description: Whether this route is currently active
         stop_count:
-          type: string
+          type: integer
           readOnly: true
         total_students:
-          type: string
+          type: integer
           readOnly: true
         route_stops:
           type: array
@@ -4268,10 +4268,10 @@ components:
           type: boolean
           description: Whether this route is currently active
         stop_count:
-          type: string
+          type: integer
           readOnly: true
         total_students:
-          type: string
+          type: integer
           readOnly: true
         route_stops:
           type: array

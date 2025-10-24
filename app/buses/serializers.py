@@ -42,8 +42,8 @@ class RouteStopSerializer(serializers.ModelSerializer):
 class RouteSerializer(serializers.ModelSerializer):
     """Serializer for bus routes"""
 
-    stop_count = serializers.ReadOnlyField()
-    total_students = serializers.ReadOnlyField()
+    stop_count = serializers.IntegerField(read_only=True)
+    total_students = serializers.IntegerField(read_only=True)
     route_stops = RouteStopSerializer(many=True, read_only=True)
 
     class Meta:
