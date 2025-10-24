@@ -1,6 +1,13 @@
 """
 Kiosk Authentication Module
 
+CRITICAL: This module handles KIOSK DEVICE authentication ONLY
+- Physical kiosk devices at school gates
+- Activation token-based authentication (one-time use)
+- Long-term tokens for autonomous operation
+
+Human user authentication is COMPLETELY SEPARATE in users/views.py
+
 Provides JWT-based authentication for kiosk devices.
 Supports both access tokens and refresh tokens with rotation.
 """
@@ -14,9 +21,9 @@ from django.utils import timezone
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework import exceptions
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import Kiosk, KioskActivationToken
+from .token_config import create_kiosk_token
 
 
 class KioskJWTAuthentication(JWTAuthentication):
@@ -124,10 +131,22 @@ def activate_kiosk(kiosk_id: str, activation_token: str) -> dict[str, Any]:
     kiosk.is_active = True
     kiosk.save()
 
-    # Generate JWT tokens (60-day refresh + 15-min access)
-    refresh = RefreshToken()
-    refresh["kiosk_id"] = kiosk.kiosk_id
-    refresh["type"] = "kiosk"
+    # CRITICAL SEPARATION: This function is ONLY for KIOSK DEVICES
+    # Endpoint: POST /api/v1/kiosk/activate/
+    # Auth Method: Activation Token (one-time use)
+    # Token Config: kiosks/token_config.py (60 day refresh token)
+    #
+    # Human users are COMPLETELY SEPARATE:
+    # Endpoint: POST /api/v1/users/login/
+    # Auth Method: Username + Password
+    # Token Config: users/token_config.py (1 day refresh token)
+    #
+    # SOLID Principle: Single file responsible for each token type
+    # DRY Principle: No code duplication, explicit configuration
+    # KISS Principle: Simple, clear separation
+
+    # Generate kiosk-specific JWT token (explicit configuration)
+    refresh = create_kiosk_token(kiosk.kiosk_id)
 
     return {
         "refresh_token": str(refresh),

@@ -2708,6 +2708,42 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/v1/users/logout/:
+    post:
+      operationId: api_v1_users_logout_create
+      description: |-
+        Logout endpoint - Blacklists refresh token (Fortune 500 standard)
+
+        Security: Prevents token reuse even if stolen
+
+        Request Body: { "refresh": "..." }
+        Returns: 200 { "message": "Logout successful" }
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/v1/users/me/:
     get:
       operationId: api_v1_users_me_retrieve

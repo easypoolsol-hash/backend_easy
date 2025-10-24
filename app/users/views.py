@@ -5,6 +5,7 @@ from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -17,6 +18,7 @@ from .serializers import (
     UserCreateSerializer,
     UserSerializer,
 )
+from .token_config import create_user_token
 
 # pylint: disable=no-member
 
@@ -61,7 +63,21 @@ class UserViewSet(viewsets.ModelViewSet):
 
         user = authenticate(username=username, password=password)
         if user:
-            refresh = RefreshToken.for_user(user)
+            # CRITICAL SEPARATION: This endpoint is ONLY for HUMAN USERS
+            # Endpoint: POST /api/v1/users/login/
+            # Auth Method: Username + Password
+            # Token Config: users/token_config.py (1 day refresh token)
+            #
+            # Kiosks are COMPLETELY SEPARATE:
+            # Endpoint: POST /api/v1/kiosk/activate/
+            # Auth Method: Activation Token (one-time use)
+            # Token Config: kiosks/token_config.py (60 day refresh token)
+            #
+            # SOLID Principle: Single file responsible for each token type
+            # DRY Principle: No code duplication, explicit configuration
+            # KISS Principle: Simple, clear separation
+            refresh = create_user_token(user)
+
             user.last_login = timezone.now()
             user.save(update_fields=["last_login"])
 
@@ -84,6 +100,43 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        """
+        Logout endpoint - Blacklists refresh token (Fortune 500 standard)
+
+        Security: Prevents token reuse even if stolen
+
+        Request Body: { "refresh": "..." }
+        Returns: 200 { "message": "Logout successful" }
+        """
+        try:
+            refresh_token = request.data.get("refresh")
+
+            if not refresh_token:
+                return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Blacklist the refresh token (prevents reuse)
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+            # Log the logout
+            AuditLog.objects.create(
+                user=request.user,
+                action="LOGOUT",
+                resource_type="user",
+                resource_id=str(request.user.user_id),
+                ip_address=self.get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+
+            return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
+
+        except TokenError as e:
+            return Response({"error": f"Invalid or expired token: {e!s}"}, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            return Response({"error": f"Logout failed: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_client_ip(self, request):
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")

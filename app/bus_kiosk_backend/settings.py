@@ -164,10 +164,15 @@ REST_FRAMEWORK = {
 
 # JWT settings for Secure Kiosk Authentication
 SIMPLE_JWT = {
+    # CRITICAL: Token lifetimes are set EXPLICITLY per token type (no global defaults used)
+    # - Kiosk tokens: kiosks/token_config.py (60 days - autonomous IoT)
+    # - User tokens: users/token_config.py (1 day - maximum security)
+    #
     # Access Token (Short-lived for security - if stolen, only works 15 min)
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    # Refresh Token (60 days for 2-month holidays - kiosk autonomy)
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
+    # Refresh Token - FALLBACK ONLY (should never be used, explicit config required)
+    # Set to 1 day as safe default - if this is used, it means explicit config is missing
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     # Token Rotation (Security - old tokens become garbage every 14 min)
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -363,6 +368,8 @@ OPENAPI_FAIL_ON_ERROR = False  # Log warnings instead of failing requests
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # CORS must be before CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",
     # Security headers middleware (CSP, OWASP headers)
     "bus_kiosk_backend.middleware.SecurityHeadersMiddleware",
     # OpenAPI validation middleware (must be early in the pipeline)
