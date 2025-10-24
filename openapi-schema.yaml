@@ -4310,14 +4310,12 @@ components:
           type: string
           readOnly: true
         latitude:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          type: number
+          format: double
           readOnly: true
         longitude:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          type: number
+          format: double
           readOnly: true
         sequence:
           type: integer

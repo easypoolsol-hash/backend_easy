@@ -24,8 +24,8 @@ class RouteStopSerializer(serializers.ModelSerializer):
     """Serializer for route stops with nested bus stop info"""
 
     bus_stop_name = serializers.CharField(source="bus_stop.name", read_only=True)
-    latitude = serializers.DecimalField(source="bus_stop.latitude", max_digits=10, decimal_places=7, read_only=True)
-    longitude = serializers.DecimalField(source="bus_stop.longitude", max_digits=10, decimal_places=7, read_only=True)
+    latitude = serializers.FloatField(source="bus_stop.latitude", read_only=True)
+    longitude = serializers.FloatField(source="bus_stop.longitude", read_only=True)
 
     class Meta:
         model = RouteStop
