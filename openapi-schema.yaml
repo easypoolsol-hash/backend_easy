@@ -3147,13 +3147,14 @@ components:
           nullable: true
           description: Date of last maintenance
         assigned_students_count:
-          type: string
+          type: integer
           readOnly: true
         utilization_percentage:
-          type: string
+          type: number
+          format: double
           readOnly: true
         is_available:
-          type: string
+          type: boolean
           readOnly: true
         created_at:
           type: string
@@ -3948,13 +3949,14 @@ components:
           nullable: true
           description: Date of last maintenance
         assigned_students_count:
-          type: string
+          type: integer
           readOnly: true
         utilization_percentage:
-          type: string
+          type: number
+          format: double
           readOnly: true
         is_available:
-          type: string
+          type: boolean
           readOnly: true
         created_at:
           type: string

@@ -66,9 +66,9 @@ class BusSerializer(serializers.ModelSerializer):
     """Serializer for buses"""
 
     route_name = serializers.CharField(source="route.name", read_only=True)
-    assigned_students_count = serializers.ReadOnlyField()
-    utilization_percentage = serializers.ReadOnlyField()
-    is_available = serializers.ReadOnlyField()
+    assigned_students_count = serializers.IntegerField(read_only=True)
+    utilization_percentage = serializers.FloatField(read_only=True)
+    is_available = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Bus

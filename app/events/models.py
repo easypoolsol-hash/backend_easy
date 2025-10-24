@@ -63,7 +63,7 @@ class BoardingEvent(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         """Generate ULID if not provided"""
         if not self.event_id:
-            self.event_id = str(ulid.new())
+            self.event_id = str(ulid.ULID())
         super().save(*args, **kwargs)
 
     @property
