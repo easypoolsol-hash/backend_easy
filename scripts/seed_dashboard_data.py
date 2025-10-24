@@ -3,23 +3,26 @@
 Seed database with realistic dashboard data for testing
 Creates students, buses, routes, and boarding events
 """
+
+from datetime import timedelta
+from decimal import Decimal
 import os
 import sys
+
 import django
-from datetime import datetime, timedelta
-from decimal import Decimal
 
 # Setup Django
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app')))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'bus_kiosk_backend.settings')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "app")))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
 django.setup()
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from students.models import Student, School
+
 from buses.models import Bus, Route
 from events.models import BoardingEvent
 from kiosks.models import Kiosk
+from students.models import School, Student
 
 User = get_user_model()
 
@@ -29,9 +32,7 @@ def seed_data():
     print("[*] Starting database seeding...")
 
     # Get or create school
-    school, created = School.objects.get_or_create(
-        name="Imperial Academy"
-    )
+    school, created = School.objects.get_or_create(name="Imperial Academy")
     print(f"[+] School: {school.name} {'created' if created else 'exists'}")
 
     # Create buses with routes
@@ -51,7 +52,7 @@ def seed_data():
             name=route_name,
             defaults={
                 "description": f"Route serving {route_name.split(' - ')[1]}",
-            }
+            },
         )
 
         # Create bus
@@ -60,7 +61,7 @@ def seed_data():
             defaults={
                 "capacity": capacity,
                 "status": "active",
-            }
+            },
         )
         buses[license_plate] = bus
         print(f"[+] Bus {license_plate} on {route_name}")
@@ -73,7 +74,7 @@ def seed_data():
                 "bus": bus,
                 "firmware_version": "v1.0.0",
                 "is_active": True,
-            }
+            },
         )
 
     # Create students
@@ -103,7 +104,7 @@ def seed_data():
                 "assigned_bus": buses[bus_plate],
                 "status": "active",
                 "enrollment_date": enrollment_date,
-            }
+            },
         )
         students.append((student, school_id, bus_plate))
         print(f"[+] Student: {school_id} - {name}")
@@ -116,19 +117,19 @@ def seed_data():
 
     event_scenarios = [
         # (student_index, minutes_after_start, picked_up, dropped_off)
-        (0, 15, True, True),   # Emma - completed
+        (0, 15, True, True),  # Emma - completed
         (1, 20, True, False),  # Liam - in transit
-        (2, 25, True, True),   # Olivia - completed
-        (3, 5, True, False),   # Noah - delayed dropoff
+        (2, 25, True, True),  # Olivia - completed
+        (3, 5, True, False),  # Noah - delayed dropoff
         (4, None, False, False),  # Ava - not picked up yet
-        (5, 10, True, True),   # Ethan - completed
+        (5, 10, True, True),  # Ethan - completed
         (6, None, False, False),  # Sophia - missed pickup (overdue)
-        (7, 18, True, True),   # Mason - completed
+        (7, 18, True, True),  # Mason - completed
         (8, 22, True, False),  # Isabella - in transit
-        (9, 12, True, True),   # Lucas - completed
+        (9, 12, True, True),  # Lucas - completed
     ]
 
-    for idx, (student_tuple, pickup_offset, picked_up, dropped_off) in enumerate(event_scenarios[:len(students)]):
+    for idx, (student_tuple, pickup_offset, picked_up, dropped_off) in enumerate(event_scenarios[: len(students)]):
         student, school_id, bus_plate = students[idx]
         kiosk = Kiosk.objects.get(bus=buses[bus_plate])
 
@@ -143,7 +144,7 @@ def seed_data():
                     "confidence_score": Decimal("0.95"),
                     "bus_route": f"Route {bus_plate[-4]}",
                     "model_version": "v1.0",
-                }
+                },
             )
             print(f"  [UP] Pickup: {school_id} at {pickup_time.strftime('%H:%M')}")
 
@@ -158,17 +159,17 @@ def seed_data():
                         "confidence_score": Decimal("0.96"),
                         "bus_route": f"Route {bus_plate[-4]}",
                         "model_version": "v1.0",
-                    }
+                    },
                 )
                 print(f"  [DOWN] Dropoff: {school_id} at {dropoff_time.strftime('%H:%M')}")
 
     print("\n[SUCCESS] Database seeding completed successfully!")
-    print(f"[STATS] Created:")
-    print(f"   - 1 School")
+    print("[STATS] Created:")
+    print("   - 1 School")
     print(f"   - {len(buses)} Buses")
     print(f"   - {len(students)} Students")
     print(f"   - {BoardingEvent.objects.count()} Boarding Events")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     seed_data()

@@ -5,7 +5,7 @@ Run: docker-compose exec web python manage.py seed_boarding_events
 Creates realistic boarding events for testing the frontend dashboard
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 import random
 from typing import Any
 
