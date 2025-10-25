@@ -121,17 +121,19 @@ repos:
   #       language_version: python3.10
 
   # Type checking - matches CI configuration
-  # Temporarily disabled due to virtual environment setup
-  # - repo: local
-  #   hooks:
-  #     - id: mypy
-  #       name: mypy (full project check)
-  #       entry: powershell
-  #       language: system
-  #       pass_filenames: false  # Run on whole project, not per-file
-  #       args: ["-Command", "$env:PYTHONPATH='app'; mypy app --no-incremental"]  # Run on app directory to match pyproject.toml
-  #       types: [python]
-  #       stages: [commit]
+  # NOTE: Requires Python 3.12 venv with mypy installed (see SETUP.md)
+  # If you haven't set up the venv yet, skip this hook with: SKIP=mypy git commit
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy (full project check)
+        entry: bash
+        language: system
+        pass_filenames: false  # Run on whole project, not per-file
+        args: ["-c", "export PYTHONPATH=app && python -m mypy app --no-incremental || (echo '⚠️  mypy failed - install Python 3.12 venv (see SETUP.md) or skip with: SKIP=mypy git commit' && exit 1)"]
+        types: [python]
+        stages: [commit]
+        verbose: true
 
   # Pylint - DISABLED: version incompatibility with pylint-django
   # - repo: local
