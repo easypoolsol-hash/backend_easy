@@ -129,7 +129,7 @@ class TestSchoolDashboardAPI:
         assert response.status_code == 403
         data = response.json()
         assert "error" in data
-        assert data["error"] == "Access denied"
+        assert data["error"] == "Access denied - insufficient permissions"
 
     def test_bus_locations_api_returns_latest_only(self, setup_data):
         """Test that API returns only latest location per bus."""

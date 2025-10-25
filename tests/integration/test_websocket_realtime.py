@@ -29,11 +29,6 @@ class TestBusTrackingWebSocket(TestCase):
         # Create test route
         self.route = Route.objects.create(
             name="Test Route",
-            stops=[
-                {"name": "Stop 1", "lat": 22.5726, "lon": 88.3639, "sequence": 1},
-                {"name": "Stop 2", "lat": 22.5826, "lon": 88.3739, "sequence": 2},
-            ],
-            schedule={"morning": {"start": "07:00", "end": "09:00"}},
         )
 
         # Create test bus
