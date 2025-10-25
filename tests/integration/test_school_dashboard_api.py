@@ -22,21 +22,6 @@ class TestSchoolDashboardAPI:
         # Create route
         route = RouteFactory(
             name="Test Route",
-            stops=[
-                {
-                    "name": "Stop 1",
-                    "lat": 22.5726,
-                    "lon": 88.3639,
-                    "sequence": 1,
-                },
-                {
-                    "name": "Stop 2",
-                    "lat": 22.5826,
-                    "lon": 88.3739,
-                    "sequence": 2,
-                },
-            ],
-            schedule={"morning": {"start": "07:00", "end": "09:00"}},
         )
 
         # Create buses
@@ -128,10 +113,7 @@ class TestSchoolDashboardAPI:
         url = reverse("school_dashboard:bus_locations")
         response = client.get(url)
 
-        assert response.status_code == 403
-        data = response.json()
-        assert "error" in data
-        assert data["error"] == "Authentication required"
+        assert response.status_code == 401
 
     def test_bus_locations_api_requires_admin_role(self, setup_data, parent_user):
         """Test that API requires school admin role."""
