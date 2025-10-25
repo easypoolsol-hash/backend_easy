@@ -1,6 +1,4 @@
 from django.contrib.auth import authenticate
-from django.contrib.auth import login as django_login
-from django.contrib.auth import logout as django_logout
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
@@ -54,17 +52,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"], permission_classes=[])
     def login(self, request):
-        """
-        JWT-based login for MOBILE APPS and FUTURE USE ONLY
-
-        IMPORTANT: frontend_easy (web dashboard) uses session_login instead!
-
-        This endpoint returns JWT tokens for stateless authentication.
-        Use cases: Future mobile apps, third-party integrations
-
-        For web dashboard: Use session_login endpoint
-        For kiosks: Use /api/v1/kiosk/activate/ endpoint
-        """
         username = request.data.get("username")
         password = request.data.get("password")
 
@@ -76,26 +63,19 @@ class UserViewSet(viewsets.ModelViewSet):
 
         user = authenticate(username=username, password=password)
         if user:
-            # AUTHENTICATION ARCHITECTURE:
+            # CRITICAL SEPARATION: This endpoint is ONLY for HUMAN USERS
+            # Endpoint: POST /api/v1/users/login/
+            # Auth Method: Username + Password
+            # Token Config: users/token_config.py (1 day refresh token)
             #
-            # 1. WEB DASHBOARD (frontend_easy):
-            #    Endpoint: POST /api/v1/users/session_login/
-            #    Auth: Session cookies (automatic browser handling)
-            #    Use: School admin web dashboard
+            # Kiosks are COMPLETELY SEPARATE:
+            # Endpoint: POST /api/v1/kiosk/activate/
+            # Auth Method: Activation Token (one-time use)
+            # Token Config: kiosks/token_config.py (60 day refresh token)
             #
-            # 2. MOBILE APPS (future):
-            #    Endpoint: POST /api/v1/users/login/ (THIS ENDPOINT)
-            #    Auth: JWT tokens (stateless)
-            #    Token Config: users/token_config.py (1 day refresh)
-            #
-            # 3. KIOSKS (bus_kiosk):
-            #    Endpoint: POST /api/v1/kiosk/activate/
-            #    Auth: JWT tokens with activation code
-            #    Token Config: kiosks/token_config.py (60 day refresh)
-            #
-            # SOLID: Single responsibility per auth method
-            # DRY: No code duplication, explicit configuration
-            # KISS: Clear separation of concerns
+            # SOLID Principle: Single file responsible for each token type
+            # DRY Principle: No code duplication, explicit configuration
+            # KISS Principle: Simple, clear separation
             refresh = create_user_token(user)
 
             user.last_login = timezone.now()
@@ -120,75 +100,6 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-
-    @action(detail=False, methods=["post"], permission_classes=[])
-    def session_login(self, request):
-        """
-        Session-based login for web dashboard (frontend_easy)
-
-        This endpoint creates a Django session instead of returning JWT tokens.
-        Session cookie is automatically sent by browser with subsequent requests.
-
-        Endpoint: POST /api/v1/users/session_login/
-        Auth Method: Username + Password
-        Response: Session cookie (automatically set by Django)
-
-        Use this for web-only applications (frontend_easy dashboard)
-        Use JWT login for mobile apps and kiosk devices
-        """
-        username = request.data.get("username")
-        password = request.data.get("password")
-
-        if not username or not password:
-            return Response(
-                {"error": "Username and password are required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user = authenticate(request, username=username, password=password)
-        if user:
-            # Create Django session (sets sessionid cookie)
-            django_login(request, user)
-
-            user.last_login = timezone.now()
-            user.save(update_fields=["last_login"])
-
-            # Log the login
-            AuditLog.objects.create(
-                user=user,
-                action="LOGIN",
-                resource_type="user",
-                resource_id=str(user.user_id),
-                ip_address=self.get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            )
-
-            return Response({"user": UserSerializer(user).data, "message": "Session created successfully"}, status=status.HTTP_200_OK)
-
-        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-
-    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
-    def session_logout(self, request):
-        """
-        Session-based logout for web dashboard (frontend_easy)
-
-        Destroys Django session and clears session cookie.
-        No request body needed - session authentication automatic.
-        """
-        # Log the logout
-        AuditLog.objects.create(
-            user=request.user,
-            action="LOGOUT",
-            resource_type="user",
-            resource_id=str(request.user.user_id),
-            ip_address=self.get_client_ip(request),
-            user_agent=request.META.get("HTTP_USER_AGENT", ""),
-        )
-
-        # Destroy Django session
-        django_logout(request)
-
-        return Response({"message": "Session destroyed successfully"}, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
     def logout(self, request):
