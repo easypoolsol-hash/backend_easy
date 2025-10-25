@@ -124,9 +124,10 @@ AUTH_USER_MODEL = "users.User"
 # REST Framework configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "kiosks.authentication.KioskJWTAuthentication",  # Custom kiosk authentication
-        "rest_framework.authentication.SessionAuthentication",
+        # DRF tries authenticators in order - first match wins
+        "rest_framework_simplejwt.authentication.JWTAuthentication",  # Mobile apps (future)
+        "kiosks.authentication.KioskJWTAuthentication",  # Kiosks (bus_kiosk)
+        "rest_framework.authentication.SessionAuthentication",  # Web dashboard (frontend_easy)
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "bus_kiosk_backend.permissions.DenyByDefault",  # AWS-style: Deny unless explicitly allowed

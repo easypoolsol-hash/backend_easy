@@ -1,12 +1,16 @@
 """
-User Token Configuration
+User JWT Token Configuration - FOR MOBILE APPS ONLY
 
-CRITICAL: This file defines token lifetimes for HUMAN USERS ONLY
-- School Admins
-- Parents
-- Drivers
+CRITICAL: frontend_easy (web dashboard) does NOT use JWT!
+This file defines JWT token lifetimes for FUTURE MOBILE APPS:
+- Mobile school admin app (future)
+- Parent mobile app (future)
+- Driver mobile app (future)
 
-Kiosk tokens are configured separately in kiosks/token_config.py
+Current Usage:
+- Web dashboard (frontend_easy): Uses Session auth (NO JWT)
+- Mobile apps: Uses JWT (THIS FILE)
+- Kiosks: Use kiosks/token_config.py (separate JWT config)
 
 Security Philosophy:
 - Human users must re-authenticate frequently (maximum security)
@@ -14,7 +18,7 @@ Security Philosophy:
 - Stolen tokens expire quickly
 
 SOLID Principle: Single Responsibility
-This file is responsible ONLY for human user token configuration.
+This file is responsible ONLY for mobile app JWT token configuration.
 """
 
 from datetime import timedelta
@@ -28,7 +32,10 @@ USER_REFRESH_TOKEN_LIFETIME = timedelta(days=1)  # Must re-login daily (maximum 
 
 def create_user_token(user) -> RefreshToken:
     """
-    Create JWT token for human user (school admin, parent, driver).
+    Create JWT token for MOBILE APP users (future use).
+
+    IMPORTANT: frontend_easy does NOT call this!
+    Web dashboard uses Django sessions, not JWT.
 
     EXPLICIT CONFIGURATION:
     - Access token: 15 minutes
@@ -42,9 +49,10 @@ def create_user_token(user) -> RefreshToken:
     Returns:
         RefreshToken with explicit user-specific settings
 
-    Note:
-        This function is ONLY for human users.
-        Kiosks use kiosks.token_config.create_kiosk_token()
+    Usage:
+        - Mobile apps: Call via /api/v1/users/login/ (returns JWT)
+        - Web dashboard: Uses /api/v1/users/session_login/ (NO JWT)
+        - Kiosks: Use kiosks.token_config.create_kiosk_token()
     """
     refresh = RefreshToken.for_user(user)
 

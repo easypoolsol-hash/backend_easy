@@ -2799,6 +2799,16 @@ paths:
   /api/v1/users/login/:
     post:
       operationId: api_v1_users_login_create
+      description: |-
+        JWT-based login for MOBILE APPS and FUTURE USE ONLY
+
+        IMPORTANT: frontend_easy (web dashboard) uses session_login instead!
+
+        This endpoint returns JWT tokens for stateless authentication.
+        Use cases: Future mobile apps, third-party integrations
+
+        For web dashboard: Use session_login endpoint
+        For kiosks: Use /api/v1/kiosk/activate/ endpoint
       tags:
       - api
       requestBody:
@@ -2867,6 +2877,81 @@ paths:
       description: Get current authenticated user information
       tags:
       - api
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/session_login/:
+    post:
+      operationId: api_v1_users_session_login_create
+      description: |-
+        Session-based login for web dashboard (frontend_easy)
+
+        This endpoint creates a Django session instead of returning JWT tokens.
+        Session cookie is automatically sent by browser with subsequent requests.
+
+        Endpoint: POST /api/v1/users/session_login/
+        Auth Method: Username + Password
+        Response: Session cookie (automatically set by Django)
+
+        Use this for web-only applications (frontend_easy dashboard)
+        Use JWT login for mobile apps and kiosk devices
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/session_logout/:
+    post:
+      operationId: api_v1_users_session_logout_create
+      description: |-
+        Session-based logout for web dashboard (frontend_easy)
+
+        Destroys Django session and clears session cookie.
+        No request body needed - session authentication automatic.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
       security:
       - jwtAuth: []
       - KioskJWTAuth: []
