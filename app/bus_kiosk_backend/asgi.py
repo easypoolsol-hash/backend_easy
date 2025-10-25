@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
 
 import os
 
-from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
@@ -23,13 +22,14 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
 django_asgi_app = get_asgi_application()
 
 # Import WebSocket routing after Django setup
+from realtime.middleware import JWTAuthMiddleware  # noqa: E402
 from realtime.routing import websocket_urlpatterns  # noqa: E402
 
 application = ProtocolTypeRouter(
     {
         # HTTP requests
         "http": django_asgi_app,
-        # WebSocket requests
-        "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(URLRouter(websocket_urlpatterns))),
+        # WebSocket requests - JWT authentication for dashboard
+        "websocket": AllowedHostsOriginValidator(JWTAuthMiddleware(URLRouter(websocket_urlpatterns))),
     }
 )
