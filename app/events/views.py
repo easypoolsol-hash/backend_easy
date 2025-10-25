@@ -5,9 +5,9 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 from kiosks.authentication import KioskJWTAuthentication
 from kiosks.permissions import IsKiosk
 from students.models import Student
@@ -22,11 +22,25 @@ from .serializers import (
 
 
 class BoardingEventViewSet(viewsets.ModelViewSet):
-    """ViewSet for boarding events"""
+    """
+    ViewSet for boarding events
 
-    queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
+    PERMISSIONS:
+    - CREATE/BULK: IsKiosk (kiosk devices only)
+    - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+    - RECENT: IsSchoolAdmin (school admins only)
+
+    NOTE: Old permission was IsAuthenticated (too permissive!)
+    Now using AWS-style deny-by-default with explicit permissions.
+    """
+
+    queryset = BoardingEvent.objects.select_related("student").order_by(
+        "-timestamp"
+    )
     authentication_classes = [KioskJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsSchoolAdmin
+    ]  # Default: school admin only for list/retrieve
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]
 
@@ -36,9 +50,15 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
         return BoardingEventSerializer
 
     def get_permissions(self):
+        """
+        AWS-style explicit permissions:
+        - Kiosks can CREATE boarding events
+        - School admins can LIST/RETRIEVE/UPDATE/DELETE
+        """
         if self.action in ["create", "bulk_create"]:
             return [IsKiosk()]
-        return [IsAuthenticated()]
+        # All other actions (list, retrieve, update, delete, recent)
+        return [IsSchoolAdmin()]
 
     def get_queryset(self):
         """Filter queryset based on user role"""
@@ -80,11 +100,22 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 
 
 class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only ViewSet for attendance records"""
+    """
+    Read-only ViewSet for attendance records
 
-    queryset = AttendanceRecord.objects.select_related("student").order_by("-date")
+    PERMISSION: IsSchoolAdmin (school administrators only)
+
+    NOTE: Old permission was IsAuthenticated (too permissive!)
+    Now using AWS-style deny-by-default with explicit permissions.
+    """
+
+    queryset = AttendanceRecord.objects.select_related("student").order_by(
+        "-date"
+    )
     serializer_class = AttendanceRecordSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        IsSchoolAdmin
+    ]  # School admins only (no kiosks, no parents)
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["student", "date", "status"]
 
