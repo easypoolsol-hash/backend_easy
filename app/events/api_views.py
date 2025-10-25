@@ -31,7 +31,19 @@ class DashboardStatsAPIView(APIView):
 
     @extend_schema(
         summary="Get dashboard summary statistics",
-        description=("Returns summary statistics for school dashboard (buses, students boarded). Cached for 10 seconds."),
+        description=(
+            "Returns summary statistics for school dashboard "
+            "(buses, students boarded). Cached for 10 seconds."
+        ),
+        parameters=[
+            {
+                "name": "date",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+                "description": "Date for stats (YYYY-MM-DD, default=today)",
+            }
+        ],
         responses={200: DashboardStatsSerializer},
     )
     def get(self, request):
@@ -91,7 +103,33 @@ class DashboardStudentsAPIView(APIView):
 
     @extend_schema(
         summary="Get students with boarding events",
-        description=("Returns paginated list of students who boarded on a specific date with all their events"),
+        description=(
+            "Returns paginated list of students who boarded "
+            "on a specific date with all their events"
+        ),
+        parameters=[
+            {
+                "name": "date",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "string", "format": "date"},
+                "description": "Date filter (YYYY-MM-DD, default=today)",
+            },
+            {
+                "name": "limit",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 50},
+                "description": "Number of students per page",
+            },
+            {
+                "name": "offset",
+                "in": "query",
+                "required": False,
+                "schema": {"type": "integer", "default": 0},
+                "description": "Offset for pagination",
+            },
+        ],
         responses={200: DashboardStudentsResponseSerializer},
     )
     def get(self, request):
