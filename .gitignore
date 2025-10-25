@@ -225,3 +225,5 @@ tests/fixtures/test_images/real_face_*.jpg
 tests/fixtures/test_images/real_face_*.png
 tests/fixtures/test_images/*.png
 !tests/fixtures/test_images/README.md
+
+scripts/seed_bus_locations.py
