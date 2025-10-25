@@ -24,9 +24,13 @@ class BoardingEventNestedSerializer(serializers.Serializer):
 
 
 class StudentActivitySerializer(serializers.Serializer):
-    """Serializer for student activity with boarding events."""
+    """Serializer for student activity with boarding events.
 
-    student_id = serializers.UUIDField(help_text="Student UUID")
+    SECURITY: Does NOT expose internal student_id UUID to dashboard
+    Uses school_student_id (human-readable) instead
+    """
+
+    school_student_id = serializers.CharField(help_text="School-provided student ID (e.g., STU-2024-001)")
     student_name = serializers.CharField(help_text="Student name (decrypted by backend)")
     grade = serializers.CharField(help_text="Student grade")
     bus_number = serializers.CharField(

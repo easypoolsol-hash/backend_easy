@@ -4643,12 +4643,15 @@ components:
       - updated_at
     StudentActivity:
       type: object
-      description: Serializer for student activity with boarding events.
+      description: |-
+        Serializer for student activity with boarding events.
+
+        SECURITY: Does NOT expose internal student_id UUID to dashboard
+        Uses school_student_id (human-readable) instead
       properties:
-        student_id:
+        school_student_id:
           type: string
-          format: uuid
-          description: Student UUID
+          description: School-provided student ID (e.g., STU-2024-001)
         student_name:
           type: string
           description: Student name (decrypted by backend)
@@ -4675,7 +4678,7 @@ components:
       - event_count
       - events
       - grade
-      - student_id
+      - school_student_id
       - student_name
     StudentParent:
       type: object

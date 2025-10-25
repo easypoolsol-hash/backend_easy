@@ -3,8 +3,8 @@
 from django.core.cache import cache
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -34,10 +34,7 @@ class DashboardStatsAPIView(APIView):
 
     @extend_schema(
         summary="Get dashboard summary statistics",
-        description=(
-            "Returns summary statistics for school dashboard "
-            "(buses, students boarded). Cached for 10 seconds."
-        ),
+        description=("Returns summary statistics for school dashboard (buses, students boarded). Cached for 10 seconds."),
         parameters=[
             OpenApiParameter(
                 name="date",
@@ -108,10 +105,7 @@ class DashboardStudentsAPIView(APIView):
 
     @extend_schema(
         summary="Get students with boarding events",
-        description=(
-            "Returns paginated list of students who boarded "
-            "on a specific date with all their events"
-        ),
+        description=("Returns paginated list of students who boarded on a specific date with all their events"),
         parameters=[
             OpenApiParameter(
                 name="date",
@@ -212,7 +206,7 @@ class DashboardStudentsAPIView(APIView):
 
             results.append(
                 {
-                    "student_id": str(student.student_id),
+                    "school_student_id": student.school_student_id,
                     "student_name": student.encrypted_name,
                     "grade": student.grade,
                     "bus_number": bus_number,
