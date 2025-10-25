@@ -1830,6 +1830,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Route'
           description: ''
+  /api/v1/school/api/bus-locations/:
+    get:
+      operationId: school_bus_locations_list
+      description: "\n    **Fortune 500 IAM-style School Bus Locations (Admin Only)**\n\
+        \n    Returns real-time bus locations for ALL buses in the fleet.\n\n    **Authorization:**\n\
+        \    - Requires authentication (JWT token)\n    - Requires role: school_admin\
+        \ OR super_admin\n    - Returns ALL bus locations (full visibility for admins)\n\
+        \n    **For Parents:**\n    Parents should use `/api/v1/users/parent/my-buses/`\
+        \ instead (filtered by child assignment)\n\n    **Response:**\n    GeoJSON\
+        \ FeatureCollection with bus location points including:\n    - Real-time GPS\
+        \ coordinates\n    - Bus status, speed, heading\n    - Last update timestamp\n\
+        \    "
+      tags:
+      - School Dashboard
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocationsGeoJSONResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Access denied - not school_admin or super_admin
+          description: ''
   /api/v1/schools/:
     get:
       operationId: api_v1_schools_list
@@ -3432,6 +3464,20 @@ components:
       - location_id
       - longitude
       - timestamp
+    BusLocationsGeoJSONResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          default: FeatureCollection
+        features:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: GeoJSON features array
+      required:
+      - features
     CheckUpdatesResponse:
       type: object
       description: Serializer for check updates response

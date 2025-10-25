@@ -8,6 +8,10 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views import View
 from django.views.generic import TemplateView
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 
 from buses.models import Bus
 from events.models import BoardingEvent
@@ -177,6 +181,41 @@ def bus_stats_partial(request):
     )
 
 
+@extend_schema(
+    responses={
+        200: inline_serializer(
+            name="BusLocationsGeoJSONResponse",
+            fields={
+                "type": serializers.CharField(default="FeatureCollection"),
+                "features": serializers.ListField(child=serializers.DictField(), help_text="GeoJSON features array"),
+            },
+        ),
+        403: {"description": "Access denied - not school_admin or super_admin"},
+    },
+    operation_id="school_bus_locations_list",
+    description="""
+    **Fortune 500 IAM-style School Bus Locations (Admin Only)**
+
+    Returns real-time bus locations for ALL buses in the fleet.
+
+    **Authorization:**
+    - Requires authentication (JWT token)
+    - Requires role: school_admin OR super_admin
+    - Returns ALL bus locations (full visibility for admins)
+
+    **For Parents:**
+    Parents should use `/api/v1/users/parent/my-buses/` instead (filtered by child assignment)
+
+    **Response:**
+    GeoJSON FeatureCollection with bus location points including:
+    - Real-time GPS coordinates
+    - Bus status, speed, heading
+    - Last update timestamp
+    """,
+    tags=["School Dashboard"],
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def bus_locations_api(request):
     """
     Bus locations API for school dashboard (admin only).
@@ -186,12 +225,8 @@ def bus_locations_api(request):
     - Explicit grant for school_admin and super_admin ONLY
     - Returns ALL bus locations (full visibility for admins)
 
-    Parents use /api/parent/my-buses/ endpoint instead (filtered by child assignment)
+    Parents use /api/v1/users/parent/my-buses/ endpoint instead (filtered by child assignment)
     """
-    # Authentication check
-    if not hasattr(request, "user") or not request.user.is_authenticated:
-        return JsonResponse({"error": "Authentication required"}, status=403)
-
     # IAM-style explicit permission: ONLY school_admin and super_admin
     if not (hasattr(request.user, "is_school_admin") and (request.user.is_school_admin or request.user.is_super_admin)):
         return JsonResponse(

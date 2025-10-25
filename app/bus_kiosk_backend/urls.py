@@ -138,8 +138,6 @@ if apps.is_installed("django.contrib.admin"):
 urlpatterns += [
     # Home page for schools (root URL)
     path("", home, name="home"),  # type: ignore[list-item]
-    # School Dashboard
-    path("school/", include("school_dashboard.urls")),  # type: ignore[list-item]
     # API info endpoint
     path("api/", api_root, name="api_root"),  # type: ignore[list-item]
     # Authentication status check (for client-side polling)
@@ -187,6 +185,7 @@ urlpatterns += [
                 path("", include("buses.urls")),
                 path("", include("kiosks.urls")),
                 path("", include("events.urls")),
+                path("school/", include("school_dashboard.urls")),  # School Dashboard (admin only)
             ]
         ),
     ),
