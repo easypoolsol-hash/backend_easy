@@ -51,6 +51,11 @@ class Student(models.Model):
 
     student_id: models.UUIDField = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school: models.ForeignKey = models.ForeignKey(School, on_delete=models.CASCADE, related_name="students")
+    school_student_id: models.CharField = models.CharField(
+        max_length=50,
+        help_text="School-provided student ID (e.g., STU-2024-001)",
+        unique=True,
+    )
     name: models.TextField = models.TextField(help_text="Encrypted at application layer")
     grade: models.CharField = models.CharField(max_length=10)
     section: models.CharField = models.CharField(max_length=10, blank=True)

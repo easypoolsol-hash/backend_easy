@@ -51,7 +51,20 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ["event_id"]
 
     def create(self, validated_data):
-        """Create boarding event with auto-generated ULID"""
+        """
+        Create boarding event with auto-generated ULID and default
+        metadata
+        """
+        # Ensure metadata has default event_type if not provided
+        if "metadata" not in validated_data or not validated_data["metadata"]:
+            validated_data["metadata"] = {}
+
+        # Set default event_type to 'boarding' if not specified
+        # Later: logic will determine 'pickup' vs 'dropoff'
+        # based on time/location
+        if "event_type" not in validated_data["metadata"]:
+            validated_data["metadata"]["event_type"] = "boarding"
+
         return BoardingEvent.objects.create(**validated_data)
 
 

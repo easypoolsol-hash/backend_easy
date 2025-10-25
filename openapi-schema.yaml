@@ -960,6 +960,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/Bus'
           description: ''
+  /api/v1/dashboard/stats/:
+    get:
+      operationId: api_v1_dashboard_stats_retrieve
+      description: Returns summary statistics for school dashboard (buses, students
+        boarded). Cached for 10 seconds.
+      summary: Get dashboard summary statistics
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+          description: ''
+  /api/v1/dashboard/students/:
+    get:
+      operationId: api_v1_dashboard_students_retrieve
+      description: Returns paginated list of students who boarded on a specific date
+        with all their events
+      summary: Get students with boarding events
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStudentsResponse'
+          description: ''
   /api/v1/kiosk/boarding/:
     post:
       operationId: api_v1_kiosk_boarding_create
@@ -3081,6 +3121,28 @@ components:
       - model_version
       - student
       - timestamp
+    BoardingEventNested:
+      type: object
+      description: Nested boarding event for student activity.
+      properties:
+        event_id:
+          type: string
+          description: Event ULID
+        timestamp:
+          type: string
+          format: date-time
+          description: When event occurred
+        kiosk_id:
+          type: string
+          description: Kiosk device ID
+        event_type:
+          type: string
+          description: Event type (boarding/pickup/dropoff)
+      required:
+      - event_id
+      - event_type
+      - kiosk_id
+      - timestamp
     Bus:
       type: object
       description: Serializer for buses
@@ -3289,6 +3351,60 @@ components:
       - embedding_count
       - needs_update
       - student_count
+    DashboardStats:
+      type: object
+      description: Serializer for dashboard statistics response.
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date for stats (YYYY-MM-DD)
+        active_buses:
+          type: integer
+          description: Number of active buses
+        total_buses:
+          type: integer
+          description: Total buses in fleet
+        students_boarded_today:
+          type: integer
+          description: Unique students who boarded today
+        total_events_today:
+          type: integer
+          description: Total boarding events today
+        last_updated:
+          type: string
+          format: date-time
+          description: When this data was last calculated
+      required:
+      - active_buses
+      - date
+      - last_updated
+      - students_boarded_today
+      - total_buses
+      - total_events_today
+    DashboardStudentsResponse:
+      type: object
+      description: Paginated response for dashboard students.
+      properties:
+        count:
+          type: integer
+          description: Total number of students with events
+        next:
+          type: boolean
+          description: Has next page
+        previous:
+          type: boolean
+          description: Has previous page
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentActivity'
+          description: List of students
+      required:
+      - count
+      - next
+      - previous
+      - results
     DeviceLog:
       type: object
       description: Serializer for device logs
@@ -4053,6 +4169,7 @@ components:
           readOnly: true
     PatchedStudent:
       type: object
+      description: Full serializer for detail view - includes all nested data
       properties:
         student_id:
           type: string
@@ -4101,10 +4218,14 @@ components:
           - $ref: '#/components/schemas/BusBasic'
           readOnly: true
         parents:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentParent'
           readOnly: true
         photos:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentPhoto'
           readOnly: true
         created_at:
           type: string
@@ -4351,6 +4472,7 @@ components:
       - school_id
     Student:
       type: object
+      description: Full serializer for detail view - includes all nested data
       properties:
         student_id:
           type: string
@@ -4399,10 +4521,14 @@ components:
           - $ref: '#/components/schemas/BusBasic'
           readOnly: true
         parents:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentParent'
           readOnly: true
         photos:
-          type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentPhoto'
           readOnly: true
         created_at:
           type: string
@@ -4425,6 +4551,42 @@ components:
       - school_details
       - student_id
       - updated_at
+    StudentActivity:
+      type: object
+      description: Serializer for student activity with boarding events.
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          description: Student UUID
+        student_name:
+          type: string
+          description: Student name (decrypted by backend)
+        grade:
+          type: string
+          description: Student grade
+        bus_number:
+          type: string
+          nullable: true
+          description: Bus license plate
+        route_name:
+          type: string
+          nullable: true
+          description: Route name
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardingEventNested'
+          description: All boarding events for this student today
+        event_count:
+          type: integer
+          description: Number of events today
+      required:
+      - event_count
+      - events
+      - grade
+      - student_id
+      - student_name
     StudentParent:
       type: object
       properties:

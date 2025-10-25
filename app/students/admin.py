@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.admin import display
 from django.utils.html import format_html
@@ -10,6 +11,69 @@ from .models import (
     StudentParent,
     StudentPhoto,
 )
+
+
+class StudentAdminForm(forms.ModelForm):
+    """Custom form to handle encrypted fields in admin"""
+
+    # Use a regular CharField for name input (plaintext)
+    plaintext_name = forms.CharField(label="Name", max_length=255, help_text="Enter student's name (will be encrypted automatically)")
+
+    class Meta:
+        model = Student
+        fields = "__all__"
+        exclude = ["name"]  # Hide the encrypted field
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre-fill with decrypted name if editing existing student
+        if self.instance and self.instance.pk:
+            try:
+                self.fields["plaintext_name"].initial = self.instance.encrypted_name
+            except:
+                self.fields["plaintext_name"].initial = ""
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Encrypt the plaintext name before saving
+        instance.encrypted_name = self.cleaned_data["plaintext_name"]
+        if commit:
+            instance.save()
+        return instance
+
+
+class ParentAdminForm(forms.ModelForm):
+    """Custom form to handle encrypted parent fields in admin"""
+
+    plaintext_name = forms.CharField(label="Name", max_length=255, help_text="Enter parent's name (will be encrypted automatically)")
+    plaintext_phone = forms.CharField(label="Phone", max_length=20, help_text="Enter phone number (will be encrypted automatically)")
+    plaintext_email = forms.EmailField(label="Email", help_text="Enter email address (will be encrypted automatically)")
+
+    class Meta:
+        model = Parent
+        fields = "__all__"
+        exclude = ["name", "phone", "email"]  # Hide encrypted fields
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Pre-fill with decrypted values if editing
+        if self.instance and self.instance.pk:
+            try:
+                self.fields["plaintext_name"].initial = self.instance.encrypted_name
+                self.fields["plaintext_phone"].initial = self.instance.encrypted_phone
+                self.fields["plaintext_email"].initial = self.instance.encrypted_email
+            except:
+                pass
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Encrypt all fields before saving
+        instance.encrypted_name = self.cleaned_data["plaintext_name"]
+        instance.encrypted_phone = self.cleaned_data["plaintext_phone"]
+        instance.encrypted_email = self.cleaned_data["plaintext_email"]
+        if commit:
+            instance.save()
+        return instance
 
 
 @admin.register(School)
@@ -35,34 +99,71 @@ class StudentPhotoInline(admin.TabularInline):
         return NO_PHOTO
 
 
+class StudentParentInline(admin.TabularInline):
+    """Inline to link/unlink parents to student (parent details edited in Parent admin only)"""
+
+    model = StudentParent
+    extra = 1  # Allow adding at least one parent
+    min_num = 1  # Require at least one parent
+    validate_min = True
+    fields = ["parent", "get_parent_phone", "get_parent_email", "relationship", "is_primary"]
+    readonly_fields = ["get_parent_phone", "get_parent_email"]  # Can't edit parent info here
+    autocomplete_fields = ["parent"]  # Searchable parent dropdown
+
+    @display(description="Phone")
+    def get_parent_phone(self, obj):
+        if obj and obj.parent:
+            try:
+                return obj.parent.encrypted_phone
+            except:
+                return obj.parent.phone
+        return "-"
+
+    @display(description="Email")
+    def get_parent_email(self, obj):
+        if obj and obj.parent:
+            try:
+                return obj.parent.encrypted_email
+            except:
+                return obj.parent.email
+        return "-"
+
+
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
+    form = StudentAdminForm  # Use custom form with encryption
     list_display = [
-        "student_id",
+        "school_student_id",
         "get_name",
         "grade",
         "section",
+        "get_primary_parent",
         "assigned_bus",
         "status",
     ]
     list_filter = ["status", "grade", "school"]
-    search_fields = ["student_id", "name"]
+    search_fields = ["school_student_id", "student_id"]
     readonly_fields = ["student_id", "created_at", "updated_at"]
-    inlines = [StudentPhotoInline]
+    inlines = [StudentParentInline, StudentPhotoInline]  # Parents first, then photos
 
-    def save_model(self, request, obj, form, change):
-        # Auto-encrypt name if plaintext entered
-        if "name" in form.changed_data:
-            obj.name = obj.name  # Setter encrypts automatically
-        super().save_model(request, obj, form, change)
-
-    @display(description="Name")
+    @display(description="Student Name")
     def get_name(self, obj):
         try:
             return obj.encrypted_name
         except Exception:
             # If decryption fails, return the raw name (likely not encrypted)
             return obj.name
+
+    @display(description="Primary Parent")
+    def get_primary_parent(self, obj):
+        try:
+            primary = obj.student_parents.filter(is_primary=True).first()
+            if primary and primary.parent:
+                parent_name = primary.parent.encrypted_name
+                return format_html('<a href="/admin/students/parent/{}/change/">{}</a>', primary.parent.parent_id, parent_name)
+            return format_html('<span style="color: orange;">No primary parent</span>')
+        except Exception:
+            return "-"
 
 
 class FaceEmbeddingInline(admin.TabularInline):
@@ -116,27 +217,44 @@ class StudentPhotoAdmin(admin.ModelAdmin):
         return format_html('<span style="color: red;">✗ 0</span>')
 
 
+class ParentStudentsInline(admin.TabularInline):
+    """Read-only inline to show students linked to this parent"""
+
+    model = StudentParent
+    extra = 0
+    can_delete = False
+    fields = ["student", "relationship", "is_primary"]
+    readonly_fields = ["student", "relationship", "is_primary"]
+
+    def has_add_permission(self, request, obj=None):
+        return False  # Can't add students from parent side
+
+
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
+    form = ParentAdminForm  # Use custom form with encryption
     list_display = [
         "parent_id",
         "get_name",
         "get_phone",
         "get_email",
+        "get_students_count",
         "created_at",
     ]
-    search_fields = ["phone", "email", "name"]
+    search_fields = ["parent_id", "phone", "email"]  # Enable autocomplete search
     readonly_fields = ["parent_id", "created_at"]
+    inlines = [ParentStudentsInline]  # Show linked students
 
-    def save_model(self, request, obj, form, change):
-        # Auto-encrypt fields if plaintext entered
-        if "name" in form.changed_data:
-            obj.name = obj.name  # Setter encrypts
-        if "phone" in form.changed_data:
-            obj.phone = obj.phone  # Setter encrypts
-        if "email" in form.changed_data:
-            obj.email = obj.email  # Setter encrypts
-        super().save_model(request, obj, form, change)
+    # Disable add permission - parents should only be created via Student admin inline
+    def has_add_permission(self, request):
+        return False
+
+    @display(description="Students")
+    def get_students_count(self, obj):
+        count = obj.student_parents.count()
+        if count > 0:
+            return format_html('<span style="color: green;">{} student(s)</span>', count)
+        return format_html('<span style="color: orange;">No students linked</span>')
 
     @display(description="Name")
     def get_name(self, obj):
@@ -160,11 +278,13 @@ class ParentAdmin(admin.ModelAdmin):
             return obj.email
 
 
-@admin.register(StudentParent)
-class StudentParentAdmin(admin.ModelAdmin):
-    list_display = ["student", "parent", "relationship", "is_primary"]
-    list_filter = ["relationship", "is_primary"]
-    search_fields = ["student__name", "parent__name"]
+# StudentParent admin removed - use inline in Student admin instead
+# This prevents accidental orphaned relationships and ensures data consistency
+# @admin.register(StudentParent)
+# class StudentParentAdmin(admin.ModelAdmin):
+#     list_display = ["student", "parent", "relationship", "is_primary"]
+#     list_filter = ["relationship", "is_primary"]
+#     search_fields = ["student__name", "parent__name"]
 
 
 @admin.register(FaceEmbeddingMetadata)

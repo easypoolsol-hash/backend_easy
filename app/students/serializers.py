@@ -156,13 +156,60 @@ class StudentParentSerializer(serializers.ModelSerializer):
         }
 
 
+class StudentListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for list view - only essential fields"""
+
+    decrypted_name = serializers.SerializerMethodField()
+    primary_parent_name = serializers.SerializerMethodField()
+    primary_parent_phone = serializers.SerializerMethodField()
+    bus_number = serializers.CharField(source="assigned_bus.license_plate", read_only=True)
+
+    class Meta:
+        model = Student
+        fields = [
+            "student_id",
+            "school_student_id",
+            "decrypted_name",
+            "grade",
+            "section",
+            "primary_parent_name",
+            "primary_parent_phone",
+            "bus_number",
+            "status",
+        ]
+
+    def get_decrypted_name(self, obj):
+        return obj.encrypted_name
+
+    def get_primary_parent_name(self, obj):
+        try:
+            primary = obj.student_parents.filter(is_primary=True).first()
+            if primary and primary.parent:
+                return primary.parent.encrypted_name
+        except:
+            pass
+        return None
+
+    def get_primary_parent_phone(self, obj):
+        try:
+            primary = obj.student_parents.filter(is_primary=True).first()
+            if primary and primary.parent:
+                return primary.parent.encrypted_phone
+        except:
+            pass
+        return None
+
+
 class StudentSerializer(serializers.ModelSerializer):
+    """Full serializer for detail view - includes all nested data"""
+
     # Decrypted name for API responses
     decrypted_name = serializers.SerializerMethodField()
     school_details = SchoolSerializer(source="school", read_only=True)
     bus_details = BusBasicSerializer(source="assigned_bus", read_only=True)
-    parents = serializers.SerializerMethodField()
-    photos = serializers.SerializerMethodField()
+    # Explicitly define as nested serializers (not SerializerMethodField) for correct OpenAPI schema
+    parents = StudentParentSerializer(source="student_parents", many=True, read_only=True)
+    photos = StudentPhotoSerializer(many=True, read_only=True)  # source defaults to field name
 
     class Meta:
         model = Student
@@ -187,14 +234,6 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def get_decrypted_name(self, obj):
         return obj.encrypted_name
-
-    def get_parents(self, obj):
-        student_parents = obj.student_parents.select_related("parent").all()
-        return StudentParentSerializer(student_parents, many=True).data
-
-    def get_photos(self, obj):
-        photos = obj.photos.all().order_by("-is_primary", "-captured_at")
-        return StudentPhotoSerializer(photos, many=True).data
 
     def create(self, validated_data):
         # Encrypt name before saving

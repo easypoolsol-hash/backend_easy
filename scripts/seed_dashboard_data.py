@@ -22,7 +22,7 @@ from django.utils import timezone
 from buses.models import Bus, Route
 from events.models import BoardingEvent
 from kiosks.models import Kiosk
-from students.models import School, Student
+from students.models import Parent, School, Student, StudentParent
 
 User = get_user_model()
 
@@ -96,9 +96,10 @@ def seed_data():
     for school_id, name, grade, section, bus_plate in students_data:
         # Note: In production, name should be encrypted
         student, created = Student.objects.get_or_create(
-            name=name,  # This should be encrypted in production
-            school=school,
+            school_student_id=school_id,  # School's student ID
             defaults={
+                "name": name,  # This should be encrypted in production
+                "school": school,
                 "grade": grade,
                 "section": section,
                 "assigned_bus": buses[bus_plate],
@@ -108,6 +109,27 @@ def seed_data():
         )
         students.append((student, school_id, bus_plate))
         print(f"[+] Student: {school_id} - {name}")
+
+        # Create parent for each student
+        parent_name = f"{name.split()[1]} (Parent)"
+        parent, _ = Parent.objects.get_or_create(
+            phone=f"+1-555-{1000 + len(students):04d}",
+            defaults={
+                "name": parent_name,
+                "email": f"{name.split()[0].lower()}.parent@example.com",
+            },
+        )
+
+        # Link parent to student
+        StudentParent.objects.get_or_create(
+            student=student,
+            parent=parent,
+            defaults={
+                "relationship": "mother",
+                "is_primary": True,
+            },
+        )
+        print(f"  [+] Parent: {parent_name}")
 
     # Create boarding events
     now = timezone.now()
@@ -168,6 +190,7 @@ def seed_data():
     print("   - 1 School")
     print(f"   - {len(buses)} Buses")
     print(f"   - {len(students)} Students")
+    print(f"   - {Parent.objects.count()} Parents")
     print(f"   - {BoardingEvent.objects.count()} Boarding Events")
 
 
