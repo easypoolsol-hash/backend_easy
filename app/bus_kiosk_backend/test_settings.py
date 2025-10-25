@@ -32,9 +32,17 @@ INSTALLED_APPS = [
     "buses",
     "events",
     "kiosks",
+    "realtime",
 ]
 
 AUTH_USER_MODEL = "users.User"
+
+# Channel layers for Django Channels (WebSocket support)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 # Override database configuration for tests
 DATABASES = {

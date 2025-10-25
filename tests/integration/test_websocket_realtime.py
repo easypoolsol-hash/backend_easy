@@ -1,5 +1,7 @@
 """Integration tests for WebSocket real-time bus tracking."""
 
+import asyncio
+
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
@@ -201,15 +203,17 @@ class TestBusTrackingWebSocket(TestCase):
 
         # Verify Bus B NOT sent (WebSocket only sends changes)
         # No second message should arrive
-        import asyncio
-
         try:
-            await asyncio.wait_for(communicator.receive_json_from(), timeout=1.0)
+            await communicator.receive_json_from(timeout=1.0)
             self.fail("Should not receive second message")
         except TimeoutError:
             pass  # Expected - no second message
 
-        await communicator.disconnect()
+        # Disconnect (handle potential cancellation from timeout above)
+        try:
+            await communicator.disconnect()
+        except asyncio.CancelledError:
+            pass  # Already cancelled due to timeout, this is expected
 
     def test_signal_handler_publishes_location(self):
         """Test that signal handler publishes location to channel layer."""
