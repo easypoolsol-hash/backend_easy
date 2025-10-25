@@ -125,6 +125,7 @@ class StudentFactory(DjangoModelFactory):
         model = Student
         skip_postgeneration_save = True
 
+    school_student_id = factory.Sequence(lambda n: f"STU-TEST-{n:05d}")
     school = factory.SubFactory(SchoolFactory)
     grade = "5"
     section = "A"
