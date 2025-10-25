@@ -186,7 +186,7 @@ class StudentListSerializer(serializers.ModelSerializer):
             primary = obj.student_parents.filter(is_primary=True).first()
             if primary and primary.parent:
                 return primary.parent.encrypted_name
-        except:
+        except (AttributeError, ValueError):
             pass
         return None
 
@@ -195,7 +195,7 @@ class StudentListSerializer(serializers.ModelSerializer):
             primary = obj.student_parents.filter(is_primary=True).first()
             if primary and primary.parent:
                 return primary.parent.encrypted_phone
-        except:
+        except (AttributeError, ValueError):
             pass
         return None
 

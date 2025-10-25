@@ -202,6 +202,7 @@ ignore = [
 "*/tests/*.py" = ["B011", "S101"]  # Test patterns
 "**/models.py" = ["RUF012"]  # Django model class attributes (Meta, choices, etc.)
 "manage.py" = ["T201"]  # Django management script
+"scripts/seed_*.py" = ["E", "F", "B", "RUF"]  # Seed scripts are for mock data only
 
 [tool.ruff.lint.isort]
 # Django-aware import sorting

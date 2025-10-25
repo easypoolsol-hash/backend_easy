@@ -48,7 +48,7 @@ def seed_data():
     buses = {}
     for license_plate, route_name, capacity in buses_data:
         # Create route
-        route, _ = Route.objects.get_or_create(
+        _route, _ = Route.objects.get_or_create(
             name=route_name,
             defaults={
                 "description": f"Route serving {route_name.split(' - ')[1]}",
@@ -151,7 +151,7 @@ def seed_data():
         (9, 12, True, True),  # Lucas - completed
     ]
 
-    for idx, (student_tuple, pickup_offset, picked_up, dropped_off) in enumerate(event_scenarios[: len(students)]):
+    for idx, (_student_tuple, pickup_offset, picked_up, dropped_off) in enumerate(event_scenarios[: len(students)]):
         student, school_id, bus_plate = students[idx]
         kiosk = Kiosk.objects.get(bus=buses[bus_plate])
 

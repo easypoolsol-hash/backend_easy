@@ -17,20 +17,32 @@ class StudentAdminForm(forms.ModelForm):
     """Custom form to handle encrypted fields in admin"""
 
     # Use a regular CharField for name input (plaintext)
-    plaintext_name = forms.CharField(label="Name", max_length=255, help_text="Enter student's name (will be encrypted automatically)")
+    plaintext_name = forms.CharField(
+        label="Name",
+        max_length=255,
+        help_text="Enter student's name (will be encrypted automatically)",
+    )
 
     class Meta:
         model = Student
-        fields = "__all__"
-        exclude = ["name"]  # Hide the encrypted field
+        fields = [
+            "school",
+            "school_student_id",
+            "plaintext_name",
+            "grade",
+            "section",
+            "assigned_bus",
+            "status",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Pre-fill with decrypted name if editing existing student
         if self.instance and self.instance.pk:
             try:
-                self.fields["plaintext_name"].initial = self.instance.encrypted_name
-            except:
+                decrypted = self.instance.encrypted_name
+                self.fields["plaintext_name"].initial = decrypted
+            except Exception:
                 self.fields["plaintext_name"].initial = ""
 
     def save(self, commit=True):
@@ -45,24 +57,37 @@ class StudentAdminForm(forms.ModelForm):
 class ParentAdminForm(forms.ModelForm):
     """Custom form to handle encrypted parent fields in admin"""
 
-    plaintext_name = forms.CharField(label="Name", max_length=255, help_text="Enter parent's name (will be encrypted automatically)")
-    plaintext_phone = forms.CharField(label="Phone", max_length=20, help_text="Enter phone number (will be encrypted automatically)")
-    plaintext_email = forms.EmailField(label="Email", help_text="Enter email address (will be encrypted automatically)")
+    plaintext_name = forms.CharField(
+        label="Name",
+        max_length=255,
+        help_text="Enter parent's name (will be encrypted automatically)",
+    )
+    plaintext_phone = forms.CharField(
+        label="Phone",
+        max_length=20,
+        help_text="Enter phone number (will be encrypted automatically)",
+    )
+    plaintext_email = forms.EmailField(
+        label="Email",
+        help_text="Enter email address (will be encrypted automatically)",
+    )
 
     class Meta:
         model = Parent
-        fields = "__all__"
-        exclude = ["name", "phone", "email"]  # Hide encrypted fields
+        fields = ["plaintext_name", "plaintext_phone", "plaintext_email"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Pre-fill with decrypted values if editing
         if self.instance and self.instance.pk:
             try:
-                self.fields["plaintext_name"].initial = self.instance.encrypted_name
-                self.fields["plaintext_phone"].initial = self.instance.encrypted_phone
-                self.fields["plaintext_email"].initial = self.instance.encrypted_email
-            except:
+                name = self.instance.encrypted_name
+                self.fields["plaintext_name"].initial = name
+                phone = self.instance.encrypted_phone
+                self.fields["plaintext_phone"].initial = phone
+                email = self.instance.encrypted_email
+                self.fields["plaintext_email"].initial = email
+            except Exception:
                 pass
 
     def save(self, commit=True):
@@ -115,7 +140,7 @@ class StudentParentInline(admin.TabularInline):
         if obj and obj.parent:
             try:
                 return obj.parent.encrypted_phone
-            except:
+            except (AttributeError, ValueError):
                 return obj.parent.phone
         return "-"
 
@@ -124,7 +149,7 @@ class StudentParentInline(admin.TabularInline):
         if obj and obj.parent:
             try:
                 return obj.parent.encrypted_email
-            except:
+            except (AttributeError, ValueError):
                 return obj.parent.email
         return "-"
 
