@@ -93,8 +93,8 @@ jobs:
 
       - name: Pull image from GHCR
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
-          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test ${{ env.IMAGE_NAME }}:test
+          docker pull ${{ env.REGISTRY }}/${{ github.repository }}:test
+          docker tag ${{ env.REGISTRY }}/${{ github.repository }}:test ${{ env.IMAGE_NAME }}:test
       - name: Start services (use prebuilt image)
         run: docker compose -f docker-compose.test.yml up -d --no-build
       - name: Wait for Postgres to be ready
@@ -188,8 +188,8 @@ jobs:
 
       - name: Pull image from GHCR
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
-          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test ${{ env.IMAGE_NAME }}:test
+          docker pull ${{ env.REGISTRY }}/${{ github.repository }}:test
+          docker tag ${{ env.REGISTRY }}/${{ github.repository }}:test ${{ env.IMAGE_NAME }}:test
       - name: Start services (use prebuilt image)
         run: docker compose -f docker-compose.test.yml up -d --no-build
       - name: Wait for Postgres to be ready
@@ -240,7 +240,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -274,14 +274,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image from GHCR
-        run: docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
+        run: docker pull ${{ env.REGISTRY }}/${{ github.repository }}:test
       - name: Run image (smoke test - MUST SUCCEED)
         run: |
           # Start container (FAIL if this errors - no || true)
           docker run -d --name smoke-test -p 8000:8000 \
             -e DATABASE_URL=sqlite:////tmp/test.db \
             -e DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
+            ${{ env.REGISTRY }}/${{ github.repository }}:test
 
           # Wait for health endpoint
           echo "Waiting for health endpoint..."
@@ -322,7 +322,7 @@ jobs:
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}:test
 
   push:
     name: tag latest on GHCR
@@ -343,7 +343,7 @@ jobs:
 
       - name: Pull test image and tag as latest
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
-          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test \
-                     ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ github.repository }}:test
+          docker tag ${{ env.REGISTRY }}/${{ github.repository }}:test \
+                     ${{ env.REGISTRY }}/${{ github.repository }}:latest
+          docker push ${{ env.REGISTRY }}/${{ github.repository }}:latest
