@@ -1030,15 +1030,8 @@ paths:
     get:
       operationId: api_v1_dashboard_stats_retrieve
       description: Returns summary statistics for school dashboard (buses, students
-        boarded). Cached for 10 seconds.
+        boarded) for TODAY only. Cached for 10 seconds.
       summary: Get dashboard summary statistics
-      parameters:
-      - in: query
-        name: date
-        schema:
-          type: string
-          format: date
-        description: Date for stats (YYYY-MM-DD, default=today)
       tags:
       - api
       security:
@@ -1056,16 +1049,10 @@ paths:
   /api/v1/dashboard/students/:
     get:
       operationId: api_v1_dashboard_students_retrieve
-      description: Returns paginated list of students who boarded on a specific date
-        with all their events
+      description: Returns paginated list of students who boarded TODAY with all their
+        events
       summary: Get students with boarding events
       parameters:
-      - in: query
-        name: date
-        schema:
-          type: string
-          format: date
-        description: Date filter (YYYY-MM-DD, default=today)
       - in: query
         name: limit
         schema:

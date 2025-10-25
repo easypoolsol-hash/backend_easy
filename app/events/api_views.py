@@ -34,32 +34,13 @@ class DashboardStatsAPIView(APIView):
 
     @extend_schema(
         summary="Get dashboard summary statistics",
-        description=("Returns summary statistics for school dashboard (buses, students boarded). Cached for 10 seconds."),
-        parameters=[
-            OpenApiParameter(
-                name="date",
-                type=OpenApiTypes.DATE,
-                location=OpenApiParameter.QUERY,
-                required=False,
-                description="Date for stats (YYYY-MM-DD, default=today)",
-            )
-        ],
+        description=("Returns summary statistics for school dashboard (buses, students boarded) for TODAY only. Cached for 10 seconds."),
         responses={200: DashboardStatsSerializer},
     )
     def get(self, request):
-        """Get dashboard stats for a specific date."""
-        # Get date from query params (default=today)
-        date_str = request.query_params.get("date")
-        if date_str:
-            try:
-                target_date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
-            except ValueError:
-                return Response(
-                    {"error": "Invalid date format. Use YYYY-MM-DD"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            target_date = timezone.now().date()
+        """Get dashboard stats for today only."""
+        # Always use today (no date parameter)
+        target_date = timezone.now().date()
 
         # Try to get from cache
         cache_key = f"dashboard_stats_{target_date}"
@@ -105,15 +86,8 @@ class DashboardStudentsAPIView(APIView):
 
     @extend_schema(
         summary="Get students with boarding events",
-        description=("Returns paginated list of students who boarded on a specific date with all their events"),
+        description=("Returns paginated list of students who boarded TODAY with all their events"),
         parameters=[
-            OpenApiParameter(
-                name="date",
-                type=OpenApiTypes.DATE,
-                location=OpenApiParameter.QUERY,
-                required=False,
-                description="Date filter (YYYY-MM-DD, default=today)",
-            ),
             OpenApiParameter(
                 name="limit",
                 type=OpenApiTypes.INT,
@@ -132,19 +106,9 @@ class DashboardStudentsAPIView(APIView):
         responses={200: DashboardStudentsResponseSerializer},
     )
     def get(self, request):
-        """Get students with boarding events for a specific date."""
-        # Get date from query params (default=today)
-        date_str = request.query_params.get("date")
-        if date_str:
-            try:
-                target_date = timezone.datetime.strptime(date_str, "%Y-%m-%d").date()
-            except ValueError:
-                return Response(
-                    {"error": "Invalid date format. Use YYYY-MM-DD"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            target_date = timezone.now().date()
+        """Get students with boarding events for today only."""
+        # Always use today (no date parameter)
+        target_date = timezone.now().date()
 
         # Pagination params
         try:
