@@ -224,7 +224,13 @@ paths:
   /api/v1/attendance/:
     get:
       operationId: api_v1_attendance_list
-      description: Read-only ViewSet for attendance records
+      description: |-
+        Read-only ViewSet for attendance records
+
+        PERMISSION: IsSchoolAdmin (school administrators only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: query
         name: date
@@ -274,7 +280,13 @@ paths:
   /api/v1/attendance/{record_id}/:
     get:
       operationId: api_v1_attendance_retrieve
-      description: Read-only ViewSet for attendance records
+      description: |-
+        Read-only ViewSet for attendance records
+
+        PERMISSION: IsSchoolAdmin (school administrators only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: path
         name: record_id
@@ -470,7 +482,16 @@ paths:
   /api/v1/boarding-events/:
     get:
       operationId: api_v1_boarding_events_list
-      description: ViewSet for boarding events
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: query
         name: bus_route
@@ -510,7 +531,16 @@ paths:
           description: ''
     post:
       operationId: api_v1_boarding_events_create
-      description: ViewSet for boarding events
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       tags:
       - api
       requestBody:
@@ -538,7 +568,16 @@ paths:
   /api/v1/boarding-events/{event_id}/:
     get:
       operationId: api_v1_boarding_events_retrieve
-      description: ViewSet for boarding events
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: path
         name: event_id
@@ -560,7 +599,16 @@ paths:
           description: ''
     put:
       operationId: api_v1_boarding_events_update
-      description: ViewSet for boarding events
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: path
         name: event_id
@@ -594,7 +642,16 @@ paths:
           description: ''
     patch:
       operationId: api_v1_boarding_events_partial_update
-      description: ViewSet for boarding events
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: path
         name: event_id
@@ -627,7 +684,16 @@ paths:
           description: ''
     delete:
       operationId: api_v1_boarding_events_destroy
-      description: ViewSet for boarding events
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
       parameters:
       - in: path
         name: event_id
@@ -966,6 +1032,13 @@ paths:
       description: Returns summary statistics for school dashboard (buses, students
         boarded). Cached for 10 seconds.
       summary: Get dashboard summary statistics
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Date for stats (YYYY-MM-DD, default=today)
       tags:
       - api
       security:
@@ -986,6 +1059,23 @@ paths:
       description: Returns paginated list of students who boarded on a specific date
         with all their events
       summary: Get students with boarding events
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Date filter (YYYY-MM-DD, default=today)
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Number of students per page (default=50)
+      - in: query
+        name: offset
+        schema:
+          type: integer
+        description: Offset for pagination (default=0)
       tags:
       - api
       security:

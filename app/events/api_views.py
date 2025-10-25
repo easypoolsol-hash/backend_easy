@@ -3,7 +3,8 @@
 from django.core.cache import cache
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -38,13 +39,13 @@ class DashboardStatsAPIView(APIView):
             "(buses, students boarded). Cached for 10 seconds."
         ),
         parameters=[
-            {
-                "name": "date",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "format": "date"},
-                "description": "Date for stats (YYYY-MM-DD, default=today)",
-            }
+            OpenApiParameter(
+                name="date",
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Date for stats (YYYY-MM-DD, default=today)",
+            )
         ],
         responses={200: DashboardStatsSerializer},
     )
@@ -112,27 +113,27 @@ class DashboardStudentsAPIView(APIView):
             "on a specific date with all their events"
         ),
         parameters=[
-            {
-                "name": "date",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "string", "format": "date"},
-                "description": "Date filter (YYYY-MM-DD, default=today)",
-            },
-            {
-                "name": "limit",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "integer", "default": 50},
-                "description": "Number of students per page",
-            },
-            {
-                "name": "offset",
-                "in": "query",
-                "required": False,
-                "schema": {"type": "integer", "default": 0},
-                "description": "Offset for pagination",
-            },
+            OpenApiParameter(
+                name="date",
+                type=OpenApiTypes.DATE,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Date filter (YYYY-MM-DD, default=today)",
+            ),
+            OpenApiParameter(
+                name="limit",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Number of students per page (default=50)",
+            ),
+            OpenApiParameter(
+                name="offset",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Offset for pagination (default=0)",
+            ),
         ],
         responses={200: DashboardStudentsResponseSerializer},
     )
