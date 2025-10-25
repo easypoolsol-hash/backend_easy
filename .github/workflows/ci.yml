@@ -9,7 +9,7 @@ on:
 
 env:
   IMAGE_NAME: bus_kiosk_backend
-  REGISTRY: docker.io
+  REGISTRY: ghcr.io
   # ENCRYPTION_KEY removed from source; CI should provide it via Secrets if needed.
 
 jobs:
@@ -65,6 +65,8 @@ jobs:
     name: integration tests (compose)
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -81,13 +83,18 @@ jobs:
           echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
           echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.test_settings" >> $GITHUB_ENV
           pip install -e .[dev,testing]
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: docker-image
-          path: /tmp
-      - name: Load image
-        run: docker load --input /tmp/image.tar
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image from GHCR
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
+          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test ${{ env.IMAGE_NAME }}:test
       - name: Start services (use prebuilt image)
         run: docker compose -f docker-compose.test.yml up -d --no-build
       - name: Wait for Postgres to be ready
@@ -154,6 +161,8 @@ jobs:
     name: contract/e2e tests (compose)
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -169,13 +178,18 @@ jobs:
           echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
           echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.test_settings" >> $GITHUB_ENV
           pip install -e .[dev,testing]
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: docker-image
-          path: /tmp
-      - name: Load image
-        run: docker load --input /tmp/image.tar
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image from GHCR
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
+          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test ${{ env.IMAGE_NAME }}:test
       - name: Start services (use prebuilt image)
         run: docker compose -f docker-compose.test.yml up -d --no-build
       - name: Wait for Postgres to be ready
@@ -204,49 +218,70 @@ jobs:
         run: docker compose -f docker-compose.test.yml down --volumes
 
   build:
-    name: build image
+    name: build and push image
     runs-on: ubuntu-latest
     needs: unit-tests
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build and export to Docker
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=test
+
+      - name: Build and push to GHCR
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          tags: ${{ env.IMAGE_NAME }}:test
-          outputs: type=docker,dest=/tmp/image.tar
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/image.tar
 
   test-image:
     name: test image (smoke)
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v4
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: docker-image
-          path: /tmp
-      - name: Load image
-        run: docker load --input /tmp/image.tar
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image from GHCR
+        run: docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
       - name: Run image (smoke test - MUST SUCCEED)
         run: |
           # Start container (FAIL if this errors - no || true)
           docker run -d --name smoke-test -p 8000:8000 \
             -e DATABASE_URL=sqlite:////tmp/test.db \
             -e DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings \
-            ${{ env.IMAGE_NAME }}:test
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
 
           # Wait for health endpoint
           echo "Waiting for health endpoint..."
@@ -272,38 +307,43 @@ jobs:
     name: security scan (trivy)
     runs-on: ubuntu-latest
     needs: test-image
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v4
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: docker-image
-          path: /tmp
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
-          input: /tmp/image.tar
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
 
   push:
-    name: push image to Docker Hub
+    name: tag latest on GHCR
     runs-on: ubuntu-latest
     needs: [test-image, security]
+    permissions:
+      packages: write
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp
-      - name: Load image
-        run: docker load --input /tmp/image.tar
-      - name: Log in to Docker Hub
+
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PUSH_PAT }}
-      - name: Tag and push
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull test image and tag as latest
         run: |
-          docker tag ${{ env.IMAGE_NAME }}:test ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test
+          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:test \
+                     ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
