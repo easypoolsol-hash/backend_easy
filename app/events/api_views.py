@@ -197,7 +197,7 @@ class DashboardStudentsAPIView(APIView):
             events = [
                 {
                     "event_id": event.event_id,
-                    "timestamp": event.timestamp.isoformat(),
+                    "timestamp": event.timestamp,
                     "kiosk_id": event.kiosk_id,
                     "event_type": event.metadata.get("event_type", "boarding"),
                 }
