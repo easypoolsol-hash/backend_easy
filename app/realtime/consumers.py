@@ -1,9 +1,108 @@
-"""WebSocket consumers for real-time bus tracking."""
+"""WebSocket consumers for real-time updates."""
 
 import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+
+class DashboardConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer for real-time dashboard updates.
+
+    Used by: School admin dashboard
+    Channel: "dashboard_updates" - receives boarding events
+
+    Pushes:
+    - New boarding events (student boarded)
+    - Updated statistics (student count, etc.)
+    """
+
+    async def connect(self):
+        """Handle WebSocket connection."""
+        # Check authentication
+        if not await self.is_authenticated():
+            await self.close(code=4001)
+            return
+
+        # Join dashboard updates group
+        self.group_name = "dashboard_updates"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        """Handle WebSocket disconnection."""
+        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        """Handle messages from WebSocket client (not used - server push only)."""
+        pass
+
+    async def boarding_event(self, event):
+        """
+        Receive boarding event from channel layer and push to client.
+
+        Event format:
+        {
+            'type': 'boarding_event',
+            'event_id': str,
+            'student_id': str,
+            'student_name': str,
+            'grade': str,
+            'timestamp': str (ISO format),
+            'kiosk_id': str,
+            'event_type': str
+        }
+        """
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "boarding_event",
+                    "data": {
+                        "event_id": event["event_id"],
+                        "student_id": event["student_id"],
+                        "student_name": event["student_name"],
+                        "grade": event["grade"],
+                        "timestamp": event["timestamp"],
+                        "kiosk_id": event["kiosk_id"],
+                        "event_type": event["event_type"],
+                    },
+                }
+            )
+        )
+
+    async def dashboard_stats(self, event):
+        """
+        Receive dashboard stats update from channel layer.
+
+        Event format:
+        {
+            'type': 'dashboard_stats',
+            'students_boarded_today': int,
+            'total_events_today': int,
+        }
+        """
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "stats_update",
+                    "data": {
+                        "students_boarded_today": event["students_boarded_today"],
+                        "total_events_today": event["total_events_today"],
+                    },
+                }
+            )
+        )
+
+    @database_sync_to_async
+    def is_authenticated(self):
+        """Check if user is authenticated and is school admin."""
+        user = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            return False
+        # Only school admins can access dashboard
+        return user.groups.filter(name="SchoolAdmin").exists()
 
 
 class BusTrackingConsumer(AsyncWebsocketConsumer):
@@ -31,7 +130,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
         self.group_name = "bus_updates"
         await self.channel_layer.group_add(
             self.group_name,  # Group to join
-            self.channel_name  # This connection's unique channel name
+            self.channel_name,  # This connection's unique channel name
         )
 
         await self.accept()
@@ -41,7 +140,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
         # Leave bus updates group
         await self.channel_layer.group_discard(
             self.group_name,  # Group to leave
-            self.channel_name  # This connection's unique channel name
+            self.channel_name,  # This connection's unique channel name
         )
 
     async def receive(self, text_data):
