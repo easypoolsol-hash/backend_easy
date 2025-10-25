@@ -11,4 +11,6 @@ router.register(r"audit-logs", views.AuditLogViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
+    # Parent-specific endpoints (IAM-filtered)
+    path("parent/my-buses/", views.parent_bus_locations, name="parent_bus_locations"),
 ]

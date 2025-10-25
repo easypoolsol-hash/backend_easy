@@ -178,13 +178,30 @@ def bus_stats_partial(request):
 
 
 def bus_locations_api(request):
-    """API endpoint for bus locations (returns GeoJSON)."""
-    # Check authentication and role
+    """
+    Bus locations API for school dashboard (admin only).
+
+    Fortune 500 IAM-style authorization:
+    - Deny by default
+    - Explicit grant for school_admin and super_admin ONLY
+    - Returns ALL bus locations (full visibility for admins)
+
+    Parents use /api/parent/my-buses/ endpoint instead (filtered by child assignment)
+    """
+    # Authentication check
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return JsonResponse({"error": "Authentication required"}, status=403)
 
+    # IAM-style explicit permission: ONLY school_admin and super_admin
     if not (hasattr(request.user, "is_school_admin") and (request.user.is_school_admin or request.user.is_super_admin)):
-        return JsonResponse({"error": "Access denied"}, status=403)
+        return JsonResponse(
+            {
+                "error": "Access denied - insufficient permissions",
+                "required_role": ["school_admin", "super_admin"],
+                "your_role": request.user.role.name if hasattr(request.user, "role") else None,
+            },
+            status=403,
+        )
 
     # Get latest GPS location for each bus
     from django.db.models import Max
@@ -200,7 +217,6 @@ def bus_locations_api(request):
         )
 
         if location:
-            # Get bus info from kiosk
             kiosk = location.kiosk
             if kiosk.bus:
                 bus_name = kiosk.bus.license_plate
@@ -214,9 +230,11 @@ def bus_locations_api(request):
                     "type": "Feature",
                     "geometry": {"type": "Point", "coordinates": [location.longitude, location.latitude]},
                     "properties": {
+                        "id": kiosk.kiosk_id,  # Frontend expects "id"
+                        "name": bus_name,  # Frontend expects "name"
+                        "status": bus_status,
                         "kiosk_id": kiosk.kiosk_id,
                         "bus_name": bus_name,
-                        "status": bus_status,
                         "last_update": location.timestamp.isoformat(),
                         "speed": location.speed,
                         "heading": location.heading,
@@ -224,5 +242,4 @@ def bus_locations_api(request):
                 }
             )
 
-    # Return GeoJSON FeatureCollection
     return JsonResponse({"type": "FeatureCollection", "features": bus_locations})

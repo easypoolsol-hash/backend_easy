@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import TokenError
@@ -262,3 +262,102 @@ class KioskTokenRefreshView(TokenRefreshView):
     """
 
     pass
+
+
+@extend_schema(
+    responses={
+        200: inline_serializer(
+            name="ParentBusLocationsResponse",
+            fields={
+                "type": serializers.CharField(default="FeatureCollection"),
+                "features": serializers.ListField(child=serializers.DictField(), help_text="GeoJSON features array"),
+            },
+        ),
+        403: {"description": "Access denied - not a parent or not authenticated"},
+    },
+    operation_id="parent_bus_locations",
+    description="""
+    **Fortune 500 IAM-style Parent Bus Locations**
+
+    Returns bus locations ONLY for buses assigned to the parent's children.
+
+    **Authorization:**
+    - Requires authentication (JWT token)
+    - Requires role: parent
+    - Filters results by parent-child-bus assignments
+    - Zero-trust: Parents can ONLY see their own children's buses
+
+    **Response:**
+    GeoJSON FeatureCollection with bus location points
+    """,
+    tags=["Parents"],
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def parent_bus_locations(request):
+    """
+    Parent-specific bus locations endpoint (IAM-filtered).
+
+    Returns ONLY buses assigned to the authenticated parent's children.
+    """
+    from django.db.models import Max
+    from django.http import JsonResponse
+
+    from kiosks.models import BusLocation
+
+    # IAM Check: User must be a parent
+    if not (hasattr(request.user, "is_parent") and request.user.is_parent):
+        return JsonResponse(
+            {
+                "error": "Access denied - insufficient permissions",
+                "required_role": "parent",
+                "your_role": request.user.role.name if hasattr(request.user, "role") else None,
+            },
+            status=403,
+        )
+
+    # Get parent's children's bus assignments
+    # TODO: Query students table to find buses assigned to this parent's children
+    # For now, return empty (implement when Student-Parent relationship is defined)
+    from students.models import Student
+
+    # Get children of this parent
+    children = Student.objects.filter(parent=request.user)
+
+    # Get bus IDs assigned to these children
+    bus_ids = children.values_list("assigned_bus_id", flat=True).distinct()
+
+    # Get latest locations for these specific buses only
+    latest_locations = BusLocation.objects.filter(kiosk__bus_id__in=bus_ids).values("kiosk_id").annotate(latest_timestamp=Max("timestamp"))
+
+    bus_locations = []
+    for loc_data in latest_locations:
+        location = (
+            BusLocation.objects.filter(kiosk_id=loc_data["kiosk_id"], timestamp=loc_data["latest_timestamp"]).select_related("kiosk__bus").first()
+        )
+
+        if location:
+            kiosk = location.kiosk
+            if kiosk.bus:
+                bus_name = kiosk.bus.license_plate
+                bus_status = kiosk.bus.get_status_display()
+            else:
+                bus_name = f"Kiosk {kiosk.kiosk_id}"
+                bus_status = "Unassigned"
+
+            bus_locations.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [location.longitude, location.latitude]},
+                    "properties": {
+                        "id": kiosk.kiosk_id,
+                        "name": bus_name,
+                        "status": bus_status,
+                        "last_update": location.timestamp.isoformat(),
+                        "speed": location.speed,
+                        "heading": location.heading,
+                    },
+                }
+            )
+
+    return JsonResponse({"type": "FeatureCollection", "features": bus_locations})
