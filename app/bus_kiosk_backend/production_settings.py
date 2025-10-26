@@ -75,13 +75,14 @@ if "api_cache" in settings.CACHES:
 USE_FILE_LOGGING = True
 
 # Production log levels
-settings.LOGGING["loggers"]["django"]["level"] = "WARNING"
-settings.LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"
+LOGGING = settings.LOGGING
+LOGGING["loggers"]["django"]["level"] = "WARNING"
+LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"
 
 # ===========================================
 # PRODUCTION MONITORING
 # ===========================================
 
 # Enable all Prometheus metrics in production
-PROMETHEUS_METRICS_EXPORT_PORT = 8001
+PROMETHEUS_METRICS_EXPORT_PORT = int(os.getenv("PROMETHEUS_METRICS_EXPORT_PORT", "8001"))
 PROMETHEUS_METRICS_EXPORT_ADDRESS = os.getenv("PROMETHEUS_METRICS_EXPORT_ADDRESS", "127.0.0.1")

@@ -1,4 +1,5 @@
 # Multi-stage optimized Dockerfile for Bus Kiosk Backend
+# Supports WebSockets via ASGI (Daphne) for real-time features
 # Optimized for frequent rebuilds with maximum layer caching
 
 # =============================================================================
@@ -31,8 +32,8 @@ COPY pyproject.toml ./
 # Parse pyproject.toml and install dependencies
 RUN python -c "import tomllib; import subprocess; import sys; data = tomllib.load(open('pyproject.toml', 'rb')); deps = data.get('project', {}).get('dependencies', []); subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir'] + deps, check=True) if deps else None"
 
-# Install production runtime dependencies
-RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0
+# Install production runtime dependencies (ASGI for websockets)
+RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0 daphne>=4.0.0
 
 # =============================================================================
 # Stage 2: Runtime image (minimal and secure)
@@ -75,12 +76,12 @@ RUN python manage.py collectstatic --noinput --clear
 # Switch to non-root user for security
 USER django
 
-# Health check with proper configuration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+# Health check for ASGI application (supports both HTTP and WebSockets)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Use gunicorn for production (better than runserver)
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "bus_kiosk_backend.wsgi:application"]
+# Use Daphne for ASGI/websocket support (required for real-time features)
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "bus_kiosk_backend.asgi:application"]
