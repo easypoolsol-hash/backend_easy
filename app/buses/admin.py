@@ -52,6 +52,7 @@ class BusAdmin(admin.ModelAdmin):
     """Admin interface for buses"""
 
     list_display = [
+        "bus_number",
         "license_plate",
         "route",
         "status",
@@ -62,12 +63,12 @@ class BusAdmin(admin.ModelAdmin):
         "last_maintenance",
     ]
     list_filter = ["status", "route", "manufacturer", "year", "last_maintenance"]
-    search_fields = ["license_plate", "device_id", "manufacturer", "model"]
+    search_fields = ["bus_number", "license_plate", "device_id", "manufacturer", "model"]
     readonly_fields = ["bus_id", "created_at", "updated_at"]
-    ordering = ["license_plate"]
+    ordering = ["bus_number"]
 
     fieldsets = (
-        ("Bus Info", {"fields": ("bus_id", "license_plate", "status")}),
+        ("Bus Info", {"fields": ("bus_id", "bus_number", "license_plate", "status")}),
         ("Assignment", {"fields": ("route", "device_id")}),
         ("Capacity", {"fields": ("capacity",)}),
         (
