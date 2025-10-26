@@ -62,6 +62,7 @@ class BusFactory(DjangoModelFactory):
     class Meta:
         model = Bus
 
+    bus_number = factory.Sequence(lambda n: f"BUS-{n:03d}")
     license_plate = factory.Sequence(lambda n: f"TEST-BUS-{n:03d}")
     route = factory.SubFactory(RouteFactory)
     capacity = 40
