@@ -3290,6 +3290,10 @@ components:
           format: uuid
           readOnly: true
           description: UUID primary key
+        bus_number:
+          type: string
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
         license_plate:
           type: string
           description: Vehicle license plate number
@@ -3369,6 +3373,7 @@ components:
       required:
       - assigned_students_count
       - bus_id
+      - bus_number
       - capacity
       - created_at
       - is_available
@@ -4174,6 +4179,10 @@ components:
           format: uuid
           readOnly: true
           description: UUID primary key
+        bus_number:
+          type: string
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
         license_plate:
           type: string
           description: Vehicle license plate number

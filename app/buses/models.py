@@ -152,6 +152,11 @@ class Bus(models.Model):
         editable=False,
         help_text="UUID primary key",
     )
+    bus_number = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="School-assigned bus number (e.g., 'BUS-001', 'B-12')",
+    )
     license_plate = models.CharField(max_length=20, unique=True, help_text="Vehicle license plate number")
     route = models.ForeignKey(
         Route,
@@ -188,16 +193,17 @@ class Bus(models.Model):
 
     class Meta:
         db_table = "buses"
-        ordering = ["license_plate"]
+        ordering = ["bus_number"]
         indexes = [
             models.Index(fields=["route", "status"], name="idx_buses_route_status"),
             models.Index(fields=["device_id"], name="idx_buses_device"),
             models.Index(fields=["license_plate"], name="idx_buses_license"),
+            models.Index(fields=["bus_number"], name="idx_buses_number"),
             models.Index(fields=["status"], name="idx_buses_status"),
         ]
 
     def __str__(self):
-        return f"{self.license_plate} ({self.get_status_display()})"
+        return f"Bus {self.bus_number} - {self.license_plate} ({self.get_status_display()})"
 
     @property
     def assigned_students_count(self):
