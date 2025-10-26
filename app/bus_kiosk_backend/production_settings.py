@@ -7,6 +7,7 @@ Usage:
 """
 
 import os
+from typing import cast
 
 from . import settings
 
@@ -75,7 +76,7 @@ if "api_cache" in settings.CACHES:
 USE_FILE_LOGGING = True
 
 # Production log levels
-LOGGING = settings.LOGGING
+LOGGING = cast(dict, settings.LOGGING)
 LOGGING["loggers"]["django"]["level"] = "WARNING"
 LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"
 
