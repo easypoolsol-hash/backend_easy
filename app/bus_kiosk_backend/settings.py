@@ -368,6 +368,7 @@ OPENAPI_FAIL_ON_ERROR = False  # Log warnings instead of failing requests
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # WhiteNoise for static files
     # CORS must be before CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
     # Security headers middleware (CSP, OWASP headers)

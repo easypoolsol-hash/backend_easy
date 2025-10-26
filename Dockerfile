@@ -69,8 +69,8 @@ RUN mkdir -p /app/staticfiles /app/media /app/logs && \
 # Set PYTHONPATH to include /app for ml_models
 ENV PYTHONPATH=/app
 
-# Collect static files (optional, can be done at runtime)
-# RUN python manage.py collectstatic --noinput --clear
+# Collect static files (REQUIRED for production)
+RUN python manage.py collectstatic --noinput --clear
 
 # Switch to non-root user for security
 USER django
