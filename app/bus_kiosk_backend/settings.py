@@ -61,16 +61,14 @@ ENCRYPTION_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Default to False for safety - must explicitly enable for development
+# Default to False for safety - DEBUG is DISABLED in production
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
-# Allowed hosts configuration
-# Production domains (hardcoded as they rarely change)
+# Allowed hosts configuration - PRODUCTION ONLY
+# Remove localhost entries for production security
 ALLOWED_HOSTS: list[str] = [
     "easypool.in",
     "www.easypool.in",
-    "localhost",  # For health checks and internal Docker networking
-    "127.0.0.1",
 ]
 
 # Add environment variable hosts if specified (for flexibility)
@@ -80,7 +78,7 @@ elif os.getenv("GITHUB_ACTIONS") == "true":
     # GitHub Actions CI environment
     ALLOWED_HOSTS.extend(["localhost", "127.0.0.1", "testserver"])
 elif DEBUG:
-    # Development fallback
+    # Development ONLY - NEVER in production
     ALLOWED_HOSTS.extend(["localhost", "127.0.0.1"])
 
 
@@ -113,7 +111,7 @@ INSTALLED_APPS = [
     "buses",
     "events",
     "kiosks",
-    "tests",  # Test app for comprehensive testing
+    # "tests",  # REMOVED: Test app should not be in production
     "school_dashboard",  # School dashboard web interface
     "realtime",  # Real-time WebSocket communication
 ]
@@ -148,7 +146,8 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
-        "rest_framework.renderers.BrowsableAPIRenderer",  # Re-enable for docs
+        # REMOVED: BrowsableAPIRenderer should not be in production
+        # "rest_framework.renderers.BrowsableAPIRenderer",
     ],
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -312,14 +311,15 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# CORS Settings
+# CORS Settings - PRODUCTION ONLY (HTTPS only)
 CORS_ALLOWED_ORIGINS = [
     "https://easypool.in",
     "https://www.easypool.in",
-    "http://easypool.in",
-    "http://www.easypool.in",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    # REMOVED: HTTP localhost URLs should not be in production
+    # "http://easypool.in",
+    # "http://www.easypool.in",
+    # "http://localhost:3000",
+    # "http://127.0.0.1:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
@@ -344,7 +344,9 @@ SPECTACULAR_SETTINGS = {
         "bus_kiosk_backend.schema_hooks.mark_activation_public",
     ],
     "SERVERS": [
-        {"url": "http://localhost:8000", "description": "Development server"},
+        # REMOVED: localhost should not be in production API docs
+        # {"url": "http://localhost:8000", "description": "Development server"},
+        {"url": "https://api.easypool.in", "description": "Production API"},
     ],
     "SECURITY": [{"Bearer": []}],
     "SECURITY_SCHEMES": {
@@ -361,9 +363,9 @@ SPECTACULAR_SETTINGS = {
     "REDOC_DIST": "SIDECAR",
 }
 
-# OpenAPI Validation Settings
+# OpenAPI Validation Settings - ENABLED for production security
 OPENAPI_VALIDATE_REQUESTS = True  # Enable request validation
-OPENAPI_VALIDATE_RESPONSES = False  # Disable response validation for now
+OPENAPI_VALIDATE_RESPONSES = True  # ENABLED: Response validation for production
 OPENAPI_FAIL_ON_ERROR = False  # Log warnings instead of failing requests
 
 MIDDLEWARE = [
