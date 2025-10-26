@@ -121,8 +121,7 @@ repos:
   #       language_version: python3.10
 
   # Type checking - matches CI configuration
-  # NOTE: Requires Python 3.12 venv with mypy installed (see SETUP.md)
-  # If you haven't set up the venv yet, skip this hook with: SKIP=mypy git commit
+  # Uses virtual environment Python for consistent local/CI testing
   - repo: local
     hooks:
       - id: mypy
@@ -130,7 +129,7 @@ repos:
         entry: bash
         language: system
         pass_filenames: false  # Run on whole project, not per-file
-        args: ["-c", "export PYTHONPATH=app && python -m mypy app --no-incremental || (echo '⚠️  mypy failed - install Python 3.12 venv (see SETUP.md) or skip with: SKIP=mypy git commit' && exit 1)"]
+        args: ["-c", "export PYTHONPATH=app && (.venv/bin/python -m mypy app --no-incremental 2>/dev/null || .venv/Scripts/python -m mypy app --no-incremental 2>/dev/null || python -m mypy app --no-incremental) || (echo '❌ mypy failed - ensure virtual environment is activated and mypy is installed' && exit 1)"]
         types: [python]
         stages: [commit]
         verbose: true
