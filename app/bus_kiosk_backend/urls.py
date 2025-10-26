@@ -42,6 +42,7 @@ from bus_kiosk_backend.health import (
     prometheus_metrics,
 )
 from users.views import KioskTokenRefreshView
+from utils.maps_proxy import geocode, places_autocomplete
 
 
 @csrf_exempt
@@ -186,6 +187,9 @@ urlpatterns += [
                 path("", include("kiosks.urls")),
                 path("", include("events.urls")),
                 path("school/", include("school_dashboard.urls")),  # School Dashboard (admin only)
+                # Maps API proxy (keeps API key secure on backend)
+                path("maps/geocode/", geocode, name="maps_geocode"),
+                path("maps/autocomplete/", places_autocomplete, name="maps_autocomplete"),
             ]
         ),
     ),
