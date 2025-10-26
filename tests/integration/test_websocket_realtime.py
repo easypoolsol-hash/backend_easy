@@ -161,7 +161,9 @@ class TestBusTrackingWebSocket(TestCase):
         from django.urls import reverse
 
         # Create second bus
-        bus2 = await sync_to_async(Bus.objects.create)(license_plate="WB02CD5678", route=self.route, capacity=40, status="active")
+        bus2 = await sync_to_async(Bus.objects.create)(
+            bus_number="BUS-002", license_plate="WB02CD5678", route=self.route, capacity=40, status="active"
+        )
 
         kiosk2 = await sync_to_async(Kiosk.objects.create)(kiosk_id="KIOSK002", bus=bus2, is_active=True)
 
