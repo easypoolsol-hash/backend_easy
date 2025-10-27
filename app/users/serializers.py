@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.contrib.auth.models import Group
 from rest_framework import serializers
 
@@ -22,7 +24,7 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    groups: list[str] = serializers.StringRelatedField(many=True, read_only=True)
+    groups: Any = serializers.StringRelatedField(many=True, read_only=True)
     group_names = serializers.SerializerMethodField()
 
     class Meta:
