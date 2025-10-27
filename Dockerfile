@@ -32,6 +32,9 @@ COPY pyproject.toml ./
 # Parse pyproject.toml and install dependencies
 RUN python -c "import tomllib; import subprocess; import sys; data = tomllib.load(open('pyproject.toml', 'rb')); deps = data.get('project', {}).get('dependencies', []); subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir'] + deps, check=True) if deps else None"
 
+# Install optional ML dependencies for Docker/production
+RUN python -c "import tomllib; import subprocess; import sys; data = tomllib.load(open('pyproject.toml', 'rb')); ml_deps = data.get('project', {}).get('optional-dependencies', {}).get('ml', []); subprocess.run([sys.executable, '-m', 'pip', 'install', '--no-cache-dir'] + ml_deps, check=True) if ml_deps else None"
+
 # Install production runtime dependencies (ASGI for websockets)
 RUN pip install gunicorn>=21.2.0 whitenoise>=6.6.0 daphne>=4.0.0
 
@@ -86,5 +89,18 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Use Daphne for ASGI/websocket support (required for real-time features)
-CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "bus_kiosk_backend.asgi:application"]
+# Create a startup script
+RUN echo '#!/bin/bash\n\
+if [ "$RUN_SEED" = "true" ]; then\n\
+    echo "Running seed script to create initial data..."\n\
+    python /scripts/seed_local_dev.py\n\
+fi\n\
+echo "Starting Daphne server..."\n\
+daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Copy scripts directory for seeding
+COPY --chown=django:django scripts/ /scripts/
+
+# Use the startup script instead of direct daphne command
+CMD ["/app/start.sh"]
