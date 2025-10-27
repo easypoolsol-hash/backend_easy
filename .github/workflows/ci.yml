@@ -277,6 +277,7 @@ jobs:
             -e DATABASE_URL=sqlite:////tmp/test.db \
             -e DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings \
             -e USE_FILE_LOGGING=false \
+            -e ALLOWED_HOSTS=localhost,127.0.0.1,testserver \
             ${{ env.REGISTRY }}/${{ github.repository }}:test
 
           # Wait for health endpoint
