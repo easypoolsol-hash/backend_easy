@@ -32,7 +32,7 @@ from students.models import (
     StudentParent,
     StudentPhoto,
 )
-from users.models import Role, User
+from users.models import User
 
 
 class SchoolFactory(DjangoModelFactory):
@@ -224,18 +224,6 @@ class StudentParentFactory(DjangoModelFactory):
     is_primary = True
 
 
-class RoleFactory(DjangoModelFactory):
-    """Factory for creating user roles"""
-
-    class Meta:
-        model = Role
-        django_get_or_create = ("name",)
-
-    name = "backend_engineer"
-    permissions: dict = {}
-    is_active = True
-
-
 class UserFactory(DjangoModelFactory):
     """Factory for creating test users"""
 
@@ -244,8 +232,17 @@ class UserFactory(DjangoModelFactory):
 
     username = factory.Sequence(lambda n: f"testuser{n}")
     email = factory.Sequence(lambda n: f"user{n}@test.com")
-    role = factory.SubFactory(RoleFactory)
     is_active = True
+
+    @factory.post_generation
+    def groups(self, create, extracted, **kwargs):
+        """Assign default group after creation"""
+        if not create:
+            return
+        from django.contrib.auth.models import Group
+
+        default_group, _ = Group.objects.get_or_create(name="Backend Engineer")
+        self.groups.add(default_group)
 
     @factory.post_generation
     def password(self, create, extracted, **kwargs):

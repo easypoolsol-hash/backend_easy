@@ -5,10 +5,11 @@ Unit tests for users app models
 from datetime import timedelta
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.utils import timezone
 import pytest
 
-from tests.factories import RoleFactory, UserFactory
+from tests.factories import UserFactory
 from users.models import APIKey, AuditLog
 
 User = get_user_model()
@@ -20,11 +21,11 @@ class TestUserModel:
 
     def test_is_parent_property(self):
         """Test the is_parent property"""
-        parent_role = RoleFactory(name="parent")
-        teacher_role = RoleFactory(name="teacher")
+        parent_user = UserFactory()
+        parent_group, _ = Group.objects.get_or_create(name="Parent")
+        parent_user.groups.add(parent_group)
 
-        parent_user = UserFactory(role=parent_role)
-        teacher_user = UserFactory(role=teacher_role)
+        teacher_user = UserFactory()
 
         assert parent_user.is_parent is True
         assert teacher_user.is_parent is False
