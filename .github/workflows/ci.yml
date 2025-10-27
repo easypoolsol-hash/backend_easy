@@ -276,6 +276,7 @@ jobs:
           docker run -d --name smoke-test -p 8000:8000 \
             -e DATABASE_URL=sqlite:////tmp/test.db \
             -e DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings \
+            -e USE_FILE_LOGGING=false \
             ${{ env.REGISTRY }}/${{ github.repository }}:test
 
           # Wait for health endpoint
