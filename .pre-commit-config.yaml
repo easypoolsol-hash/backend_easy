@@ -98,6 +98,36 @@ repos:
         files: (kiosks/services\.py|snapshot_interface_contract\.yaml)
         verbose: true
 
+      # Run unit tests when core logic changes (fast feedback)
+      - id: unit-tests-core
+        name: Unit Tests (Core Logic)
+        entry: python -m pytest tests/unit/ -v --tb=short --maxfail=3
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: (app/(users|buses|students|kiosks|events)/.*\.py|tests/unit/.*\.py)
+        verbose: true
+
+      # Run authentication tests when auth code changes
+      - id: auth-tests
+        name: Auth Tests (Security Critical)
+        entry: python -m pytest tests/unit/test_kiosk_auth.py tests/integration/test_authentication_flow.py -v --tb=short
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: (app/(users|kiosks)/.*\.py|tests/.*auth.*\.py)
+        verbose: true
+
+      # Run ML/face recognition tests when ML code changes
+      - id: ml-tests
+        name: ML Tests (Face Recognition)
+        entry: python -m pytest tests/unit/test_face_embedding.py tests/integration/test_face_embedding_integration.py -v --tb=short
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: (app/.*embed.*\.py|tests/.*face.*\.py|tests/.*embed.*\.py)
+        verbose: true
+
   # Additional fast/modern hooks (consolidated from config/ into root)
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -164,7 +194,9 @@ repos:
         args: [-r, app, -x, "**/test*", -c, pyproject.toml, -f, txt]
         pass_filenames: false
 
-  # Test runner (optional) - DISABLED: too slow for pre-commit
+  # Test runner (optional) - DISABLED: replaced with targeted test hooks above
+  # The hooks above run specific tests only when relevant files change,
+  # providing fast feedback without slowing down all commits.
   # - repo: local
   #   hooks:
   #     - id: pytest
