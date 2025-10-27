@@ -33,8 +33,9 @@ env:
   GAR_REPO: backend-repo
 
 jobs:
-  build-and-push:
-    name: Build and push to registries
+  # Job 1: Build image and push to GHCR (primary registry)
+  build-ghcr:
+    name: Build and push to GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,7 +73,7 @@ jobs:
 
       - name: Build and push to GHCR
         if: inputs.push_to_ghcr
-        id: build-ghcr
+        id: build-push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -82,9 +83,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ============================================
-      # Google Artifact Registry (Optional)
-      # ============================================
+  # Job 2: Push to Google Artifact Registry (runs in parallel)
+  push-gar:
+    name: Push to Google Artifact Registry
+    runs-on: ubuntu-latest
+    needs: build-ghcr
+    if: inputs.push_to_gar && inputs.gcp_project_id != ''
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Authenticate to Google Cloud
         if: inputs.push_to_gar && inputs.gcp_project_id != ''
         uses: google-github-actions/auth@v2
@@ -93,58 +110,61 @@ jobs:
           service_account: "${{ secrets.GCP_SA_EMAIL }}"
 
       - name: Set up Cloud SDK
-        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker for GAR
-        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
-      - name: Extract metadata for GAR
-        if: inputs.push_to_gar && inputs.gcp_project_id != ''
-        id: meta-gar
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=${{ inputs.image_tag }}
+      - name: Pull image from GHCR
+        run: |
+          docker pull ${{ env.GHCR_REGISTRY }}/${{ github.repository }}:${{ inputs.image_tag }}
 
-      - name: Build and push to GAR
-        if: inputs.push_to_gar && inputs.gcp_project_id != ''
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta-gar.outputs.tags }}
-          labels: ${{ steps.meta-gar.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Tag and push to GAR
+        run: |
+          GAR_IMAGE=${{ env.GCP_REGION }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
 
-      # ============================================
-      # Summary
-      # ============================================
-      - name: Image push summary
+          echo "Tagging for GAR..."
+          docker tag ${{ env.GHCR_REGISTRY }}/${{ github.repository }}:${{ inputs.image_tag }} $GAR_IMAGE
+
+          echo "Pushing to Google Artifact Registry..."
+          docker push $GAR_IMAGE
+
+          echo "✅ Image pushed to: $GAR_IMAGE"
+
+  # Summary job (runs after both push jobs)
+  summary:
+    name: Build summary
+    runs-on: ubuntu-latest
+    needs: [build-ghcr, push-gar]
+    if: always()
+    steps:
+      - name: Generate summary
         run: |
           echo "## Docker Images Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ inputs.push_to_ghcr }}" == "true" ]; then
-            echo "### GitHub Container Registry ✅" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.build-ghcr.result }}" == "success" ]; then
+            echo "### ✅ GitHub Container Registry" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.meta-ghcr.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+            echo "ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if [ "${{ inputs.push_to_gar && inputs.gcp_project_id != '' }}" == "true" ]; then
-            echo "### Google Artifact Registry ✅" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "${{ steps.meta-gar.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ GitHub Container Registry (failed)" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Image tag: \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.push-gar.result }}" == "success" ]; then
+            echo "### ✅ Google Artifact Registry" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "${{ env.GCP_REGION }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.push-gar.result }}" == "skipped" ]; then
+            echo "### ⏭️  Google Artifact Registry (skipped)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Google Artifact Registry (failed)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image tag:** \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
