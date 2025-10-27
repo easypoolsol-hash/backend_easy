@@ -6,6 +6,16 @@ on:
   pull_request:
     branches: [ master, main, develop ]
   workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip test execution (for config-only changes)'
+        required: false
+        type: boolean
+        default: false
+      skip_reason:
+        description: 'Reason for skipping tests (if skip_tests=true)'
+        required: false
+        default: 'Config-only change'
 
 permissions:
   contents: read
@@ -17,9 +27,14 @@ env:
   # ENCRYPTION_KEY removed from source; CI should provide it via Secrets if needed.
 
 jobs:
+  # Detect what changed to intelligently skip unnecessary work
+  detect-changes:
+    uses: ./.github/workflows/detect-changes.yml
+
   quality:
     name: quality (lint + mypy)
     runs-on: ubuntu-latest
+    needs: detect-changes
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -41,10 +56,24 @@ jobs:
           ruff check --fix .
           mypy . --no-incremental
 
+  skip-tests-log:
+    name: log test skip (if requested)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip_tests == 'true' }}
+    steps:
+      - name: Log test skip reason
+        run: |
+          echo "⚡ CI Pipeline - Tests Skipped"
+          echo "Reason: ${{ github.event.inputs.skip_reason }}"
+          echo "⚠️  WARNING: Tests were skipped by user request!"
+          echo "Only quality checks and build will run."
+
   unit-tests:
     name: unit tests (fast)
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [quality, detect-changes]
+    # Skip if: user manually skipped OR detected config-only changes
+    if: ${{ github.event.inputs.skip_tests != 'true' && needs.detect-changes.outputs.should-run-tests == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -68,7 +97,9 @@ jobs:
   integration-tests:
     name: integration tests (compose)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, detect-changes]
+    # Skip if: user manually skipped OR detected config-only changes
+    if: ${{ github.event.inputs.skip_tests != 'true' && needs.detect-changes.outputs.should-run-tests == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -162,7 +193,9 @@ jobs:
   contract-tests:
     name: contract/e2e tests (compose)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, detect-changes]
+    # Skip if: user manually skipped OR detected config-only changes
+    if: ${{ github.event.inputs.skip_tests != 'true' && needs.detect-changes.outputs.should-run-tests == 'true' }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -220,7 +253,7 @@ jobs:
   build:
     name: build and push image
     runs-on: ubuntu-latest
-    needs: unit-tests
+    needs: [quality, detect-changes]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx

@@ -1,0 +1,123 @@
+# Detects what type of changes are in the PR/push
+# Used by CI pipeline to intelligently skip unnecessary jobs
+name: Detect Changes
+
+on:
+  workflow_call:
+    outputs:
+      config-only:
+        description: 'True if only config files changed'
+        value: ${{ jobs.detect.outputs.config-only }}
+      test-only:
+        description: 'True if only test files changed'
+        value: ${{ jobs.detect.outputs.test-only }}
+      api-changes:
+        description: 'True if API code changed'
+        value: ${{ jobs.detect.outputs.api-changes }}
+      ml-changes:
+        description: 'True if ML/face recognition code changed'
+        value: ${{ jobs.detect.outputs.ml-changes }}
+      should-run-tests:
+        description: 'True if tests should run'
+        value: ${{ jobs.detect.outputs.should-run-tests }}
+
+jobs:
+  detect:
+    name: Detect change type
+    runs-on: ubuntu-latest
+    outputs:
+      config-only: ${{ steps.analyze.outputs.config-only }}
+      test-only: ${{ steps.analyze.outputs.test-only }}
+      api-changes: ${{ steps.analyze.outputs.api-changes }}
+      ml-changes: ${{ steps.analyze.outputs.ml-changes }}
+      should-run-tests: ${{ steps.analyze.outputs.should-run-tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare
+
+      - name: Get changed files
+        id: files
+        uses: tj-actions/changed-files@v41
+        with:
+          files_yaml: |
+            config:
+              - '.pre-commit-config.yaml'
+              - 'pyproject.toml'
+              - '.github/workflows/**'
+              - 'docker-compose*.yml'
+              - 'Dockerfile'
+              - '.env*'
+              - '*.md'
+            tests:
+              - 'tests/**'
+            api:
+              - 'app/**/views.py'
+              - 'app/**/serializers.py'
+              - 'app/**/urls.py'
+              - 'app/**/models.py'
+              - 'openapi-schema.yaml'
+            ml:
+              - 'app/**/*embed*.py'
+              - 'app/**/*face*.py'
+              - 'ml_models/**'
+            code:
+              - 'app/**/*.py'
+
+      - name: Analyze changes
+        id: analyze
+        run: |
+          echo "Changed files analysis:"
+          echo "======================"
+
+          # Check what changed
+          CONFIG_CHANGED="${{ steps.files.outputs.config_any_changed }}"
+          TESTS_CHANGED="${{ steps.files.outputs.tests_any_changed }}"
+          API_CHANGED="${{ steps.files.outputs.api_any_changed }}"
+          ML_CHANGED="${{ steps.files.outputs.ml_any_changed }}"
+          CODE_CHANGED="${{ steps.files.outputs.code_any_changed }}"
+
+          echo "Config files changed: $CONFIG_CHANGED"
+          echo "Test files changed: $TESTS_CHANGED"
+          echo "API files changed: $API_CHANGED"
+          echo "ML files changed: $ML_CHANGED"
+          echo "Code files changed: $CODE_CHANGED"
+          echo ""
+
+          # Determine if config-only
+          if [ "$CONFIG_CHANGED" == "true" ] && \
+             [ "$CODE_CHANGED" == "false" ] && \
+             [ "$TESTS_CHANGED" == "false" ]; then
+            echo "✅ Config-only changes detected"
+            echo "config-only=true" >> $GITHUB_OUTPUT
+            echo "should-run-tests=false" >> $GITHUB_OUTPUT
+          else
+            echo "config-only=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Determine if test-only
+          if [ "$TESTS_CHANGED" == "true" ] && \
+             [ "$CODE_CHANGED" == "false" ] && \
+             [ "$CONFIG_CHANGED" == "false" ]; then
+            echo "✅ Test-only changes detected"
+            echo "test-only=true" >> $GITHUB_OUTPUT
+          else
+            echo "test-only=false" >> $GITHUB_OUTPUT
+          fi
+
+          # API changes
+          echo "api-changes=$API_CHANGED" >> $GITHUB_OUTPUT
+
+          # ML changes
+          echo "ml-changes=$ML_CHANGED" >> $GITHUB_OUTPUT
+
+          # Should run tests?
+          if [ "$CONFIG_CHANGED" == "true" ] && \
+             [ "$CODE_CHANGED" == "false" ] && \
+             [ "$TESTS_CHANGED" == "false" ]; then
+            echo "should-run-tests=false" >> $GITHUB_OUTPUT
+            echo "⏭️  Skipping tests (config-only)"
+          else
+            echo "should-run-tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Will run tests"
+          fi
