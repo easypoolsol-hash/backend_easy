@@ -7,18 +7,20 @@ repos:
   - repo: local
     hooks:
       # OpenAPI Schema Regeneration (CRITICAL - Zero Drift Policy)
+      # Only runs when API-related files change (views, serializers, urls)
       - id: openapi-schema
         name: Regenerate OpenAPI Schema
         entry: python app/manage.py spectacular --file openapi-schema.yaml
         language: system
         pass_filenames: false
         stages: [commit]
-        always_run: true
-        files: \.(py)$
+        always_run: false
+        files: (views|serializers|urls|models)\.py$
         types: [python]
         verbose: true
 
       # Copy schema to Flutter projects (keeps frontends in sync)
+      # Only runs when schema file changes
       - id: copy-schema-to-flutter
         name: Copy OpenAPI Schema to Flutter
         entry: powershell
@@ -26,7 +28,8 @@ repos:
         language: system
         pass_filenames: false
         stages: [commit]
-        always_run: true
+        always_run: false
+        files: openapi-schema\.yaml$
         require_serial: true
         verbose: true
 
@@ -34,6 +37,7 @@ repos:
       # CONSTITUTIONAL: Generates to packages/ (industry standard location)
       # SERIALIZATION: Uses json_serializable with null-aware-elements (stable in 2025, Dart 3.5+)
       # BEST PRACTICE 2025: Use dart run instead of flutter pub run (deprecated)
+      # Only runs when schema file changes
       - id: regenerate-bus-kiosk-api
         name: Regenerate Bus Kiosk API Client
         entry: powershell
@@ -41,12 +45,14 @@ repos:
         language: system
         pass_filenames: false
         stages: [commit]
-        always_run: true
+        always_run: false
+        files: openapi-schema\.yaml$
         require_serial: true
         verbose: true
 
       # Regenerate Frontend Easy API client (enforces zero drift for web/mobile dashboards)
       # MATCHES bus_kiosk pattern exactly - dart-dio generator with json_serializable
+      # Only runs when schema file changes
       - id: regenerate-frontend-easy-api
         name: Regenerate Frontend Easy API Client
         entry: powershell
@@ -54,7 +60,8 @@ repos:
         language: system
         pass_filenames: false
         stages: [commit]
-        always_run: true
+        always_run: false
+        files: openapi-schema\.yaml$
         require_serial: true
         verbose: true
 

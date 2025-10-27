@@ -101,7 +101,7 @@ echo "📦 Running database migrations..."\n\
 python manage.py migrate --noinput\n\
 \n\
 # Create superuser if credentials are provided and user does not exist\n\
-if [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then\n\
+if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then\n\
     echo "👤 Checking superuser..."\n\
     python manage.py createsuperuser_secure --no-input || echo "Superuser already exists or creation failed"\n\
 fi\n\
