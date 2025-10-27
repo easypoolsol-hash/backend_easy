@@ -69,6 +69,7 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 ALLOWED_HOSTS: list[str] = [
     "easypool.in",
     "www.easypool.in",
+    "api.easypool.in",  # ✅ Added: API subdomain for backend access
 ]
 
 # Add environment variable hosts if specified (for flexibility)
@@ -315,6 +316,7 @@ SECURE_HSTS_PRELOAD = True
 CORS_ALLOWED_ORIGINS = [
     "https://easypool.in",
     "https://www.easypool.in",
+    "https://api.easypool.in",  # ✅ Added: API subdomain for backend calls
     # REMOVED: Firebase default domain - using custom domain instead
     # "https://easypool-30af3.web.app",
     # REMOVED: HTTP localhost URLs should not be in production
@@ -329,6 +331,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://easypool.in",
     "https://www.easypool.in",
+    "https://api.easypool.in",  # ✅ Added: API subdomain for admin access
     # REMOVED: Firebase default domain - using custom domain instead
     # "https://easypool-30af3.web.app",
 ]
