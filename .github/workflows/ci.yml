@@ -16,6 +16,11 @@ on:
         description: 'Reason for skipping tests (if skip_tests=true)'
         required: false
         default: 'Config-only change'
+      force_tests:
+        description: 'Force run all tests (override auto-skip logic)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -68,12 +73,26 @@ jobs:
           echo "⚠️  WARNING: Tests were skipped by user request!"
           echo "Only quality checks and build will run."
 
+  force-tests-log:
+    name: log test force (if requested)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: ${{ github.event.inputs.force_tests == 'true' && needs.detect-changes.outputs.should-run-tests == 'false' }}
+    steps:
+      - name: Log test force reason
+        run: |
+          echo "⚡ CI Pipeline - Tests Forced"
+          echo "Auto-skip detected: ${{ needs.detect-changes.outputs.config-only == 'true' && 'config-only changes' || 'unknown' }}"
+          echo "✅ Tests will run anyway (force_tests=true)"
+          echo "This overrides the automatic skip logic."
+
   unit-tests:
     name: unit tests (fast)
     runs-on: ubuntu-latest
     needs: [quality, detect-changes]
-    # Skip if: user manually skipped OR detected config-only changes
-    if: ${{ github.event.inputs.skip_tests != 'true' && needs.detect-changes.outputs.should-run-tests == 'true' }}
+    # Skip if: user manually skipped OR (detected config-only AND not forced)
+    # Force run if: force_tests == true (overrides auto-skip)
+    if: ${{ github.event.inputs.skip_tests != 'true' && (needs.detect-changes.outputs.should-run-tests == 'true' || github.event.inputs.force_tests == 'true') }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -98,8 +117,9 @@ jobs:
     name: integration tests (compose)
     runs-on: ubuntu-latest
     needs: [build, detect-changes]
-    # Skip if: user manually skipped OR detected config-only changes
-    if: ${{ github.event.inputs.skip_tests != 'true' && needs.detect-changes.outputs.should-run-tests == 'true' }}
+    # Skip if: user manually skipped OR (detected config-only AND not forced)
+    # Force run if: force_tests == true (overrides auto-skip)
+    if: ${{ github.event.inputs.skip_tests != 'true' && (needs.detect-changes.outputs.should-run-tests == 'true' || github.event.inputs.force_tests == 'true') }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -194,8 +214,9 @@ jobs:
     name: contract/e2e tests (compose)
     runs-on: ubuntu-latest
     needs: [build, detect-changes]
-    # Skip if: user manually skipped OR detected config-only changes
-    if: ${{ github.event.inputs.skip_tests != 'true' && needs.detect-changes.outputs.should-run-tests == 'true' }}
+    # Skip if: user manually skipped OR (detected config-only AND not forced)
+    # Force run if: force_tests == true (overrides auto-skip)
+    if: ${{ github.event.inputs.skip_tests != 'true' && (needs.detect-changes.outputs.should-run-tests == 'true' || github.event.inputs.force_tests == 'true') }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
