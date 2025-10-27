@@ -1,25 +1,29 @@
+from django.contrib.auth.models import Group
 from rest_framework import serializers
 
-from .models import APIKey, AuditLog, Role, User
+from .models import APIKey, AuditLog, User
 
 
-class RoleSerializer(serializers.ModelSerializer):
+class GroupSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Django Groups (Roles).
+    Read-only following IAM principle.
+    """
+
+    permissions_count = serializers.SerializerMethodField()
+
     class Meta:
-        model = Role
-        fields = [
-            "role_id",
-            "name",
-            "description",
-            "permissions",
-            "is_active",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["role_id", "created_at", "updated_at"]
+        model = Group
+        fields = ["id", "name", "permissions_count"]
+        read_only_fields = ["id", "name", "permissions_count"]
+
+    def get_permissions_count(self, obj):
+        return obj.permissions.count()
 
 
 class UserSerializer(serializers.ModelSerializer):
-    role_name = serializers.CharField(source="role.name", read_only=True)
+    groups: list[str] = serializers.StringRelatedField(many=True, read_only=True)
+    group_names = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -27,8 +31,8 @@ class UserSerializer(serializers.ModelSerializer):
             "user_id",
             "username",
             "email",
-            "role",
-            "role_name",
+            "groups",
+            "group_names",
             "is_active",
             "last_login",
             "created_at",
@@ -37,14 +41,19 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["user_id", "last_login", "created_at", "updated_at"]
         extra_kwargs = {"password": {"write_only": True}}
 
+    def get_group_names(self, obj):
+        """Return list of group names for convenience"""
+        return list(obj.groups.values_list("name", flat=True))
+
 
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
     password_confirm = serializers.CharField(write_only=True, required=True)
+    group_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False, allow_empty=True)
 
     class Meta:
         model = User
-        fields = ["username", "email", "password", "password_confirm", "role"]
+        fields = ["username", "email", "password", "password_confirm", "group_names"]
 
     def validate(self, data):
         if data["password"] != data["password_confirm"]:
@@ -53,7 +62,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("password_confirm")
+        group_names = validated_data.pop("group_names", [])
+
         user = User.objects.create_user(**validated_data)
+
+        # Assign groups if provided
+        if group_names:
+            groups = Group.objects.filter(name__in=group_names)
+            user.groups.set(groups)
+
         return user
 
 

@@ -1077,6 +1077,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardStudentsResponse'
           description: ''
+  /api/v1/groups/:
+    get:
+      operationId: api_v1_groups_list
+      description: |-
+        API endpoint for Groups (Roles).
+        Read-only following IAM principle - groups managed via seed_groups command.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGroupList'
+          description: ''
+  /api/v1/groups/{id}/:
+    get:
+      operationId: api_v1_groups_retrieve
+      description: |-
+        API endpoint for Groups (Roles).
+        Read-only following IAM principle - groups managed via seed_groups command.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this group.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - KioskJWTAuth: []
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+          description: ''
   /api/v1/kiosk/boarding/:
     post:
       operationId: api_v1_kiosk_boarding_create
@@ -1539,67 +1605,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Parent'
           description: ''
-  /api/v1/roles/:
-    get:
-      operationId: api_v1_roles_list
-      parameters:
-      - name: ordering
-        required: false
-        in: query
-        description: Which field to use when ordering the results.
-        schema:
-          type: string
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: search
-        required: false
-        in: query
-        description: A search term.
-        schema:
-          type: string
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedRoleList'
-          description: ''
-  /api/v1/roles/{role_id}/:
-    get:
-      operationId: api_v1_roles_retrieve
-      parameters:
-      - in: path
-        name: role_id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this role.
-        required: true
-      tags:
-      - api
-      security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Role'
-          description: ''
   /api/v1/routes/:
     get:
       operationId: api_v1_routes_list
@@ -1829,38 +1834,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Route'
-          description: ''
-  /api/v1/school/api/bus-locations/:
-    get:
-      operationId: school_bus_locations_list
-      description: "\n    **Fortune 500 IAM-style School Bus Locations (Admin Only)**\n\
-        \n    Returns real-time bus locations for ALL buses in the fleet.\n\n    **Authorization:**\n\
-        \    - Requires authentication (JWT token)\n    - Requires role: school_admin\
-        \ OR super_admin\n    - Returns ALL bus locations (full visibility for admins)\n\
-        \n    **For Parents:**\n    Parents should use `/api/v1/users/parent/my-buses/`\
-        \ instead (filtered by child assignment)\n\n    **Response:**\n    GeoJSON\
-        \ FeatureCollection with bus location points including:\n    - Real-time GPS\
-        \ coordinates\n    - Bus status, speed, heading\n    - Last update timestamp\n\
-        \    "
-      tags:
-      - School Dashboard
-      security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BusLocationsGeoJSONResponse'
-          description: ''
-        '403':
-          content:
-            application/json:
-              schema:
-                description: Access denied - not school_admin or super_admin
           description: ''
   /api/v1/schools/:
     get:
@@ -3469,20 +3442,6 @@ components:
       - location_id
       - longitude
       - timestamp
-    BusLocationsGeoJSONResponse:
-      type: object
-      properties:
-        type:
-          type: string
-          default: FeatureCollection
-        features:
-          type: array
-          items:
-            type: object
-            additionalProperties: {}
-          description: GeoJSON features array
-      required:
-      - features
     CheckUpdatesResponse:
       type: object
       description: Serializer for check updates response
@@ -3610,6 +3569,25 @@ components:
       - log_level
       - message
       - timestamp
+    Group:
+      type: object
+      description: |-
+        Serializer for Django Groups (Roles).
+        Read-only following IAM principle.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        permissions_count:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - permissions_count
     HealthData:
       type: object
       description: Serializer for health metrics
@@ -3848,6 +3826,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bus'
+    PaginatedGroupList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
     PaginatedParentList:
       type: object
       required:
@@ -3871,29 +3872,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Parent'
-    PaginatedRoleList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Role'
     PaginatedRouteList:
       type: object
       required:
@@ -4486,10 +4464,12 @@ components:
           type: string
           format: email
           maxLength: 254
-        role:
-          type: string
-          format: uuid
-        role_name:
+        groups:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        group_names:
           type: string
           readOnly: true
         is_active:
@@ -4507,45 +4487,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-    Role:
-      type: object
-      properties:
-        role_id:
-          type: string
-          format: uuid
-          readOnly: true
-        name:
-          enum:
-          - super_admin
-          - backend_engineer
-          - school_admin
-          - parent
-          type: string
-          description: |-
-            * `super_admin` - Super Administrator
-            * `backend_engineer` - Backend Engineer
-            * `school_admin` - School Administrator
-            * `parent` - Parent
-          x-spec-enum-id: c968989dc92beb92
-        description:
-          type: string
-        permissions:
-          description: JSON object defining role permissions
-        is_active:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - created_at
-      - name
-      - role_id
-      - updated_at
     Route:
       type: object
       description: Serializer for bus routes
@@ -4893,10 +4834,12 @@ components:
           type: string
           format: email
           maxLength: 254
-        role:
-          type: string
-          format: uuid
-        role_name:
+        groups:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        group_names:
           type: string
           readOnly: true
         is_active:
@@ -4917,9 +4860,9 @@ components:
       required:
       - created_at
       - email
+      - group_names
+      - groups
       - last_login
-      - role
-      - role_name
       - updated_at
       - user_id
       - username
@@ -4939,14 +4882,15 @@ components:
         password_confirm:
           type: string
           writeOnly: true
-        role:
-          type: string
-          format: uuid
+        group_names:
+          type: array
+          items:
+            type: string
+          writeOnly: true
       required:
       - email
       - password
       - password_confirm
-      - role
       - username
   securitySchemes:
     KioskJWTAuth:

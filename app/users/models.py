@@ -3,43 +3,11 @@ import uuid
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
+    Group,
     PermissionsMixin,
 )
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
-
-
-class Role(models.Model):
-    """Role model for RBAC (Role-Based Access Control)"""
-
-    ROLE_CHOICES = [
-        ("super_admin", "Super Administrator"),
-        ("backend_engineer", "Backend Engineer"),
-        ("school_admin", "School Administrator"),
-        ("parent", "Parent"),
-    ]
-
-    role_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
-    description = models.TextField(blank=True)
-    permissions = models.JSONField(default=dict, help_text="JSON object defining role permissions")
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "roles"
-        indexes = [
-            models.Index(
-                fields=["name"],
-                condition=models.Q(is_active=True),
-                name="idx_roles_active",
-            ),
-        ]
-
-    def __str__(self):
-        return self.get_name_display()
 
 
 class UserManager(BaseUserManager):
@@ -52,40 +20,57 @@ class UserManager(BaseUserManager):
             raise ValueError("Username is required")
 
         email = self.normalize_email(email)
-        # Set default role if not provided
-        if "role" not in extra_fields:
-            try:
-                extra_fields["role"] = Role.objects.get_or_create(name="backend_engineer")[0]
-            except Exception:  # nosec B110
-                # If Role table doesn't exist yet, skip setting role
-                pass
 
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)  # type: ignore[attr-defined]
         user.save(using=self._db)
+
+        # Assign default group if not provided
+        if not user.groups.exists():
+            try:
+                default_group, _ = Group.objects.get_or_create(name="Backend Engineer")
+                user.groups.add(default_group)
+            except Exception:  # nosec B110
+                # If Group table doesn't exist yet, skip setting group
+                pass
+
         return user
 
     def create_superuser(self, username, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        # Set default role if not provided
-        if "role" not in extra_fields:
-            try:
-                extra_fields.setdefault("role", Role.objects.get_or_create(name="super_admin")[0])
-            except Exception:  # nosec B110
-                # If Role table doesn't exist yet, skip setting role
-                pass
 
-        return self.create_user(username, email, password, **extra_fields)
+        user = self.create_user(username, email, password, **extra_fields)
+
+        # Assign super admin group
+        try:
+            super_admin_group, _ = Group.objects.get_or_create(name="Super Administrator")
+            user.groups.add(super_admin_group)
+        except Exception:  # nosec B110
+            # If Group table doesn't exist yet, skip setting group
+            pass
+
+        return user
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    """Extended user model for the bus kiosk system"""
+    """
+    Extended user model for the bus kiosk system.
+
+    Uses Django's built-in Groups for RBAC (battery-included approach).
+    Groups are managed via django.contrib.auth.models.Group.
+
+    Available groups (created via management command):
+    - Super Administrator: Full system access
+    - Backend Engineer: Read-only production access
+    - School Administrator: Full control within assigned school
+    - Parent: View own children and bus tracking
+    """
 
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
-    role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="users")
+    # Note: groups and user_permissions come from PermissionsMixin
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # For Django admin access
     last_login = models.DateTimeField(null=True, blank=True)
@@ -106,35 +91,41 @@ class User(AbstractBaseUser, PermissionsMixin):
         db_table = "users"
         indexes = [
             models.Index(fields=["email"], name="idx_users_email"),
-            models.Index(
-                fields=["role"],
-                condition=models.Q(is_active=True),
-                name="idx_users_role_active",
-            ),
+            models.Index(fields=["username"], name="idx_users_username"),
         ]
 
     def __str__(self):
         return f"{self.username} ({self.email})"
 
-    def clean(self):
-        if self.role and self.role.name not in dict(Role.ROLE_CHOICES):
-            raise ValidationError(f"Invalid role: {self.role.name}")
-
+    # Helper properties for role checking (backwards compatible)
     @property
     def is_super_admin(self):
-        return self.role.name == "super_admin"
+        """Check if user is in Super Administrator group"""
+        return self.groups.filter(name="Super Administrator").exists()
 
     @property
     def is_backend_engineer(self):
-        return self.role.name == "backend_engineer"
+        """Check if user is in Backend Engineer group"""
+        return self.groups.filter(name="Backend Engineer").exists()
 
     @property
     def is_school_admin(self):
-        return self.role.name == "school_admin"
+        """Check if user is in School Administrator group"""
+        return self.groups.filter(name="School Administrator").exists()
 
     @property
     def is_parent(self):
-        return self.role.name == "parent"
+        """Check if user is in Parent group"""
+        return self.groups.filter(name="Parent").exists()
+
+    @property
+    def role_name(self):
+        """
+        Get primary role name for backwards compatibility.
+        Returns the first group name or None.
+        """
+        first_group = self.groups.first()
+        return first_group.name if first_group else None
 
 
 class APIKey(models.Model):

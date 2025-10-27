@@ -185,7 +185,7 @@ urlpatterns += [
                 path("", include("buses.urls")),
                 path("", include("kiosks.urls")),
                 path("", include("events.urls")),
-                path("school/", include("school_dashboard.urls")),  # School Dashboard (admin only)
+                # path("school/", include("school_dashboard.urls")),  # ARCHIVED: Replaced by Flutter
             ]
         ),
     ),

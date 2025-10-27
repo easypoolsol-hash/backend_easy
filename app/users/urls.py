@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 router = DefaultRouter()
-router.register(r"roles", views.RoleViewSet)
+router.register(r"groups", views.GroupViewSet)  # Django Groups (Roles) - READ ONLY per IAM principle
 router.register(r"users", views.UserViewSet)
 router.register(r"api-keys", views.APIKeyViewSet)
 router.register(r"audit-logs", views.AuditLogViewSet)

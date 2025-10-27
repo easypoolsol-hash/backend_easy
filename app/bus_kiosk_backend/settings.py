@@ -113,7 +113,7 @@ INSTALLED_APPS = [
     "events",
     "kiosks",
     # "tests",  # REMOVED: Test app should not be in production
-    "school_dashboard",  # School dashboard web interface
+    # "school_dashboard",  # ARCHIVED: Replaced by Flutter frontend
     "realtime",  # Real-time WebSocket communication
 ]
 
@@ -402,8 +402,8 @@ ROOT_URLCONF = "bus_kiosk_backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
-        "APP_DIRS": True,
+        "DIRS": [],  # No custom templates - API-only backend (admin uses built-in templates)
+        "APP_DIRS": True,  # Django admin needs this for its own templates
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
@@ -531,12 +531,14 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# API-only backend - only Django admin static files are served (automatically by Django)
+# No custom static files needed (frontend is Flutter)
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"  # Django admin will collect its static files here
 
-# Media files
+# Media files (User uploads - student photos, etc.)
+# These ARE served via API endpoints for Flutter to display
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import Group
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
@@ -9,12 +10,12 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .models import APIKey, AuditLog, Role, User
+from .models import APIKey, AuditLog, User
 from .serializers import (
     APIKeyCreateSerializer,
     APIKeySerializer,
     AuditLogSerializer,
-    RoleSerializer,
+    GroupSerializer,
     UserCreateSerializer,
     UserSerializer,
 )
@@ -23,9 +24,14 @@ from .token_config import create_user_token
 # pylint: disable=no-member
 
 
-class RoleViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Role.objects.filter(is_active=True)
-    serializer_class = RoleSerializer
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Groups (Roles).
+    Read-only following IAM principle - groups managed via seed_groups command.
+    """
+
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated]
 
 
@@ -311,7 +317,7 @@ def parent_bus_locations(request):
             {
                 "error": "Access denied - insufficient permissions",
                 "required_role": "parent",
-                "your_role": request.user.role.name if hasattr(request.user, "role") else None,
+                "your_groups": list(request.user.groups.values_list("name", flat=True)),
             },
             status=403,
         )

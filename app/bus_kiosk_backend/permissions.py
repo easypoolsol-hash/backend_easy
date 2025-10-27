@@ -28,22 +28,22 @@ class DenyByDefault(BasePermission):
 
 class IsSchoolAdmin(BasePermission):
     """
-    Permission: Allow ONLY school administrators (deny-by-default).
+    Permission: Allow ONLY school administrators (deny-by-default IAM principle).
 
-    Deny-by-default means: If NOT school_admin → Denied (including kiosks).
+    Uses Django's built-in Groups (battery-included approach).
+    Deny-by-default means: If NOT in "School Administrator" group → Denied.
 
     ALLOWED (Explicit):
-    - Authenticated User objects with role.name='school_admin'
+    - Authenticated users in "School Administrator" group
 
     DENIED (Everything Else):
     - Unauthenticated requests
-    - Kiosks (don't have User.role.name=='school_admin')
-    - Users with other roles (parent, teacher, etc.)
-    - Users without role attribute
+    - Kiosks (no groups)
+    - Users in other groups (Parent, Backend Engineer, etc.)
+    - Users without groups
     - Any other case
 
-    No need to explicitly check "is kiosk?" because kiosks don't have
-    role=='school_admin', so they're automatically denied.
+    IAM Principle: Deny by default, grant explicitly via groups.
     """
 
     def has_permission(self, request, view):
@@ -51,10 +51,6 @@ class IsSchoolAdmin(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        # 2. Deny if no role attribute
-        if not hasattr(request.user, "role") or not request.user.role:
-            return False
-
-        # 3. Allow ONLY school_admin role
-        # Everything else (kiosks, parents, teachers, etc.) is denied here
-        return request.user.role.name == "school_admin"
+        # 2. Allow ONLY users in "School Administrator" group
+        # Uses Django's built-in permission system (battery-included)
+        return request.user.groups.filter(name="School Administrator").exists()

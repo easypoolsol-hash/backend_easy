@@ -1,35 +1,60 @@
 from django.contrib import admin
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group
 
-from .models import APIKey, AuditLog, Role, User
+from .models import APIKey, AuditLog, User
+
+# Unregister default Group admin and register custom one
+admin.site.unregister(Group)
 
 
-@admin.register(Role)
-class RoleAdmin(admin.ModelAdmin):
-    list_display = ["name", "description", "is_active", "created_at"]
-    list_filter = ["is_active", "created_at"]
-    search_fields = ["name", "description"]
-    readonly_fields = ["role_id", "created_at", "updated_at"]
+@admin.register(Group)
+class GroupAdmin(BaseGroupAdmin):
+    """
+    Custom Group admin - READ ONLY for all users.
+    Groups should only be modified via management commands (IAM principle).
+    """
+
+    def has_add_permission(self, request):
+        return False  # Cannot create groups via admin panel
+
+    def has_change_permission(self, request, obj=None):
+        return False  # Cannot modify groups via admin panel
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # Cannot delete groups via admin panel
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ["username", "email", "role", "is_active", "last_login"]
-    list_filter = ["role", "is_active", "is_staff", "created_at"]
+    """
+    Custom User admin using Django's built-in Groups (battery-included).
+    Groups (roles) are managed via seed_groups.py management command.
+    """
+
+    list_display = ["username", "email", "get_groups", "is_active", "last_login"]
+    list_filter = ["groups", "is_active", "is_staff", "created_at"]
     search_fields = ["username", "email"]
     readonly_fields = ["user_id", "last_login", "created_at", "updated_at"]
+
+    def get_groups(self, obj):
+        """Display user's groups (roles)"""
+        return ", ".join([g.name for g in obj.groups.all()]) or "No groups"
+
+    get_groups.short_description = "Groups (Roles)"  # type: ignore[attr-defined]
 
     fieldsets = (
         *BaseUserAdmin.fieldsets,  # type: ignore[misc]
         (
             "Bus Kiosk Fields",
-            {"fields": ("role", "user_id", "created_at", "updated_at")},
+            {"fields": ("user_id", "created_at", "updated_at")},
         ),
     )
 
     add_fieldsets = (
         *BaseUserAdmin.add_fieldsets,
-        ("Bus Kiosk Fields", {"fields": ("email", "role")}),
+        ("Bus Kiosk Fields", {"fields": ("email",)}),
     )
 
 
