@@ -315,7 +315,8 @@ SECURE_HSTS_PRELOAD = True
 CORS_ALLOWED_ORIGINS = [
     "https://easypool.in",
     "https://www.easypool.in",
-    "https://easypool-30af3.web.app",  # Firebase hosting domain
+    # REMOVED: Firebase default domain - using custom domain instead
+    # "https://easypool-30af3.web.app",
     # REMOVED: HTTP localhost URLs should not be in production
     # "http://easypool.in",
     # "http://www.easypool.in",
@@ -328,7 +329,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     "https://easypool.in",
     "https://www.easypool.in",
-    "https://easypool-30af3.web.app",  # Firebase hosting domain
+    # REMOVED: Firebase default domain - using custom domain instead
+    # "https://easypool-30af3.web.app",
 ]
 
 # Add environment variable origins if specified (for flexibility)
