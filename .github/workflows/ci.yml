@@ -272,13 +272,28 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.test.yml down --volumes
 
+  # Build image once and push to GHCR
   build:
-    name: build and push images
+    name: Build Docker image
     needs: [quality, detect-changes]
-    uses: ./.github/workflows/build-push.yml
+    uses: ./.github/workflows/build.yml
     with:
-      push_to_ghcr: true
-      push_to_gar: true
+      image_tag: test
+
+  # Push to GHCR (verify - already pushed during build)
+  push-ghcr:
+    name: Verify GHCR
+    needs: build
+    uses: ./.github/workflows/push-ghcr.yml
+    with:
+      image_tag: test
+
+  # Push to Google Artifact Registry (parallel with GHCR verify)
+  push-gar:
+    name: Push to GAR
+    needs: build
+    uses: ./.github/workflows/push-gar.yml
+    with:
       image_tag: test
       gcp_project_id: ${{ vars.GCP_PROJECT_ID || '' }}
     secrets:
@@ -288,7 +303,8 @@ jobs:
   test-image:
     name: test image (smoke)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, push-ghcr, push-gar]
+    if: always() && needs.build.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
