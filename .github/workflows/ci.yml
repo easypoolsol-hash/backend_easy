@@ -280,7 +280,7 @@ jobs:
       push_to_ghcr: true
       push_to_gar: true
       image_tag: test
-      gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
+      gcp_project_id: ${{ vars.GCP_PROJECT_ID || '' }}
     secrets:
       GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}
       GCP_SA_EMAIL: ${{ secrets.GCP_SA_EMAIL }}
