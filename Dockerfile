@@ -73,6 +73,9 @@ ENV PYTHONPATH=/app
 # Collect static files (REQUIRED for production)
 RUN python manage.py collectstatic --noinput --clear
 
+# Run database migrations (REQUIRED for production)
+RUN python manage.py migrate --noinput
+
 # Switch to non-root user for security
 USER django
 
