@@ -73,11 +73,11 @@ RUN mkdir -p /app/staticfiles /app/media /app/logs && \
 # Set PYTHONPATH to include /app for ml_models
 ENV PYTHONPATH=/app
 
-# Collect static files (REQUIRED for production)
+# Collect static files (safe to do at build time)
 RUN python manage.py collectstatic --noinput --clear
 
-# Run database migrations (REQUIRED for production)
-RUN python manage.py migrate --noinput
+# DO NOT run migrations at build time - they should run at deployment time
+# Migrations require database connectivity and should be part of deployment process
 
 # Switch to non-root user for security
 USER django
@@ -89,18 +89,30 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Create a startup script
+# Create production-grade startup script
+USER root
 RUN echo '#!/bin/bash\n\
-if [ "$RUN_SEED" = "true" ]; then\n\
-    echo "Running seed script to create initial data..."\n\
-    python /scripts/seed_local_dev.py\n\
+set -e\n\
+\n\
+echo "🚀 Starting application initialization..."\n\
+\n\
+# Run migrations (idempotent - safe to run multiple times)\n\
+echo "📦 Running database migrations..."\n\
+python manage.py migrate --noinput\n\
+\n\
+# Create superuser if credentials are provided and user does not exist\n\
+if [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then\n\
+    echo "👤 Checking superuser..."\n\
+    python manage.py createsuperuser_secure --no-input || echo "Superuser already exists or creation failed"\n\
 fi\n\
-echo "Starting Daphne server..."\n\
-daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application' > /app/start.sh && \
-    chmod +x /app/start.sh
+\n\
+echo "✅ Initialization complete"\n\
+echo "🌐 Starting Daphne ASGI server on port 8000..."\n\
+exec daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application' > /app/start.sh && \
+    chmod +x /app/start.sh && \
+    chown django:django /app/start.sh
 
-# Copy scripts directory for seeding
-COPY --chown=django:django scripts/ /scripts/
+USER django
 
-# Use the startup script instead of direct daphne command
+# Use the startup script for runtime initialization
 CMD ["/app/start.sh"]
