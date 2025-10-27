@@ -48,7 +48,7 @@ dependencies = [
 
     # Image Processing & Machine Learning (LIGHTWEIGHT)
     "Pillow>=10.0.0,<11.0",
-    "ai-edge-litert>=1.0.0,<2.0",  # Google LiteRT - TFLite interpreter (~5-8MB, Python 3.12 compatible)
+    "ai-edge-litert>=1.0.0,<2.0; sys_platform != 'win32'",  # TFLite (Linux/macOS/Docker only)
     "opencv-python-headless>=4.10.0,<5.0",  # For face detection + preprocessing
     "numpy>=1.24.3,<2.0",  # ML array operations
 
@@ -113,6 +113,7 @@ dev = [
     "mypy>=1.18.0,<2.0",
     "black>=25.0.0,<26.0",
     "pre-commit>=3.0.0,<4.0",
+    "vulture>=2.11,<3.0",  # Dead code detection
 
     # Development tools
     "django-debug-toolbar>=4.3.0,<5.0",  # Debug toolbar
@@ -261,3 +262,9 @@ omit = [
     "manage.py",
 ]
 config_file = "config/.coveragerc"
+[tool.vulture]
+min_confidence = 80
+paths = ["app"]
+exclude = ["**/migrations/", "**/tests/", "archive/"]
+ignore_decorators = ["@app.route", "@require_*"]
+ignore_names = ["*Meta", "*Config"]
