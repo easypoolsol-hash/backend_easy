@@ -32,7 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Logging configuration - Environment-based (12-factor app pattern)
 # CI/Docker: Set USE_FILE_LOGGING=false for console-only logging
 # Production: Leave default (true) for file logging
-USE_FILE_LOGGING = os.getenv("USE_FILE_LOGGING", "true").lower() == "true"
+USE_FILE_LOGGING = os.getenv("USE_FILE_LOGGING", "false").lower() == "true"
 
 # Create logs directory only if file logging is enabled
 if USE_FILE_LOGGING:
