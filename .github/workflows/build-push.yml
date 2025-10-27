@@ -15,9 +15,12 @@ on:
         description: 'Image tag to use'
         type: string
         default: 'test'
-    secrets:
-      GCP_PROJECT_ID:
+      gcp_project_id:
+        description: 'GCP Project ID (if pushing to GAR)'
+        type: string
         required: false
+        default: ''
+    secrets:
       GCP_PROJECT_NUMBER:
         required: false
       GCP_SA_EMAIL:
@@ -83,27 +86,27 @@ jobs:
       # Google Artifact Registry (Optional)
       # ============================================
       - name: Authenticate to Google Cloud
-        if: inputs.push_to_gar && secrets.GCP_PROJECT_ID != ''
+        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: "projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
           service_account: "${{ secrets.GCP_SA_EMAIL }}"
 
       - name: Set up Cloud SDK
-        if: inputs.push_to_gar && secrets.GCP_PROJECT_ID != ''
+        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker for GAR
-        if: inputs.push_to_gar && secrets.GCP_PROJECT_ID != ''
+        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Extract metadata for GAR
-        if: inputs.push_to_gar && secrets.GCP_PROJECT_ID != ''
+        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         id: meta-gar
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -111,7 +114,7 @@ jobs:
             type=raw,value=${{ inputs.image_tag }}
 
       - name: Build and push to GAR
-        if: inputs.push_to_gar && secrets.GCP_PROJECT_ID != ''
+        if: inputs.push_to_gar && inputs.gcp_project_id != ''
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -136,7 +139,7 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [ "${{ inputs.push_to_gar && secrets.GCP_PROJECT_ID != '' }}" == "true" ]; then
+          if [ "${{ inputs.push_to_gar && inputs.gcp_project_id != '' }}" == "true" ]; then
             echo "### Google Artifact Registry ✅" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "${{ steps.meta-gar.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
