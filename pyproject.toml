@@ -48,7 +48,7 @@ dependencies = [
 
     # Image Processing & Machine Learning (LIGHTWEIGHT)
     "Pillow>=10.0.0,<11.0",
-    # "ai-edge-litert>=1.0.0,<2.0",  # Google LiteRT - TFLite interpreter (~5-8MB, Python 3.12 compatible) - SKIPPED for local dev
+    "ai-edge-litert>=1.0.0,<2.0",  # Google LiteRT - TFLite interpreter (~5-8MB, Python 3.12 compatible)
     "opencv-python-headless>=4.10.0,<5.0",  # For face detection + preprocessing
     "numpy>=1.24.3,<2.0",  # ML array operations
 
