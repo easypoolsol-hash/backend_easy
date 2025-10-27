@@ -331,6 +331,11 @@ CSRF_TRUSTED_ORIGINS = [
     "https://easypool-30af3.web.app",  # Firebase hosting domain
 ]
 
+# Add environment variable origins if specified (for flexibility)
+if os.getenv("CSRF_TRUSTED_ORIGINS"):
+    csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in csrf_origins])
+
 # DRF Spectacular settings
 SPECTACULAR_SETTINGS = {
     "TITLE": "Bus Kiosk Backend API",
