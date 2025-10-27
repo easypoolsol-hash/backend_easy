@@ -47,7 +47,7 @@ clean:
 # Setup development environment
 setup-dev:
 	@echo "⚙️ Setting up industrial Django development..."
-	pip install -e ".[dev,linting,typing]"
+	pip install -e ".[dev,testing]"  # Skip ML dependencies for local dev
 	pre-commit install || echo "Pre-commit not available"
 	@echo "✅ Development environment ready!"
 
