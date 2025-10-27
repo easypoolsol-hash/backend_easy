@@ -1,10 +1,10 @@
-name: Push to GitHub Container Registry
+name: Verify GitHub Container Registry
 
 on:
   workflow_call:
     inputs:
       image_tag:
-        description: 'Image tag already built'
+        description: 'Image tag already built and pushed'
         type: string
         required: true
 
@@ -12,8 +12,8 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  push-ghcr:
-    name: Verify GHCR push
+  verify-ghcr:
+    name: Verify image in GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: read

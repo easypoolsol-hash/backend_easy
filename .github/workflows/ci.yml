@@ -284,7 +284,7 @@ jobs:
   push-ghcr:
     name: Verify GHCR
     needs: build
-    uses: ./.github/workflows/push-ghcr.yml
+    uses: ./.github/workflows/verify-ghcr.yml
     with:
       image_tag: test
 
@@ -292,7 +292,7 @@ jobs:
   push-gar:
     name: Push to GAR
     needs: build
-    uses: ./.github/workflows/push-gar.yml
+    uses: ./.github/workflows/deploy-gar.yml
     with:
       image_tag: test
       gcp_project_id: ${{ vars.GCP_PROJECT_ID || '' }}
