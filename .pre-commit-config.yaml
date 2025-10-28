@@ -33,17 +33,6 @@ repos:
         files: (views|serializers|urls|models|openapi-schema)\.py$|openapi-schema\.yaml$
         verbose: true
 
-      # Snapshot Contract Sync (same pattern as OpenAPI)
-      - id: copy-snapshot-contract
-        name: Copy Snapshot Contract to Frontend
-        entry: powershell
-        args: ["-Command", "New-Item -ItemType Directory -Force -Path '../bus_kiosk_easy/imperial_governance/constitutional_core/contracts' | Out-Null; Copy-Item imperial_governance/constitutional_core/contracts/snapshot_interface_contract.yaml ../bus_kiosk_easy/imperial_governance/constitutional_core/contracts/snapshot_interface_contract.yaml -Force"]
-        language: system
-        pass_filenames: false
-        stages: [commit]
-        files: snapshot_interface_contract\.yaml
-        verbose: true
-
       # Validate Snapshot Contract Compliance
       - id: validate-snapshot-contract
         name: Validate Snapshot Contract
