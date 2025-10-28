@@ -50,7 +50,7 @@ jobs:
             type=ref,event=pr                  # pr-123
             type=sha,prefix={{branch}}-        # develop-abc1234, master-abc1234
             type=sha,prefix=sha-               # sha-abc1234 (immutable, for deploy)
-            type=raw,value=latest,enable={{is_default_branch}}  # latest only on develop
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/develop' }}  # latest only on develop
 
       - name: Build and push to GHCR
         id: build
