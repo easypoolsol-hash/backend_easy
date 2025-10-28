@@ -274,7 +274,7 @@ jobs:
 
   # Build image once and push to GHCR
   build:
-    name: Build Docker image
+    name: Build and push to GHCR
     needs: [quality, detect-changes]
     uses: ./.github/workflows/build-push-ghcr.yml
     with:
