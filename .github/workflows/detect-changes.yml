@@ -64,6 +64,16 @@ jobs:
             code:
               - 'app/**/*.py'
 
+      - name: Check previous test results
+        id: previous-tests
+        run: |
+          # Check if last commit's tests passed
+          LAST_RUN=$(gh run list --branch ${{ github.ref_name }} --workflow "CI Pipeline" --limit 2 --json conclusion --jq '.[1].conclusion // "unknown"')
+          echo "Previous test result: $LAST_RUN"
+          echo "previous-tests-passed=$LAST_RUN" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Analyze changes
         id: analyze
         run: |
@@ -76,12 +86,14 @@ jobs:
           API_CHANGED="${{ steps.files.outputs.api_any_changed }}"
           ML_CHANGED="${{ steps.files.outputs.ml_any_changed }}"
           CODE_CHANGED="${{ steps.files.outputs.code_any_changed }}"
+          PREVIOUS_TESTS="${{ steps.previous-tests.outputs.previous-tests-passed }}"
 
           echo "Config files changed: $CONFIG_CHANGED"
           echo "Test files changed: $TESTS_CHANGED"
           echo "API files changed: $API_CHANGED"
           echo "ML files changed: $ML_CHANGED"
           echo "Code files changed: $CODE_CHANGED"
+          echo "Previous tests: $PREVIOUS_TESTS"
           echo ""
 
           # Determine if config-only
@@ -90,7 +102,6 @@ jobs:
              [ "$TESTS_CHANGED" == "false" ]; then
             echo "✅ Config-only changes detected"
             echo "config-only=true" >> $GITHUB_OUTPUT
-            echo "should-run-tests=false" >> $GITHUB_OUTPUT
           else
             echo "config-only=false" >> $GITHUB_OUTPUT
           fi
@@ -111,13 +122,20 @@ jobs:
           # ML changes
           echo "ml-changes=$ML_CHANGED" >> $GITHUB_OUTPUT
 
-          # Should run tests?
+          # Should run tests? Skip ONLY if:
+          # 1. Config-only changes AND
+          # 2. Previous tests passed
           if [ "$CONFIG_CHANGED" == "true" ] && \
              [ "$CODE_CHANGED" == "false" ] && \
-             [ "$TESTS_CHANGED" == "false" ]; then
+             [ "$TESTS_CHANGED" == "false" ] && \
+             [ "$PREVIOUS_TESTS" == "success" ]; then
             echo "should-run-tests=false" >> $GITHUB_OUTPUT
-            echo "⏭️  Skipping tests (config-only)"
+            echo "⏭️  Skipping tests (config-only + previous tests passed)"
           else
             echo "should-run-tests=true" >> $GITHUB_OUTPUT
-            echo "✅ Will run tests"
+            if [ "$PREVIOUS_TESTS" != "success" ]; then
+              echo "✅ Will run tests (previous tests: $PREVIOUS_TESTS)"
+            else
+              echo "✅ Will run tests"
+            fi
           fi
