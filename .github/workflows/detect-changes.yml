@@ -25,6 +25,9 @@ jobs:
   detect:
     name: Detect change type
     runs-on: ubuntu-latest
+    permissions:
+      actions: read  # Required to check previous workflow runs
+      contents: read
     outputs:
       config-only: ${{ steps.analyze.outputs.config-only }}
       test-only: ${{ steps.analyze.outputs.test-only }}
