@@ -13,7 +13,7 @@ on:
         value: ${{ jobs.build.outputs.digest }}
 
 env:
-  IMAGE_NAME: bus_kiosk_backend
+  IMAGE_NAME: backend_easy
   REGISTRY: ghcr.io
 
 jobs:

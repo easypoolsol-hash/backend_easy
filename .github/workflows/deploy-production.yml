@@ -43,7 +43,7 @@ jobs:
 
       - name: Verify image exists in GAR
         run: |
-          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/bus_kiosk_backend:${{ env.IMAGE_TAG }}"
+          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/backend_easy:${{ env.IMAGE_TAG }}"
 
           echo "Verifying image exists..."
           gcloud artifacts docker images describe $IMAGE_URL || {
@@ -53,7 +53,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         run: |
-          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/bus_kiosk_backend:${{ env.IMAGE_TAG }}"
+          IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/backend_easy:${{ env.IMAGE_TAG }}"
 
           echo "🚀 Deploying to PRODUCTION..."
           echo "Service: ${{ env.CLOUD_RUN_SERVICE }}"
@@ -69,7 +69,7 @@ jobs:
             --memory=1Gi \
             --cpu=2 \
             --port=8000 \
-            --set-env-vars="DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings,ENVIRONMENT=production"
+            --set-env-vars="DJANGO_SETTINGS_MODULE=backend_easy.settings,ENVIRONMENT=production"
 
       - name: Get Service URL
         run: |

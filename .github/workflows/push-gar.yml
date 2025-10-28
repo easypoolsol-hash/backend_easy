@@ -19,7 +19,7 @@ on:
         required: false
 
 env:
-  IMAGE_NAME: bus_kiosk_backend
+  IMAGE_NAME: backend_easy
   GHCR_REGISTRY: ghcr.io
   GCP_REGION: asia-south1
   GAR_REPO: backend-repo

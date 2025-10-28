@@ -28,7 +28,7 @@ permissions:
   id-token: write  # Required for GCP Workload Identity
 
 env:
-  IMAGE_NAME: bus_kiosk_backend
+  IMAGE_NAME: backend_easy
   REGISTRY: ghcr.io
   # ENCRYPTION_KEY removed from source; CI should provide it via Secrets if needed.
 
