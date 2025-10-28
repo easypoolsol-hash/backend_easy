@@ -281,7 +281,7 @@ jobs:
       image_tag: test
 
   # Push to GHCR (verify - already pushed during build)
-  push-ghcr:
+  verify-ghcr:
     name: Verify GHCR
     needs: build
     uses: ./.github/workflows/verify-ghcr.yml
