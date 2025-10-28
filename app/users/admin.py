@@ -44,17 +44,40 @@ class UserAdmin(BaseUserAdmin):
 
     get_groups.short_description = "Groups (Roles)"  # type: ignore[attr-defined]
 
+    # Custom fieldsets matching our User model fields
     fieldsets = (
-        *BaseUserAdmin.fieldsets,  # type: ignore[misc]
+        (None, {"fields": ("username", "password")}),
+        ("Personal Info", {"fields": ("email",)}),
         (
-            "Bus Kiosk Fields",
-            {"fields": ("user_id", "created_at", "updated_at")},
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                )
+            },
         ),
+        ("Important Dates", {"fields": ("last_login", "created_at", "updated_at")}),
+        ("System", {"fields": ("user_id",)}),
     )
 
     add_fieldsets = (
-        *BaseUserAdmin.add_fieldsets,
-        ("Bus Kiosk Fields", {"fields": ("email",)}),
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("username", "email", "password1", "password2"),
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": ("is_staff", "is_superuser", "groups"),
+            },
+        ),
     )
 
 

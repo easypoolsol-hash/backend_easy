@@ -47,18 +47,17 @@ if USE_FILE_LOGGING:
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# In production, this MUST be set via environment variable
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-nt^m$n3edy=!)w9=b0$@)jc3r4$csehg)6a#-q2u1*n01f$zl@",  # Dev fallback only
-)
+# REQUIRED: Must be set via environment variable
+# - Local: Set by make backend-fresh (backend_fresh.bat)
+# - Production: Injected by Google Secret Manager
+SECRET_KEY = os.environ["SECRET_KEY"]
 
-# Encryption key for PII data (generate a new one for production)
-# In production, this MUST be set via environment variable
-ENCRYPTION_KEY = os.getenv(
-    "ENCRYPTION_KEY",
-    "your-32-byte-encryption-key-here-change-in-production",  # Dev fallback only
-)
+# Encryption key for PII data
+# REQUIRED: Must be set via environment variable
+# - Local: Set by make backend-fresh (backend_fresh.bat)
+# - Production: Injected by Google Secret Manager
+# Generate using: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Default to False for safety - DEBUG is DISABLED in production

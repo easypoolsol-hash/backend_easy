@@ -66,16 +66,16 @@ repos:
         verbose: true
 
       # Constitutional API Drift Validator (uses industry tool: openapi-diff)
-      # Uses smart orchestrator to skip when irrelevant files change
+      # Runs when API code or schema changes
       - id: validate-api-drift
         name: Validate API Drift (Zero-Drift Guarantee)
         entry: bash
-        args: ["scripts/smart_hook_orchestrator.sh", "validate-api-drift", "bash", "scripts/check_api_drift.sh"]
+        args: ["scripts/check_api_drift.sh"]
         language: system
         pass_filenames: false
         stages: [commit]
-        always_run: false  # Orchestrator handles skip logic
-        files: \.(yaml|yml|py)$
+        always_run: false
+        files: (views|serializers|urls|models|openapi-schema)\.py$|openapi-schema\.yaml$
         verbose: true
 
       # Snapshot Contract Sync (same pattern as OpenAPI)
@@ -100,11 +100,10 @@ repos:
         verbose: true
 
       # Run unit tests when core logic changes (fast feedback)
-      # Uses smart orchestrator to skip on config-only changes
       - id: unit-tests-core
         name: Unit Tests (Core Logic)
-        entry: bash
-        args: ["scripts/smart_hook_orchestrator.sh", "unit-tests-core", "python", "-m", "pytest", "tests/unit/", "-v", "--tb=short", "--maxfail=3"]
+        entry: python
+        args: ["-m", "pytest", "tests/unit/", "-v", "--tb=short", "--maxfail=3"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -112,11 +111,10 @@ repos:
         verbose: true
 
       # Run authentication tests when auth code changes
-      # Uses smart orchestrator to skip on config-only changes
       - id: auth-tests
         name: Auth Tests (Security Critical)
-        entry: bash
-        args: ["scripts/smart_hook_orchestrator.sh", "auth-tests", "python", "-m", "pytest", "tests/unit/test_kiosk_auth.py", "tests/integration/test_authentication_flow.py", "-v", "--tb=short"]
+        entry: python
+        args: ["-m", "pytest", "tests/unit/test_kiosk_auth.py", "tests/integration/test_authentication_flow.py", "-v", "--tb=short"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -124,11 +122,10 @@ repos:
         verbose: true
 
       # Run ML/face recognition tests when ML code changes
-      # Uses smart orchestrator to skip on config-only changes
       - id: ml-tests
         name: ML Tests (Face Recognition)
-        entry: bash
-        args: ["scripts/smart_hook_orchestrator.sh", "ml-tests", "python", "-m", "pytest", "tests/unit/test_face_embedding.py", "tests/integration/test_face_embedding_integration.py", "-v", "--tb=short"]
+        entry: python
+        args: ["-m", "pytest", "tests/unit/test_face_embedding.py", "tests/integration/test_face_embedding_integration.py", "-v", "--tb=short"]
         language: system
         pass_filenames: false
         stages: [commit]
