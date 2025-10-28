@@ -39,7 +39,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: bus_kiosk_backend:test
+    image: backend_easy:test
     container_name: test_web
     working_dir: /app
     command: daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application
@@ -80,7 +80,7 @@ services:
 
   # Celery worker (SAME image as web, different command)
   celery_worker:
-    image: bus_kiosk_backend:test
+    image: backend_easy:test
     container_name: test_celery_worker
     working_dir: /app
     command: celery -A bus_kiosk_backend worker --loglevel=info
