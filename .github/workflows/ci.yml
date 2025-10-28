@@ -292,7 +292,7 @@ jobs:
   push-gar:
     name: Push to GAR
     needs: build
-    uses: ./.github/workflows/deploy-gar.yml
+    uses: ./.github/workflows/push-gar.yml
     with:
       image_tag: ${{ github.ref_name }}
       gcp_project_id: ${{ vars.GCP_PROJECT_ID || '' }}
