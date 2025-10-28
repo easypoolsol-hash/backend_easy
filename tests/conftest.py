@@ -104,19 +104,29 @@ def test_kiosk(db):
 @pytest.fixture
 def school_admin_user(db):
     """Creates a school admin user for testing."""
-    from tests.factories import RoleFactory, UserFactory
+    from django.contrib.auth.models import Group
 
-    school_admin_role = RoleFactory(name="school_admin")
-    return UserFactory(role=school_admin_role)
+    from tests.factories import UserFactory
+
+    user = UserFactory()
+    school_admin_group, _ = Group.objects.get_or_create(name="School Administrator")
+    user.groups.clear()  # Remove default group
+    user.groups.add(school_admin_group)
+    return user
 
 
 @pytest.fixture
 def parent_user(db):
     """Creates a parent user for testing."""
-    from tests.factories import RoleFactory, UserFactory
+    from django.contrib.auth.models import Group
 
-    parent_role = RoleFactory(name="parent")
-    return UserFactory(role=parent_role)
+    from tests.factories import UserFactory
+
+    user = UserFactory()
+    parent_group, _ = Group.objects.get_or_create(name="Parent")
+    user.groups.clear()  # Remove default group
+    user.groups.add(parent_group)
+    return user
 
 
 # This fixture makes the OpenAPI schema available to all tests, including schemathesis.

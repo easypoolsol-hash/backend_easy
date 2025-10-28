@@ -22,11 +22,12 @@ class TestBusTrackingWebSocket(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        # Create test user with school_admin role
-        from users.models import Role
+        # Create test user with school_admin group
+        from django.contrib.auth.models import Group
 
-        school_admin_role = Role.objects.get_or_create(name="school_admin")[0]
-        self.user = User.objects.create_user(username="testadmin", email="admin@test.com", password="testpass123", role=school_admin_role)
+        school_admin_group, _ = Group.objects.get_or_create(name="School Administrator")
+        self.user = User.objects.create_user(username="testadmin", email="admin@test.com", password="testpass123")
+        self.user.groups.add(school_admin_group)
 
         # Create test route
         self.route = Route.objects.create(

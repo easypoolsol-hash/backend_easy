@@ -45,7 +45,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return UserSerializer
 
     def get_queryset(self):
-        queryset = User.objects.select_related("role")
+        queryset = User.objects.all()
         # School admins can only see users in their school (future enhancement)
         # Parents can only see themselves (future enhancement)
         return queryset
