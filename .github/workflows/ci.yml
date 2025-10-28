@@ -276,7 +276,7 @@ jobs:
   build:
     name: Build Docker image
     needs: [quality, detect-changes]
-    uses: ./.github/workflows/build.yml
+    uses: ./.github/workflows/build-push-ghcr.yml
     with:
       image_tag: test
 
