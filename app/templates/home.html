@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #2c3e50; }
+        .features { list-style: none; padding: 0; }
+        .features li { padding: 8px 0; }
+        .features li:before { content: "✓ "; color: #27ae60; font-weight: bold; }
+        .links { margin-top: 30px; }
+        .links a {
+            display: inline-block;
+            margin: 10px 10px 0 0;
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .links a:hover { background: #2980b9; }
+    </style>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    <p>{{ description }}</p>
+
+    <h2>Features</h2>
+    <ul class="features">
+        {% for feature in features %}
+        <li>{{ feature }}</li>
+        {% endfor %}
+    </ul>
+
+    <div class="links">
+        <a href="{{ links.admin }}">Admin Panel</a>
+        <a href="{{ links.api_docs }}">API Documentation</a>
+        <a href="{{ links.health }}">Health Check</a>
+        <a href="{{ links.api_root }}">API Root</a>
+    </div>
+
+    <p style="margin-top: 30px; color: #7f8c8d;">
+        Current time: {{ current_time|date:"Y-m-d H:i:s" }}
+    </p>
+</body>
+</html>

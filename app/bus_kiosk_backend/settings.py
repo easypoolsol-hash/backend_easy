@@ -402,7 +402,7 @@ ROOT_URLCONF = "bus_kiosk_backend.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],  # No custom templates - API-only backend (admin uses built-in templates)
+        "DIRS": [BASE_DIR / "templates"],  # Custom templates directory
         "APP_DIRS": True,  # Django admin needs this for its own templates
         "OPTIONS": {
             "context_processors": [
