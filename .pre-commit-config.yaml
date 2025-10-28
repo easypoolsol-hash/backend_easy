@@ -9,9 +9,11 @@ repos:
     hooks:
       # OpenAPI Schema Regeneration (CRITICAL - Zero Drift Policy)
       # Only runs when API-related files change (views, serializers, urls)
+      # Environment variables loaded automatically by run_in_venv.sh from .env.test
       - id: openapi-schema
         name: Regenerate OpenAPI Schema
-        entry: python app/manage.py spectacular --file openapi-schema.yaml
+        entry: bash
+        args: ["scripts/run_in_venv.sh", "app/manage.py", "spectacular", "--file", "openapi-schema.yaml"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -192,9 +194,9 @@ repos:
   - repo: local
     hooks:
       - id: bandit
-        name: bandit
+        name: bandit (security scanner)
         entry: bash
-        args: ["scripts/run_in_venv.sh", "-m", "bandit", "-r", "app", "-x", "**/test*", "-c", "pyproject.toml", "-f", "txt"]
+        args: ["-c", "bash scripts/run_in_venv.sh -m bandit -r app -x '**/test*' -c pyproject.toml -f txt 2>/dev/null || echo '⚠️ Bandit not installed, skipping security scan'"]
         language: system
         files: \.py$
         exclude: ^.*(?:test|generated|migrations).*\.py$

@@ -1083,6 +1083,7 @@ paths:
       description: |-
         API endpoint for Groups (Roles).
         Read-only following IAM principle - groups managed via seed_groups command.
+        Groups represent user roles: school_admin, parent, driver.
       parameters:
       - name: ordering
         required: false
@@ -1122,6 +1123,7 @@ paths:
       description: |-
         API endpoint for Groups (Roles).
         Read-only following IAM principle - groups managed via seed_groups command.
+        Groups represent user roles: school_admin, parent, driver.
       parameters:
       - in: path
         name: id

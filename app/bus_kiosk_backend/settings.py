@@ -48,14 +48,16 @@ if USE_FILE_LOGGING:
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # REQUIRED: Must be set via environment variable
-# - Local: Set by make backend-fresh (backend_fresh.bat)
+# - Local: Set by make backend-fresh (backend_fresh.bat) or loaded from .env
 # - Production: Injected by Google Secret Manager
+# - Tests/Hooks: Loaded from .env.test by run_in_venv.sh
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 # Encryption key for PII data
 # REQUIRED: Must be set via environment variable
-# - Local: Set by make backend-fresh (backend_fresh.bat)
+# - Local: Set by make backend-fresh (backend_fresh.bat) or loaded from .env
 # - Production: Injected by Google Secret Manager
+# - Tests/Hooks: Loaded from .env.test by run_in_venv.sh
 # Generate using: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]
 

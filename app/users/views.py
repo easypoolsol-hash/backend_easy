@@ -28,6 +28,7 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for Groups (Roles).
     Read-only following IAM principle - groups managed via seed_groups command.
+    Groups represent user roles: school_admin, parent, driver.
     """
 
     queryset = Group.objects.all()
