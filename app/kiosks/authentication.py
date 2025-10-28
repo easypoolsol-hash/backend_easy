@@ -137,9 +137,8 @@ def activate_kiosk(kiosk_id: str, activation_token: str) -> dict[str, Any]:
     # Token Config: kiosks/token_config.py (60 day refresh token)
     #
     # Human users are COMPLETELY SEPARATE:
-    # Endpoint: POST /api/v1/users/login/
-    # Auth Method: Username + Password
-    # Token Config: users/token_config.py (1 day refresh token)
+    # Auth Method: Firebase Authentication (passwordless)
+    # Token Config: Firebase Admin SDK
     #
     # SOLID Principle: Single file responsible for each token type
     # DRY Principle: No code duplication, explicit configuration

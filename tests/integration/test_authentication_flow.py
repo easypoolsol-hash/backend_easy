@@ -86,53 +86,11 @@ class TestAuthenticationLifecycle:
         assert payload["kiosk_id"] == kiosk.kiosk_id
         assert payload["type"] == "kiosk"
 
-    def test_user_jwt_lifecycle_complete(self, api_client):
-        """Test complete user JWT lifecycle (parallel to kiosk testing)"""
-        from tests.factories import UserFactory
-
-        user = UserFactory()
-        user.set_password("testpass123")
-        user.save()
-
-        # 1. Login and get tokens
-        login_response = api_client.post(
-            openapi_helper(operation_id="api_v1_users_login_create"),
-            {"username": user.username, "password": "testpass123"},
-            format="json",
-        )
-        assert login_response.status_code == status.HTTP_200_OK
-
-        initial_access = login_response.data["access"]
-        initial_refresh = login_response.data["refresh"]
-
-        # 2. Use access token
-        me_response = api_client.get(
-            openapi_helper(operation_id="api_v1_users_me_retrieve"),
-            HTTP_AUTHORIZATION=f"Bearer {initial_access}",
-        )
-        assert me_response.status_code == status.HTTP_200_OK
-
-        # 3. Refresh token
-        refresh_response = api_client.post(
-            openapi_helper(operation_id="api_v1_auth_token_refresh_create"),
-            {"refresh": initial_refresh},
-            format="json",
-        )
-        assert refresh_response.status_code == status.HTTP_200_OK
-
-        # 4. Verify new token works
-        new_access = refresh_response.data["access"]
-        me_response2 = api_client.get(
-            openapi_helper(operation_id="api_v1_users_me_retrieve"),
-            HTTP_AUTHORIZATION=f"Bearer {new_access}",
-        )
-        assert me_response2.status_code == status.HTTP_200_OK
-
-    def test_mixed_authentication_schemes(self, api_client, authenticated_client, test_kiosk):
+    def test_mixed_authentication_schemes(self, api_client, test_kiosk):
         """
-        Industry Standard: Test different auth schemes work simultaneously
+        Industry Standard: Test kiosk authentication scheme
 
-        This ensures kiosk JWT, user JWT, and API keys don't interfere.
+        This ensures kiosk JWT authentication works correctly.
         """
         kiosk, activation_token = test_kiosk
 
@@ -144,11 +102,7 @@ class TestAuthenticationLifecycle:
         )
         kiosk_token = auth_response.data["access"]
 
-        # 2. User JWT (from authenticated_client fixture)
-        user_response = authenticated_client.get(openapi_helper(operation_id="api_v1_users_me_retrieve"))
-        assert user_response.status_code == status.HTTP_200_OK
-
-        # 3. Kiosk heartbeat (kiosk JWT)
+        # 2. Kiosk heartbeat (kiosk JWT)
         from kiosks.models import KioskStatus
 
         KioskStatus.objects.create(kiosk=kiosk, last_heartbeat=timezone.now())
@@ -167,7 +121,7 @@ class TestAuthenticationLifecycle:
         )
         assert heartbeat_response.status_code == status.HTTP_204_NO_CONTENT
 
-        # 4. API Key authentication (if implemented)
+        # 3. API Key authentication (if implemented)
         # This would test API key auth doesn't break JWT auth
 
     def test_token_refresh_under_load(self, api_client, test_kiosk):

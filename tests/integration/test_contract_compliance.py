@@ -62,17 +62,11 @@ class TestOpenAPIContractCompliance:
         assert len(response.data["access"].split(".")) == 3  # JWT has 3 parts
         assert len(response.data["refresh"].split(".")) == 3
 
-    def test_user_login_contract(self, api_client):
-        """Test user login endpoint matches OpenAPI contract"""
-        from tests.factories import UserFactory
-
-        user = UserFactory()
-        user.set_password("testpass123")  # type: ignore[attr-defined]
-        user.save()  # type: ignore[attr-defined]
-
-        response = api_client.post(
-            "/api/v1/users/login/",
-            {"username": user.username, "password": "testpass123"},
+    def test_firebase_auth_contract(self, api_client, firebase_user_token):
+        """Test Firebase authentication endpoint matches contract"""
+        response = api_client.get(
+            "/api/v1/users/me/",
+            HTTP_AUTHORIZATION=f"Bearer {firebase_user_token}",
             format="json",
         )
 
@@ -173,7 +167,7 @@ class TestOpenAPIContractCompliance:
         # For now, just verify schema is valid and essential paths are present
         assert "paths" in schema
         assert any("kiosks/activate" in p for p in schema["paths"].keys())
-        assert any("users/login" in p for p in schema["paths"].keys())
+        assert any("users/me" in p for p in schema["paths"].keys())
 
 
 @pytest.mark.django_db

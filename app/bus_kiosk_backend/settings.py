@@ -15,6 +15,28 @@ import os
 from pathlib import Path
 from typing import Any
 
+# Firebase Admin SDK initialization for Frontend Easy authentication
+try:
+    import firebase_admin
+    from firebase_admin import credentials
+    
+    # Initialize Firebase Admin SDK for token verification
+    firebase_cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
+    if firebase_cred_path and Path(firebase_cred_path).exists():
+        cred = credentials.Certificate(firebase_cred_path)
+        firebase_admin.initialize_app(cred)
+    else:
+        # Fallback: try to initialize without credentials (for development)
+        # In production, FIREBASE_SERVICE_ACCOUNT_KEY_PATH must be set
+        try:
+            firebase_admin.initialize_app()
+        except ValueError:
+            # Firebase already initialized or no credentials available
+            pass
+except ImportError:
+    # firebase-admin not installed - will be handled gracefully
+    pass
+
 # Load environment variables from .env file
 try:
     from dotenv import load_dotenv
@@ -124,8 +146,9 @@ AUTH_USER_MODEL = "users.User"
 # REST Framework configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "kiosks.authentication.KioskJWTAuthentication",  # Custom kiosk authentication
+        "bus_kiosk_backend.core.authentication.FirebaseAuthentication",  # Firebase tokens for Frontend Easy
+        "rest_framework_simplejwt.authentication.JWTAuthentication",     # JWT tokens for Bus Kids (backward compatibility)
+        "kiosks.authentication.KioskJWTAuthentication",                  # Custom kiosk authentication
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

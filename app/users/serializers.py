@@ -48,34 +48,6 @@ class UserSerializer(serializers.ModelSerializer):
         return list(obj.groups.values_list("name", flat=True))
 
 
-class UserCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
-    password_confirm = serializers.CharField(write_only=True, required=True)
-    group_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False, allow_empty=True)
-
-    class Meta:
-        model = User
-        fields = ["username", "email", "password", "password_confirm", "group_names"]
-
-    def validate(self, data):
-        if data["password"] != data["password_confirm"]:
-            raise serializers.ValidationError("Passwords do not match")
-        return data
-
-    def create(self, validated_data):
-        validated_data.pop("password_confirm")
-        group_names = validated_data.pop("group_names", [])
-
-        user = User.objects.create_user(**validated_data)
-
-        # Assign groups if provided
-        if group_names:
-            groups = Group.objects.filter(name__in=group_names)
-            user.groups.set(groups)
-
-        return user
-
-
 class APIKeySerializer(serializers.ModelSerializer):
     class Meta:
         model = APIKey

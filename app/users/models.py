@@ -70,6 +70,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
+    first_name = models.CharField(max_length=150, blank=True, default='')
+    last_name = models.CharField(max_length=150, blank=True, default='')
     # Note: groups and user_permissions come from PermissionsMixin
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # For Django admin access

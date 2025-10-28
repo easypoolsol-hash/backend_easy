@@ -1,13 +1,9 @@
-from django.contrib.auth import authenticate
 from django.contrib.auth.models import Group
-from django.utils import timezone
 from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
-from rest_framework import serializers, status, viewsets
+from rest_framework import serializers, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .models import APIKey, AuditLog, User
@@ -16,10 +12,8 @@ from .serializers import (
     APIKeySerializer,
     AuditLogSerializer,
     GroupSerializer,
-    UserCreateSerializer,
     UserSerializer,
 )
-from .token_config import create_user_token
 
 # pylint: disable=no-member
 
@@ -41,8 +35,6 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
-        if self.action == "create":
-            return UserCreateSerializer
         return UserSerializer
 
     def get_queryset(self):
@@ -56,94 +48,6 @@ class UserViewSet(viewsets.ModelViewSet):
         """Get current authenticated user information"""
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
-
-    @action(detail=False, methods=["post"], permission_classes=[])
-    def login(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-
-        if not username or not password:
-            return Response(
-                {"error": "Username and password are required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user = authenticate(username=username, password=password)
-        if user:
-            # CRITICAL SEPARATION: This endpoint is ONLY for HUMAN USERS
-            # Endpoint: POST /api/v1/users/login/
-            # Auth Method: Username + Password
-            # Token Config: users/token_config.py (1 day refresh token)
-            #
-            # Kiosks are COMPLETELY SEPARATE:
-            # Endpoint: POST /api/v1/kiosk/activate/
-            # Auth Method: Activation Token (one-time use)
-            # Token Config: kiosks/token_config.py (60 day refresh token)
-            #
-            # SOLID Principle: Single file responsible for each token type
-            # DRY Principle: No code duplication, explicit configuration
-            # KISS Principle: Simple, clear separation
-            refresh = create_user_token(user)
-
-            user.last_login = timezone.now()
-            user.save(update_fields=["last_login"])
-
-            # Log the login
-            AuditLog.objects.create(
-                user=user,
-                action="LOGIN",
-                resource_type="user",
-                resource_id=str(user.user_id),
-                ip_address=self.get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            )
-
-            return Response(
-                {
-                    "refresh": str(refresh),
-                    "access": str(refresh.access_token),
-                    "user": UserSerializer(user).data,
-                }
-            )
-
-        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-
-    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
-    def logout(self, request):
-        """
-        Logout endpoint - Blacklists refresh token (Fortune 500 standard)
-
-        Security: Prevents token reuse even if stolen
-
-        Request Body: { "refresh": "..." }
-        Returns: 200 { "message": "Logout successful" }
-        """
-        try:
-            refresh_token = request.data.get("refresh")
-
-            if not refresh_token:
-                return Response({"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
-
-            # Blacklist the refresh token (prevents reuse)
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-
-            # Log the logout
-            AuditLog.objects.create(
-                user=request.user,
-                action="LOGOUT",
-                resource_type="user",
-                resource_id=str(request.user.user_id),
-                ip_address=self.get_client_ip(request),
-                user_agent=request.META.get("HTTP_USER_AGENT", ""),
-            )
-
-            return Response({"message": "Logout successful"}, status=status.HTTP_200_OK)
-
-        except TokenError as e:
-            return Response({"error": f"Invalid or expired token: {e!s}"}, status=status.HTTP_401_UNAUTHORIZED)
-        except Exception as e:
-            return Response({"error": f"Logout failed: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get_client_ip(self, request):
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")

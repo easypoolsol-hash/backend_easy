@@ -67,6 +67,9 @@ dependencies = [
     # Removed django-ratelimit - DRF throttling is sufficient
     "django-csp>=3.8,<4.0",  # Content Security Policy
 
+    # Firebase Authentication for Frontend Easy
+    "firebase-admin>=6.2.0,<7.0",  # Firebase Admin SDK for token verification
+
     # API Enhancement
     "djangorestframework-api-key>=2.3.0,<3.0",  # Better API key management
     # Removed drf-flex-fields - overkill for our use case
