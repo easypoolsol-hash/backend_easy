@@ -26,6 +26,7 @@ permissions:
   contents: read
   packages: write
   id-token: write  # Required for GCP Workload Identity
+  actions: read     # Required for detect-changes to check previous test results
 
 env:
   IMAGE_NAME: backend_easy
