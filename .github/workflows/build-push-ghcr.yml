@@ -46,10 +46,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=${{ inputs.image_tag }}
+            type=ref,event=branch              # develop, master
+            type=ref,event=pr                  # pr-123
+            type=sha,prefix={{branch}}-        # develop-abc1234, master-abc1234
+            type=sha,prefix=sha-               # sha-abc1234 (immutable, for deploy)
+            type=raw,value=latest,enable={{is_default_branch}}  # latest only on develop
 
       - name: Build and push to GHCR
         id: build

@@ -278,7 +278,7 @@ jobs:
     needs: [quality, detect-changes]
     uses: ./.github/workflows/build-push-ghcr.yml
     with:
-      image_tag: test
+      image_tag: ${{ github.ref_name }}
 
   # Push to GHCR (verify - already pushed during build)
   verify-ghcr:
@@ -286,7 +286,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/verify-ghcr.yml
     with:
-      image_tag: test
+      image_tag: ${{ github.ref_name }}
 
   # Push to Google Artifact Registry (parallel with GHCR verify)
   push-gar:
@@ -294,7 +294,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/deploy-gar.yml
     with:
-      image_tag: test
+      image_tag: ${{ github.ref_name }}
       gcp_project_id: ${{ vars.GCP_PROJECT_ID || '' }}
     secrets:
       GCP_PROJECT_NUMBER: ${{ secrets.GCP_PROJECT_NUMBER }}

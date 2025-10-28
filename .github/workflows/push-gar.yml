@@ -55,25 +55,44 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
-      - name: Pull image from GHCR
+      - name: Pull and push all tags to GAR
         run: |
+          GHCR_IMAGE="${{ env.GHCR_REGISTRY }}/${{ github.repository }}"
+          GAR_BASE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+
           echo "Pulling image from GHCR..."
-          docker pull ${{ env.GHCR_REGISTRY }}/${{ github.repository }}:${{ inputs.image_tag }}
+          docker pull $GHCR_IMAGE:${{ inputs.image_tag }}
 
-      - name: Tag and push to GAR
-        run: |
-          GAR_IMAGE=${{ env.GCP_REGION }}-docker.pkg.dev/${{ inputs.gcp_project_id }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+          # Get all tags for this image from GHCR metadata
+          echo "Mirroring tags to GAR..."
 
-          echo "Tagging for GAR..."
-          docker tag ${{ env.GHCR_REGISTRY }}/${{ github.repository }}:${{ inputs.image_tag }} $GAR_IMAGE
+          # Main tag (branch or SHA)
+          echo "→ Tagging: ${{ inputs.image_tag }}"
+          docker tag $GHCR_IMAGE:${{ inputs.image_tag }} $GAR_BASE:${{ inputs.image_tag }}
+          docker push $GAR_BASE:${{ inputs.image_tag }}
 
-          echo "Pushing to Google Artifact Registry..."
-          docker push $GAR_IMAGE
+          # If this is a branch build, also tag with SHA
+          if [[ "${{ inputs.image_tag }}" == "develop" ]] || [[ "${{ inputs.image_tag }}" == "master" ]]; then
+            # Extract SHA from image
+            SHA=$(docker inspect $GHCR_IMAGE:${{ inputs.image_tag }} --format='{{index .Config.Labels "org.opencontainers.image.revision"}}' | cut -c1-7)
+            if [ -n "$SHA" ]; then
+              echo "→ Tagging SHA: ${{ inputs.image_tag }}-$SHA"
+              docker tag $GHCR_IMAGE:${{ inputs.image_tag }} $GAR_BASE:${{ inputs.image_tag }}-$SHA
+              docker push $GAR_BASE:${{ inputs.image_tag }}-$SHA
 
-          echo "✅ Image pushed to GAR"
+              echo "→ Tagging SHA: sha-$SHA"
+              docker tag $GHCR_IMAGE:${{ inputs.image_tag }} $GAR_BASE:sha-$SHA
+              docker push $GAR_BASE:sha-$SHA
+            fi
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Google Artifact Registry ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "$GAR_IMAGE" >> $GITHUB_STEP_SUMMARY
+          echo "$GAR_BASE:${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          if [ -n "$SHA" ]; then
+            echo "$GAR_BASE:${{ inputs.image_tag }}-$SHA" >> $GITHUB_STEP_SUMMARY
+            echo "$GAR_BASE:sha-$SHA" >> $GITHUB_STEP_SUMMARY
+          fi
           echo '```' >> $GITHUB_STEP_SUMMARY
