@@ -4,6 +4,7 @@
 
 repos:
   # Local hooks (run in this repo)
+  # All hooks use language: python and will run in project venv
   - repo: local
     hooks:
       # OpenAPI Schema Regeneration (CRITICAL - Zero Drift Policy)
@@ -92,7 +93,8 @@ repos:
       # Validate Snapshot Contract Compliance
       - id: validate-snapshot-contract
         name: Validate Snapshot Contract
-        entry: python -m pytest tests/unit/test_snapshot_generator.py -v --tb=short
+        entry: bash
+        args: ["scripts/run_in_venv.sh", "-m", "pytest", "tests/unit/test_snapshot_generator.py", "-v", "--tb=short"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -102,8 +104,8 @@ repos:
       # Run unit tests when core logic changes (fast feedback)
       - id: unit-tests-core
         name: Unit Tests (Core Logic)
-        entry: python
-        args: ["-m", "pytest", "tests/unit/", "-v", "--tb=short", "--maxfail=3"]
+        entry: bash
+        args: ["scripts/run_in_venv.sh", "-m", "pytest", "tests/unit/", "-v", "--tb=short", "--maxfail=3"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -113,8 +115,8 @@ repos:
       # Run authentication tests when auth code changes
       - id: auth-tests
         name: Auth Tests (Security Critical)
-        entry: python
-        args: ["-m", "pytest", "tests/unit/test_kiosk_auth.py", "tests/integration/test_authentication_flow.py", "-v", "--tb=short"]
+        entry: bash
+        args: ["scripts/run_in_venv.sh", "-m", "pytest", "tests/unit/test_kiosk_auth.py", "tests/integration/test_authentication_flow.py", "-v", "--tb=short"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -124,8 +126,8 @@ repos:
       # Run ML/face recognition tests when ML code changes
       - id: ml-tests
         name: ML Tests (Face Recognition)
-        entry: python
-        args: ["-m", "pytest", "tests/unit/test_face_embedding.py", "tests/integration/test_face_embedding_integration.py", "-v", "--tb=short"]
+        entry: bash
+        args: ["scripts/run_in_venv.sh", "-m", "pytest", "tests/unit/test_face_embedding.py", "tests/integration/test_face_embedding_integration.py", "-v", "--tb=short"]
         language: system
         pass_filenames: false
         stages: [commit]
@@ -170,7 +172,7 @@ repos:
         entry: bash
         language: system
         pass_filenames: false  # Run on whole project, not per-file
-        args: ["-c", "export PYTHONPATH=app && (.venv/bin/python -m mypy app --no-incremental 2>/dev/null || .venv/Scripts/python -m mypy app --no-incremental 2>/dev/null || python -m mypy app --no-incremental) || (echo '❌ mypy failed - ensure virtual environment is activated and mypy is installed' && exit 1)"]
+        args: ["-c", "export PYTHONPATH=app && bash scripts/run_in_venv.sh -m mypy app --no-incremental"]
         types: [python]
         stages: [commit]
         verbose: true
@@ -191,11 +193,11 @@ repos:
     hooks:
       - id: bandit
         name: bandit
-        entry: python -m bandit
+        entry: bash
+        args: ["scripts/run_in_venv.sh", "-m", "bandit", "-r", "app", "-x", "**/test*", "-c", "pyproject.toml", "-f", "txt"]
         language: system
         files: \.py$
         exclude: ^.*(?:test|generated|migrations).*\.py$
-        args: [-r, app, -x, "**/test*", -c, pyproject.toml, -f, txt]
         pass_filenames: false
 
   # Test runner (optional) - DISABLED: replaced with targeted test hooks above
