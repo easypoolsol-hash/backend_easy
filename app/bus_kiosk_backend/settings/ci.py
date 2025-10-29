@@ -9,7 +9,6 @@ Fortune 500 Pattern:
 - Disabled external services (Celery, Redis, Firebase)
 """
 
-from datetime import timedelta
 import os
 from pathlib import Path
 
@@ -116,8 +115,7 @@ MIDDLEWARE = [
 
 # REST Framework CI settings - Override authentication for easier testing
 REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [  # noqa: F405
-    "rest_framework_simplejwt.authentication.JWTAuthentication",
-    "kiosks.authentication.KioskJWTAuthentication",
+    "bus_kiosk_backend.core.authentication.FirebaseAuthentication",
     "rest_framework.authentication.SessionAuthentication",
 ]
 REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] = []  # No global permissions for tests  # noqa: F405

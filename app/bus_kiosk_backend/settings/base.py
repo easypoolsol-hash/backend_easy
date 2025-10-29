@@ -95,8 +95,6 @@ INSTALLED_APPS = [
     # Third-party apps
     "channels",  # Django Channels for WebSocket support
     "rest_framework",
-    "rest_framework_simplejwt",
-    "rest_framework_simplejwt.token_blacklist",  # For token rotation security
     "drf_spectacular",  # OpenAPI schema generation
     "drf_spectacular_sidecar",  # Self-hosted Swagger UI assets
     "corsheaders",  # CORS handling
@@ -119,7 +117,7 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = "users.User"
 
 # REST Framework configuration
-REST_FRAMEWORK = {
+REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "bus_kiosk_backend.core.authentication.FirebaseAuthentication",
         "rest_framework.authentication.SessionAuthentication",
@@ -151,31 +149,6 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "EXCEPTION_HANDLER": "bus_kiosk_backend.exceptions.custom_exception_handler",
-}
-
-# JWT settings for Secure Kiosk Authentication
-SIMPLE_JWT = {
-    # CRITICAL: Token lifetimes are set EXPLICITLY per token type (no global defaults used)
-    # - Kiosk tokens: kiosks/token_config.py (60 days - autonomous IoT)
-    # - User tokens: users/token_config.py (1 day - maximum security)
-    #
-    # Access Token (Short-lived for security - if stolen, only works 15 min)
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
-    # Refresh Token - FALLBACK ONLY (should never be used, explicit config required)
-    # Set to 1 day as safe default - if this is used, it means explicit config is missing
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    # Token Rotation (Security - old tokens become garbage every 14 min)
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    # Algorithm and signing
-    "ALGORITHM": "HS256",
-    "SIGNING_KEY": SECRET_KEY,
-    # Token claims
-    "AUTH_HEADER_TYPES": ("Bearer",),
-    "USER_ID_FIELD": "user_id",  # Custom User model uses user_id instead of id
-    "USER_ID_CLAIM": "user_id",  # Include user_id in JWT payload
-    # Blacklist checks (detects token reuse attacks)
-    "BLACKLIST_TOKEN_CHECKS": ["refresh"],
 }
 
 # Celery Configuration
@@ -242,7 +215,7 @@ if USE_FILE_LOGGING:
 _default_handlers = ["console", "file"] if USE_FILE_LOGGING else ["console"]
 _api_handlers = ["api_file"] if USE_FILE_LOGGING else ["console"]
 
-LOGGING = {
+LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
@@ -310,7 +283,7 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # DRF Spectacular settings
-SPECTACULAR_SETTINGS = {
+SPECTACULAR_SETTINGS: dict[str, Any] = {
     "TITLE": "Bus Kiosk Backend API",
     "DESCRIPTION": "Industrial REST API for Bus Kiosk face recognition system",
     "VERSION": "1.0.0",
