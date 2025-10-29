@@ -1,0 +1,87 @@
+name: Push Artifact to Google Artifact Registry
+
+on:
+  workflow_call:
+    inputs:
+      artifact_name:
+        description: 'Name of the artifact to download'
+        type: string
+        required: true
+      image_tag:
+        description: 'Tag to use for the image in GAR'
+        type: string
+        required: true
+      environment:
+        description: 'Environment (production or staging)'
+        type: string
+        required: true
+        default: 'production'
+
+env:
+  IMAGE_NAME: backend_easy
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+  GCP_SA_EMAIL: ${{ vars.GCP_SA_EMAIL }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
+  GAR_REPO: ${{ vars.GAR_REPO || 'backend-repo' }}
+
+jobs:
+  push-gar:
+    name: Push to GAR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+
+      - name: Load Docker image
+        run: |
+          echo "Loading Docker image from artifact..."
+          gunzip -c image.tar.gz | docker load
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "${{ env.GCP_SA_EMAIL }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GAR
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Tag and push to GAR
+        run: |
+          GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+
+          echo "Tagging image for GAR..."
+          docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} $GAR_IMAGE:${{ inputs.image_tag }}
+
+          # Also tag with SHA for immutable reference
+          SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} $GAR_IMAGE:sha-$SHA
+          docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} $GAR_IMAGE:${{ inputs.image_tag }}-$SHA
+
+          echo "Pushing to Google Artifact Registry..."
+          docker push $GAR_IMAGE:${{ inputs.image_tag }}
+          docker push $GAR_IMAGE:sha-$SHA
+          docker push $GAR_IMAGE:${{ inputs.image_tag }}-$SHA
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Google Artifact Registry ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Images pushed:**" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$GAR_IMAGE:${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "$GAR_IMAGE:sha-$SHA" >> $GITHUB_STEP_SUMMARY
+          echo "$GAR_IMAGE:${{ inputs.image_tag }}-$SHA" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
