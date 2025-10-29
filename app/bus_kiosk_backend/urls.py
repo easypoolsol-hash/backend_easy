@@ -41,6 +41,7 @@ from bus_kiosk_backend.health import (
     health_check,
     prometheus_metrics,
 )
+from buses.views import bus_locations_api
 from users.views import KioskTokenRefreshView
 
 
@@ -185,6 +186,8 @@ urlpatterns += [
                 path("", include("buses.urls")),
                 path("", include("kiosks.urls")),
                 path("", include("events.urls")),
+                # School dashboard API (for Flutter frontend)
+                path("school/api/bus-locations/", bus_locations_api, name="school-bus-locations"),
                 # path("school/", include("school_dashboard.urls")),  # ARCHIVED: Replaced by Flutter
             ]
         ),

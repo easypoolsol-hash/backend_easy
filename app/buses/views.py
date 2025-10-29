@@ -1,8 +1,10 @@
 from django.db import transaction
+from django.db.models import Max
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 
 from bus_kiosk_backend.permissions import IsSchoolAdmin
@@ -146,3 +148,47 @@ class BusViewSet(viewsets.ModelViewSet):
                 },
             }
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsSchoolAdmin])
+def bus_locations_api(request):
+    """
+    Bus locations API for school dashboard (admin only).
+
+    Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
+    Only accessible by school_admin and super_admin users.
+    """
+    # Get latest GPS location for each bus
+    from kiosks.models import BusLocation
+
+    latest_locations = BusLocation.objects.values("kiosk_id").annotate(latest_timestamp=Max("timestamp"))
+
+    bus_locations = []
+    for loc_data in latest_locations:
+        location = (
+            BusLocation.objects.filter(kiosk_id=loc_data["kiosk_id"], timestamp=loc_data["latest_timestamp"]).select_related("kiosk__bus").first()
+        )
+
+        if location and location.kiosk and location.kiosk.bus:
+            kiosk = location.kiosk
+            bus = kiosk.bus
+
+            bus_locations.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [location.longitude, location.latitude]},
+                    "properties": {
+                        "id": kiosk.kiosk_id,  # Frontend expects "id"
+                        "name": bus.license_plate,  # Frontend expects "name"
+                        "status": bus.get_status_display(),
+                        "kiosk_id": kiosk.kiosk_id,
+                        "bus_name": bus.license_plate,
+                        "last_update": location.timestamp.isoformat(),
+                        "speed": location.speed,
+                        "heading": location.heading,
+                    },
+                }
+            )
+
+    return JsonResponse({"type": "FeatureCollection", "features": bus_locations})

@@ -1124,6 +1124,67 @@ paths:
                   message:
                     type: string
           description: ''
+  /api/v1/kiosks/:
+    get:
+      operationId: api_v1_kiosks_list
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedKioskList'
+          description: ''
+    post:
+      operationId: api_v1_kiosks_create
+      description: ViewSet for kiosk management (admin only)
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Kiosk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Kiosk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Kiosk'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
   /api/v1/kiosks/{kiosk_id}/check-updates/:
     get:
       operationId: kiosk_check_updates
@@ -1236,6 +1297,113 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/kiosks/{kiosk_id}/:
+    get:
+      operationId: api_v1_kiosks_retrieve
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+    put:
+      operationId: api_v1_kiosks_update
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Kiosk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Kiosk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Kiosk'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+    patch:
+      operationId: api_v1_kiosks_partial_update
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedKiosk'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedKiosk'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedKiosk'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+    delete:
+      operationId: api_v1_kiosks_destroy
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/kiosks/activate/:
     post:
       operationId: kiosk_activate
@@ -1305,6 +1473,113 @@ paths:
                 properties:
                   status:
                     type: string
+          description: ''
+  /api/v1/locations/:
+    get:
+      operationId: api_v1_locations_retrieve
+      description: |-
+        Bus locations API for school dashboard (admin only).
+
+        Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
+        Only accessible by school_admin and super_admin users.
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/logs/:
+    get:
+      operationId: api_v1_logs_list
+      description: Read-only ViewSet for device logs (admin only)
+      parameters:
+      - in: query
+        name: kiosk
+        schema:
+          type: string
+        description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+      - in: query
+        name: log_level
+        schema:
+          type: string
+          x-spec-enum-id: 7b1a6f8785c20640
+          enum:
+          - CRITICAL
+          - DEBUG
+          - ERROR
+          - INFO
+          - WARN
+        description: |-
+          Log level severity
+
+          * `DEBUG` - Debug
+          * `INFO` - Info
+          * `WARN` - Warning
+          * `ERROR` - Error
+          * `CRITICAL` - Critical
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: timestamp
+        schema:
+          type: string
+          format: date-time
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDeviceLogList'
+          description: ''
+  /api/v1/logs/{log_id}/:
+    get:
+      operationId: api_v1_logs_retrieve
+      description: Read-only ViewSet for device logs (admin only)
+      parameters:
+      - in: path
+        name: log_id
+        schema:
+          type: integer
+          description: Auto-incrementing log entry ID
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceLog'
+          description: ''
+  /api/v1/logs/summary/:
+    get:
+      operationId: api_v1_logs_summary_retrieve
+      description: Get logs summary by level and time
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceLog'
           description: ''
   /api/v1/parent/my-buses/:
     get:
@@ -1738,6 +2013,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Route'
           description: ''
+  /api/v1/school/api/bus-locations/:
+    get:
+      operationId: api_v1_school_api_bus_locations_retrieve
+      description: |-
+        Bus locations API for school dashboard (admin only).
+
+        Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
+        Only accessible by school_admin and super_admin users.
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/schools/:
     get:
       operationId: api_v1_schools_list
@@ -3423,6 +3714,66 @@ components:
       - embedding_count
       - student_count
       - timestamp
+    Kiosk:
+      type: object
+      description: Serializer for kiosks
+      properties:
+        kiosk_id:
+          type: string
+          readOnly: true
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        bus:
+          type: string
+          readOnly: true
+        bus_license_plate:
+          type: string
+          readOnly: true
+        firmware_version:
+          type: string
+          description: Current firmware version installed on device
+          maxLength: 50
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last heartbeat received from device
+        is_active:
+          type: boolean
+          description: Whether this kiosk is active and accepting requests
+        battery_level:
+          type: number
+          format: double
+        storage_used_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Storage used in MB on the device
+        status_display:
+          type: string
+          readOnly: true
+        is_online:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this kiosk was registered
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this kiosk record was last updated
+      required:
+      - bus
+      - bus_license_plate
+      - created_at
+      - is_online
+      - kiosk_id
+      - status_display
+      - updated_at
     KioskActivation:
       type: object
       description: |-
@@ -3591,6 +3942,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Bus'
+    PaginatedDeviceLogList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceLog'
     PaginatedGroupList:
       type: object
       required:
@@ -3614,6 +3988,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Group'
+    PaginatedKioskList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kiosk'
     PaginatedParentList:
       type: object
       required:
@@ -4002,6 +4399,58 @@ components:
           format: date-time
           readOnly: true
           description: When this bus record was last updated
+    PatchedKiosk:
+      type: object
+      description: Serializer for kiosks
+      properties:
+        kiosk_id:
+          type: string
+          readOnly: true
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        bus:
+          type: string
+          readOnly: true
+        bus_license_plate:
+          type: string
+          readOnly: true
+        firmware_version:
+          type: string
+          description: Current firmware version installed on device
+          maxLength: 50
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last heartbeat received from device
+        is_active:
+          type: boolean
+          description: Whether this kiosk is active and accepting requests
+        battery_level:
+          type: number
+          format: double
+        storage_used_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Storage used in MB on the device
+        status_display:
+          type: string
+          readOnly: true
+        is_online:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this kiosk was registered
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this kiosk record was last updated
     PatchedParent:
       type: object
       properties:

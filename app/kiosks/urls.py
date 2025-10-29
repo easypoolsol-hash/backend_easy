@@ -21,36 +21,28 @@ router.register(r"logs", DeviceLogViewSet, basename="device-log")
 urlpatterns = [
     # Specific endpoints before router
     path("kiosks/activate/", activate_kiosk_view, name="kiosk-activate"),
-    # Group per-kiosk endpoints under the kiosks/ prefix so that
-    # URLs like /api/v1/kiosks/<kiosk_id>/check-updates/ resolve
+    # Individual kiosk endpoints (flattened to avoid URLResolver issues)
+    path("kiosks/logs/", kiosk_log, name="kiosk-logs"),
     path(
-        "kiosks/",
-        include(
-            [
-                path("logs/", kiosk_log, name="kiosk-logs"),
-                path(
-                    "<str:kiosk_id>/check-updates/",
-                    check_updates,
-                    name="kiosk-check-updates",
-                ),
-                path(
-                    "<str:kiosk_id>/snapshot/",
-                    download_snapshot,
-                    name="kiosk-snapshot",
-                ),
-                path(
-                    "<str:kiosk_id>/heartbeat/",
-                    heartbeat,
-                    name="kiosk-heartbeat-sync",
-                ),
-                path(
-                    "<str:kiosk_id>/location/",
-                    update_location,
-                    name="kiosk-location",
-                ),
-                # Router commented out for testing
-                # path("", include(router.urls)),
-            ]
-        ),
+        "kiosks/<str:kiosk_id>/check-updates/",
+        check_updates,
+        name="kiosk-check-updates",
     ),
+    path(
+        "kiosks/<str:kiosk_id>/snapshot/",
+        download_snapshot,
+        name="kiosk-snapshot",
+    ),
+    path(
+        "kiosks/<str:kiosk_id>/heartbeat/",
+        heartbeat,
+        name="kiosk-heartbeat-sync",
+    ),
+    path(
+        "kiosks/<str:kiosk_id>/location/",
+        update_location,
+        name="kiosk-location",
+    ),
+    # Router for standard CRUD operations
+    path("", include(router.urls)),
 ]
