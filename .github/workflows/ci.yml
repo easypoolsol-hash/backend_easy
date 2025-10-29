@@ -5,43 +5,20 @@ on:
     branches: [ master, main, develop ]
   pull_request:
     branches: [ master, main, develop ]
-  workflow_dispatch:
-    inputs:
-      skip_tests:
-        description: 'Skip test execution (for config-only changes)'
-        required: false
-        type: boolean
-        default: false
-      skip_reason:
-        description: 'Reason for skipping tests (if skip_tests=true)'
-        required: false
-        default: 'Config-only change'
-      force_tests:
-        description: 'Force run all tests (override auto-skip logic)'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
   packages: write
   id-token: write  # Required for GCP Workload Identity
-  actions: read     # Required for detect-changes to check previous test results
 
 env:
   IMAGE_NAME: backend_easy
   REGISTRY: ghcr.io
-  # ENCRYPTION_KEY removed from source; CI should provide it via Secrets if needed.
 
 jobs:
-  # Detect what changed to intelligently skip unnecessary work
-  detect-changes:
-    uses: ./.github/workflows/detect-changes.yml
-
   quality:
     name: quality (lint + mypy)
     runs-on: ubuntu-latest
-    needs: detect-changes
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -64,38 +41,10 @@ jobs:
           ruff check --fix .
           mypy . --no-incremental
 
-  skip-tests-log:
-    name: log test skip (if requested)
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.skip_tests == 'true' }}
-    steps:
-      - name: Log test skip reason
-        run: |
-          echo "⚡ CI Pipeline - Tests Skipped"
-          echo "Reason: ${{ github.event.inputs.skip_reason }}"
-          echo "⚠️  WARNING: Tests were skipped by user request!"
-          echo "Only quality checks and build will run."
-
-  force-tests-log:
-    name: log test force (if requested)
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ github.event.inputs.force_tests == 'true' && needs.detect-changes.outputs.should-run-tests == 'false' }}
-    steps:
-      - name: Log test force reason
-        run: |
-          echo "⚡ CI Pipeline - Tests Forced"
-          echo "Auto-skip detected: ${{ needs.detect-changes.outputs.config-only == 'true' && 'config-only changes' || 'unknown' }}"
-          echo "✅ Tests will run anyway (force_tests=true)"
-          echo "This overrides the automatic skip logic."
-
   unit-tests:
     name: unit tests (fast)
     runs-on: ubuntu-latest
-    needs: [quality, detect-changes]
-    # Skip if: user manually skipped OR (detected config-only AND not forced)
-    # Force run if: force_tests == true (overrides auto-skip)
-    if: ${{ github.event.inputs.skip_tests != 'true' && (needs.detect-changes.outputs.should-run-tests == 'true' || github.event.inputs.force_tests == 'true') }}
+    needs: [quality]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -120,10 +69,7 @@ jobs:
   integration-tests:
     name: integration tests (compose)
     runs-on: ubuntu-latest
-    needs: [build, detect-changes]
-    # Skip if: user manually skipped OR (detected config-only AND not forced)
-    # Force run if: force_tests == true (overrides auto-skip)
-    if: ${{ github.event.inputs.skip_tests != 'true' && (needs.detect-changes.outputs.should-run-tests == 'true' || github.event.inputs.force_tests == 'true') }}
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -217,10 +163,7 @@ jobs:
   contract-tests:
     name: contract/e2e tests (compose)
     runs-on: ubuntu-latest
-    needs: [build, detect-changes]
-    # Skip if: user manually skipped OR (detected config-only AND not forced)
-    # Force run if: force_tests == true (overrides auto-skip)
-    if: ${{ github.event.inputs.skip_tests != 'true' && (needs.detect-changes.outputs.should-run-tests == 'true' || github.event.inputs.force_tests == 'true') }}
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python with cache
@@ -278,7 +221,7 @@ jobs:
   # Build image once and save as artifact (Fortune 500 pattern - no registry push)
   build:
     name: Build image (artifact)
-    needs: [quality, detect-changes]
+    needs: [quality]
     uses: ./.github/workflows/build-image.yml
     with:
       image_tag: ${{ github.ref_name }}
