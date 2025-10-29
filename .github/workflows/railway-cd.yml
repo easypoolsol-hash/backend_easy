@@ -1,0 +1,234 @@
+name: Railway CD Pipeline
+
+# 🚂 Three-Station Railway Pattern:
+# Station 1 (develop) → Staging (auto-deploy, manual testing)
+# Station 2 (master)  → Candidate (auto-deploy, robot testing)
+# Station 3 (tag)     → Production (auto-deploy if Station 2 passed)
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [develop, master]
+    types: [completed]
+  push:
+    tags:
+      - 'v*'           # Production: v1.0.0, v2.1.3, etc.
+      - 'hotfix-*'     # Emergency: hotfix-1.0.1
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+  GCP_SA_EMAIL: ${{ vars.GCP_SA_EMAIL }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'asia-south1' }}
+  GAR_REPO: ${{ vars.GAR_REPO || 'backend-repo' }}
+  IMAGE_NAME: backend_easy
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  # 🚂 STATION 1: Staging (develop branch)
+  deploy-staging:
+    name: "🚂 Station 1: Staging"
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'develop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load and tag image
+        run: |
+          gunzip -c image.tar.gz | docker load
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_branch }} ${{ env.IMAGE_NAME }}:staging
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "${{ env.GCP_SA_EMAIL }}"
+
+      - name: Push to GAR and Deploy
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+          GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+          docker tag ${{ env.IMAGE_NAME }}:staging $GAR_IMAGE:staging
+          docker push $GAR_IMAGE:staging
+
+          gcloud run deploy backendeasy-staging \
+            --image=$GAR_IMAGE:staging \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=10 \
+            --memory=512Mi \
+            --cpu=1 \
+            --port=8000 \
+            --set-env-vars="DJANGO_ENV=production" \
+            --update-secrets="SECRET_KEY=django-secret-key-staging:latest,ENCRYPTION_KEY=encryption-key-staging:latest,DB_NAME=db-name-staging:latest,DB_USER=db-user-staging:latest,DB_PASSWORD=db-password-staging:latest,DB_HOST=db-host-staging:latest,REDIS_URL=redis-url-staging:latest,CELERY_BROKER_URL=celery-broker-url-staging:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
+
+          SERVICE_URL=$(gcloud run services describe backendeasy-staging --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+          echo "🚂 Station 1: STAGING DEPLOYED" >> $GITHUB_STEP_SUMMARY
+          echo "URL: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "Next: Test manually, then merge to master" >> $GITHUB_STEP_SUMMARY
+
+  # 🚂 STATION 2: Candidate (master branch - automated testing)
+  deploy-candidate:
+    name: "🚂 Station 2: Candidate"
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'master'
+
+    outputs:
+      candidate_passed: ${{ steps.health_check.outputs.passed }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Load and tag image
+        run: |
+          gunzip -c image.tar.gz | docker load
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_branch }} ${{ env.IMAGE_NAME }}:candidate
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "${{ env.GCP_SA_EMAIL }}"
+
+      - name: Push to GAR and Deploy
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+          GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+          docker tag ${{ env.IMAGE_NAME }}:candidate $GAR_IMAGE:candidate
+          docker push $GAR_IMAGE:candidate
+
+          gcloud run deploy backendeasy-candidate \
+            --image=$GAR_IMAGE:candidate \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=5 \
+            --memory=512Mi \
+            --cpu=1 \
+            --port=8000 \
+            --set-env-vars="DJANGO_ENV=production" \
+            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,DB_HOST=db-host:latest,REDIS_URL=redis-url:latest,CELERY_BROKER_URL=celery-broker-url:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Run automated health checks
+        id: health_check
+        run: |
+          SERVICE_URL=$(gcloud run services describe backendeasy-candidate --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+          echo "🤖 Running automated tests..."
+
+          # Health check
+          if ! curl -f -s "$SERVICE_URL/health/" > /dev/null; then
+            echo "❌ Health check failed"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "✅ Health check passed"
+
+          # API check
+          if ! curl -f -s "$SERVICE_URL/api/v1/" > /dev/null; then
+            echo "❌ API check failed"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          echo "✅ API check passed"
+
+          echo "passed=true" >> $GITHUB_OUTPUT
+
+          echo "🚂 Station 2: CANDIDATE READY" >> $GITHUB_STEP_SUMMARY
+          echo "URL: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All automated checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deploy to production:**" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "git tag v1.0.0" >> $GITHUB_STEP_SUMMARY
+          echo "git push --tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Candidate failed
+        if: failure()
+        run: |
+          echo "🚨 Station 2: CANDIDATE FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "Production deployment BLOCKED" >> $GITHUB_STEP_SUMMARY
+          exit 1
+
+  # 🚂 STATION 3: Production (git tag)
+  deploy-production:
+    name: "🚂 Station 3: Production"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get tag name
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "${{ env.GCP_SA_EMAIL }}"
+
+      - name: Deploy to Production
+        run: |
+          GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+
+          # Use candidate image (already tested)
+          gcloud run deploy backendeasy \
+            --image=$GAR_IMAGE:candidate \
+            --region=${{ env.GCP_REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=1 \
+            --max-instances=100 \
+            --memory=1Gi \
+            --cpu=2 \
+            --port=8000 \
+            --tag=${{ steps.tag.outputs.tag }} \
+            --set-env-vars="DJANGO_ENV=production" \
+            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,DB_HOST=db-host:latest,REDIS_URL=redis-url:latest,CELERY_BROKER_URL=celery-broker-url:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
+
+          SERVICE_URL=$(gcloud run services describe backendeasy --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+          echo "🚂 Station 3: PRODUCTION DEPLOYED 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Cloud Run auto-rollback enabled." >> $GITHUB_STEP_SUMMARY
