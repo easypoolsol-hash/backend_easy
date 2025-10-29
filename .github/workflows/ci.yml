@@ -54,8 +54,6 @@ jobs:
         run: |
           echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
           echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
-          echo "SECRET_KEY=dummy-secret-key-for-mypy-ci" >> $GITHUB_ENV
-          echo "ENCRYPTION_KEY=dummy-encryption-key-for-mypy-ci" >> $GITHUB_ENV
       - name: Install dev deps
         run: |
           python -m pip install --upgrade pip
