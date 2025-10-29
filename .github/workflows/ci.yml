@@ -52,7 +52,7 @@ jobs:
           cache-dependency-path: 'setup.py'
       - name: Export DJANGO env for mypy
         run: |
-          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.test_settings" >> $GITHUB_ENV
           echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
       - name: Install dev deps
         run: |
