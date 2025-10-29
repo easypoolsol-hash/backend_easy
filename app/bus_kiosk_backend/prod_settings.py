@@ -24,9 +24,9 @@ SECURE_HSTS_PRELOAD = True
 SECURE_SSL_REDIRECT = True
 
 # Production logging (less verbose)
-LOGGING["root"]["level"] = "WARNING"
-LOGGING["loggers"]["django"]["level"] = "WARNING"
-LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"
+LOGGING["root"]["level"] = "WARNING"  # type: ignore
+LOGGING["loggers"]["django"]["level"] = "WARNING"  # type: ignore
+LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"  # type: ignore
 
 # Production database (PostgreSQL required)
 if not os.getenv("DB_ENGINE") == "django.db.backends.postgresql":

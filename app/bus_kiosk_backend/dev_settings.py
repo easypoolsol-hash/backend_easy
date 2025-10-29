@@ -41,9 +41,9 @@ SECURE_HSTS_PRELOAD = False
 SECURE_SSL_REDIRECT = False
 
 # Development logging (more verbose)
-LOGGING["root"]["level"] = "DEBUG"
-LOGGING["loggers"]["django"]["level"] = "DEBUG"
-LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "DEBUG"
+LOGGING["root"]["level"] = "DEBUG"  # type: ignore
+LOGGING["loggers"]["django"]["level"] = "DEBUG"  # type: ignore
+LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "DEBUG"  # type: ignore
 
 # Development database (SQLite for simplicity)
 DATABASES = {

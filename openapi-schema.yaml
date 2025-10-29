@@ -29,8 +29,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -57,8 +55,6 @@ paths:
               $ref: '#/components/schemas/APIKeyCreate'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -82,8 +78,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -118,8 +112,6 @@ paths:
               $ref: '#/components/schemas/APIKey'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -153,8 +145,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedAPIKey'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -177,8 +167,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -210,8 +198,6 @@ paths:
               $ref: '#/components/schemas/APIKey'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -266,8 +252,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -298,8 +282,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -324,8 +306,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -342,8 +322,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -378,8 +356,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -402,8 +378,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -520,7 +494,6 @@ paths:
       tags:
       - api
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -556,7 +529,6 @@ paths:
               $ref: '#/components/schemas/BoardingEventCreate'
         required: true
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '201':
@@ -588,7 +560,6 @@ paths:
       tags:
       - api
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -631,7 +602,6 @@ paths:
               $ref: '#/components/schemas/BoardingEvent'
         required: true
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -673,7 +643,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedBoardingEvent'
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -704,7 +673,6 @@ paths:
       tags:
       - api
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '204':
@@ -728,7 +696,6 @@ paths:
               $ref: '#/components/schemas/BoardingEvent'
         required: true
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -744,7 +711,6 @@ paths:
       tags:
       - api
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -792,8 +758,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -821,8 +785,6 @@ paths:
               $ref: '#/components/schemas/Bus'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -847,8 +809,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -884,8 +844,6 @@ paths:
               $ref: '#/components/schemas/Bus'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -920,8 +878,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedBus'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -945,8 +901,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -967,8 +921,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -997,8 +949,6 @@ paths:
               $ref: '#/components/schemas/Bus'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1015,8 +965,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1035,8 +983,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1066,8 +1012,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1106,8 +1050,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1134,8 +1076,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1170,8 +1110,6 @@ paths:
               additionalProperties: {}
               description: Unspecified request body
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1204,7 +1142,6 @@ paths:
       tags:
       - api
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -1238,7 +1175,6 @@ paths:
               $ref: '#/components/schemas/Heartbeat'
         required: true
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '204':
@@ -1269,7 +1205,6 @@ paths:
               $ref: '#/components/schemas/BusLocation'
         required: true
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '201':
@@ -1292,7 +1227,6 @@ paths:
       tags:
       - api
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -1361,7 +1295,6 @@ paths:
               $ref: '#/components/schemas/DeviceLog'
         required: true
       security:
-      - KioskJWTAuth: []
       - Bearer: []
       responses:
         '200':
@@ -1385,8 +1318,6 @@ paths:
       tags:
       - Parents
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1427,8 +1358,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1455,8 +1384,6 @@ paths:
               $ref: '#/components/schemas/Parent'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1480,8 +1407,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1516,8 +1441,6 @@ paths:
               $ref: '#/components/schemas/Parent'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1551,8 +1474,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedParent'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1575,8 +1496,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1596,8 +1515,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1625,8 +1542,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1654,8 +1569,6 @@ paths:
               $ref: '#/components/schemas/Route'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1680,8 +1593,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1717,8 +1628,6 @@ paths:
               $ref: '#/components/schemas/Route'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1753,8 +1662,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedRoute'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1778,8 +1685,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1800,8 +1705,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1826,8 +1729,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1862,8 +1763,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1890,8 +1789,6 @@ paths:
               $ref: '#/components/schemas/School'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1915,8 +1812,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1951,8 +1846,6 @@ paths:
               $ref: '#/components/schemas/School'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -1986,8 +1879,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedSchool'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2010,8 +1901,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2042,8 +1931,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2070,8 +1957,6 @@ paths:
               $ref: '#/components/schemas/StudentParent'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2094,8 +1979,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2129,8 +2012,6 @@ paths:
               $ref: '#/components/schemas/StudentParent'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2163,8 +2044,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedStudentParent'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2186,8 +2065,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2218,8 +2095,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2246,8 +2121,6 @@ paths:
               $ref: '#/components/schemas/StudentPhoto'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2271,8 +2144,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2307,8 +2178,6 @@ paths:
               $ref: '#/components/schemas/StudentPhoto'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2342,8 +2211,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedStudentPhoto'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2366,8 +2233,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2399,8 +2264,6 @@ paths:
               $ref: '#/components/schemas/StudentPhoto'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2435,8 +2298,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2463,8 +2324,6 @@ paths:
               $ref: '#/components/schemas/Student'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2488,8 +2347,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2524,8 +2381,6 @@ paths:
               $ref: '#/components/schemas/Student'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2559,8 +2414,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedStudent'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2583,8 +2436,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2616,8 +2467,6 @@ paths:
               $ref: '#/components/schemas/Student'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2641,8 +2490,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2677,8 +2524,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2705,8 +2550,6 @@ paths:
               $ref: '#/components/schemas/User'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2729,8 +2572,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2764,8 +2605,6 @@ paths:
               $ref: '#/components/schemas/User'
         required: true
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2798,8 +2637,6 @@ paths:
             schema:
               $ref: '#/components/schemas/PatchedUser'
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2821,8 +2658,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -2835,8 +2670,6 @@ paths:
       tags:
       - api
       security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
       - cookieAuth: []
       - Bearer: []
       responses:
@@ -4797,19 +4630,10 @@ components:
       - user_id
       - username
   securitySchemes:
-    KioskJWTAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: 'JWT auth for kiosks. Use ''Authorization: Bearer <token>''.'
     cookieAuth:
       type: apiKey
       in: cookie
       name: sessionid
-    jwtAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
 servers:
 - url: https://api.easypool.in
   description: Production API
