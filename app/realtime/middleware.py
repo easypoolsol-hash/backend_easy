@@ -1,11 +1,12 @@
 """WebSocket authentication middleware for JWT tokens."""
 
+import os
 from urllib.parse import parse_qs
 
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
-from django.contrib.auth.models import AnonymousUser
-from rest_framework_simplejwt.tokens import AccessToken
+import firebase_admin
+from firebase_admin import auth, credentials
 
 
 class JWTAuthMiddleware(BaseMiddleware):
@@ -18,16 +19,27 @@ class JWTAuthMiddleware(BaseMiddleware):
     Pattern: Fortune 500 standard - token in query string for WebSocket
     """
 
+    def __init__(self, inner):
+        super().__init__(inner)
+        # Initialize Firebase Admin SDK if not already initialized
+        if not firebase_admin._apps:
+            cred_path = os.path.join(os.path.dirname(__file__), "..", "..", "firebase_keys", "service-account-key.json")
+            if os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred)
+
     async def __call__(self, scope, receive, send):
         """Authenticate WebSocket connection using JWT token from query params."""
+        from django.contrib.auth.models import AnonymousUser
+
         # Extract token from query string
         query_string = scope.get("query_string", b"").decode()
         query_params = parse_qs(query_string)
         token = query_params.get("token", [None])[0]
 
         if token:
-            # Validate and decode JWT token
-            user = await self.get_user_from_token(token)
+            # Validate Firebase JWT token
+            user = await self.get_user_from_firebase_token(token)
             scope["user"] = user
         else:
             scope["user"] = AnonymousUser()
@@ -35,24 +47,42 @@ class JWTAuthMiddleware(BaseMiddleware):
         return await super().__call__(scope, receive, send)
 
     @database_sync_to_async
-    def get_user_from_token(self, token):
+    def get_user_from_firebase_token(self, token):
         """
-        Validate JWT token and return user.
+        Validate Firebase JWT token and return Django user.
 
         Returns:
-            User object if token is valid
-            AnonymousUser if token is invalid/expired
+            User object if token is valid and user exists
+            AnonymousUser if token is invalid/expired or user not found
         """
+        from django.contrib.auth.models import AnonymousUser
+
+        from users.models import User
+
         try:
-            # Decode and validate JWT token
-            access_token = AccessToken(token)
-            user_id = access_token["user_id"]
+            # Verify Firebase token
+            decoded_token = auth.verify_id_token(token)
+            firebase_uid = decoded_token["uid"]
+            email = decoded_token.get("email")
 
-            # Import here to avoid circular import
-            from users.models import User
+            # Try to find user by Firebase UID
+            try:
+                user = User.objects.get(user_id=firebase_uid)
+            except User.DoesNotExist:
+                # Create new user if not found
+                user = User.objects.create_user(
+                    username=firebase_uid,
+                    email=email or "",
+                    user_id=firebase_uid,
+                    first_name=(decoded_token.get("name", "").split()[0] if decoded_token.get("name") else ""),
+                    last_name=(
+                        " ".join(decoded_token.get("name", "").split()[1:])
+                        if (decoded_token.get("name") and len(decoded_token.get("name", "").split()) > 1)
+                        else ""
+                    ),
+                )
 
-            user = User.objects.get(user_id=user_id)
             return user
-        except Exception:
-            # Token invalid, expired, or user not found
+        except Exception as e:
+            print(f"Firebase token validation error: {e}")
             return AnonymousUser()

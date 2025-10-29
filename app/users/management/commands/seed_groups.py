@@ -76,6 +76,10 @@ class Command(BaseCommand):
                 "buses": {"bus": ["view"], "route": ["view"]},
                 "events": {"boardingevent": ["view"]},
             },
+            "New User": {
+                # No permissions - default group for Firebase-authenticated users
+                # Users must be assigned to a proper role by administrators
+            },
         }
 
         # Create groups and assign permissions

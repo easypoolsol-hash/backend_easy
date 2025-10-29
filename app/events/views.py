@@ -34,13 +34,9 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
     Now using AWS-style deny-by-default with explicit permissions.
     """
 
-    queryset = BoardingEvent.objects.select_related("student").order_by(
-        "-timestamp"
-    )
+    queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
     authentication_classes = [KioskJWTAuthentication]
-    permission_classes = [
-        IsSchoolAdmin
-    ]  # Default: school admin only for list/retrieve
+    permission_classes = [IsSchoolAdmin]  # Default: school admin only for list/retrieve
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]
 
@@ -109,13 +105,9 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
     Now using AWS-style deny-by-default with explicit permissions.
     """
 
-    queryset = AttendanceRecord.objects.select_related("student").order_by(
-        "-date"
-    )
+    queryset = AttendanceRecord.objects.select_related("student").order_by("-date")
     serializer_class = AttendanceRecordSerializer
-    permission_classes = [
-        IsSchoolAdmin
-    ]  # School admins only (no kiosks, no parents)
+    permission_classes = [IsSchoolAdmin]  # School admins only (no kiosks, no parents)
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["student", "date", "status"]
 

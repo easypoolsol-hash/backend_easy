@@ -85,10 +85,17 @@ class TestBusLocationSignal:
         mock_channel_layer = AsyncMock()
         mock_get_channel_layer.return_value = mock_channel_layer
 
-        # Create kiosk without bus
-        kiosk = Kiosk.objects.create(kiosk_id="UNASSIGNED_KIOSK", is_active=True)
+        # Create kiosk with bus, then unassign it
+        route = Route.objects.create(name="Test Route")
+        bus = Bus.objects.create(license_plate="TEST123", route=route, capacity=40, status="active")
+        kiosk = Kiosk.objects.create(kiosk_id="UNASSIGNED_KIOSK", bus=bus, is_active=True)
 
-        # Create location
+        # Unassign the kiosk from bus
+        kiosk.bus = None
+        kiosk.save()
+
+        # Create location - should still work since BusLocation requires bus
+        # But signal should ignore it because kiosk.bus is None
         BusLocation.objects.create(kiosk=kiosk, latitude=22.5726, longitude=88.3639, timestamp=timezone.now())
 
         # Verify NO call was made

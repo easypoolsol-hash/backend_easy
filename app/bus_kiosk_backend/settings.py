@@ -19,7 +19,7 @@ from typing import Any
 try:
     import firebase_admin
     from firebase_admin import credentials
-    
+
     # Initialize Firebase Admin SDK for token verification
     firebase_cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
     if firebase_cred_path and Path(firebase_cred_path).exists():
@@ -146,9 +146,7 @@ AUTH_USER_MODEL = "users.User"
 # REST Framework configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "bus_kiosk_backend.core.authentication.FirebaseAuthentication",  # Firebase tokens for Frontend Easy
-        "rest_framework_simplejwt.authentication.JWTAuthentication",     # JWT tokens for Bus Kids (backward compatibility)
-        "kiosks.authentication.KioskJWTAuthentication",                  # Custom kiosk authentication
+        "bus_kiosk_backend.core.authentication.FirebaseAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -239,17 +237,33 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # Django Channels Configuration (WebSocket Support)
 ASGI_APPLICATION = "bus_kiosk_backend.asgi.application"
 
-# Channel Layers - Redis backend for WebSocket communication
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
-            "capacity": 1500,  # Max messages per channel
-            "expiry": 10,  # Message expiry in seconds
+# Channel Layers - Redis backend for WebSocket communication (with fallback)
+try:
+    # Try to use Redis if available
+    import importlib.util
+
+    if importlib.util.find_spec("redis"):
+        CHANNEL_LAYERS = {
+            "default": {
+                "BACKEND": "channels_redis.core.RedisChannelLayer",
+                "CONFIG": {
+                    "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
+                    "capacity": 1500,  # Max messages per channel
+                    "expiry": 10,  # Message expiry in seconds
+                },
+            },
+        }
+        print("[OK] Using Redis channel layer")
+    else:
+        raise ImportError("Redis not available")
+except ImportError:
+    # Fallback to in-memory for development when Redis is not available
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
         },
-    },
-}
+    }
+    print("[WARN] Redis not available, using in-memory channel layer")
 
 # Logging Configuration - Environment-based
 # Build handlers list based on USE_FILE_LOGGING environment variable

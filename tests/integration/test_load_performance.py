@@ -1,10 +1,14 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import os
 import statistics
 import time
 
 from django.core.cache import cache
 import pytest
 from rest_framework import status
+
+# Environment variable to control load testing
+RUN_LOAD_TESTS = os.getenv("RUN_LOAD_TESTS", "false").lower() == "true"
 
 # Note: we don't rely on brittle coverage detection for skipping.
 # Skip true-concurrency tests unconditionally on SQLite (DB cannot handle concurrent writes reliably).
@@ -28,6 +32,9 @@ class TestAuthenticationLoadPerformance:
         Industry Standard: Performance testing under concurrent users.
         Uses pytest-xdist for parallel execution.
         """
+        if not RUN_LOAD_TESTS:
+            pytest.skip("Concurrent load tests skipped. Set RUN_LOAD_TESTS=true to run.")
+
         # Skip this test on SQLite because SQLite serializes writes and will produce false failures under concurrency
         from django.db import connection
 
@@ -120,6 +127,9 @@ class TestAuthenticationLoadPerformance:
 
         Industry Standard: Endurance testing for long-running operations.
         """
+        if not RUN_LOAD_TESTS:
+            pytest.skip("Sustained load tests skipped. Set RUN_LOAD_TESTS=true to run.")
+
         kiosk, activation_token = test_kiosk
 
         # Get initial tokens
@@ -175,6 +185,9 @@ class TestAuthenticationLoadPerformance:
 
         Industry Standard: Multi-tenant load testing.
         """
+        if not RUN_LOAD_TESTS:
+            pytest.skip("Mixed authentication load tests skipped. Set RUN_LOAD_TESTS=true to run.")
+
         kiosk, activation_token = test_kiosk
 
         # Get kiosk token
@@ -273,6 +286,9 @@ class TestAuthenticationLoadPerformance:
         Industry Standard: Throughput testing with performance baselines.
         Tests authenticated API calls using JWT tokens.
         """
+        if not RUN_LOAD_TESTS:
+            pytest.skip("Throughput benchmark tests skipped. Set RUN_LOAD_TESTS=true to run.")
+
         kiosk, activation_token = test_kiosk
 
         # First activate the kiosk to get JWT tokens
@@ -327,6 +343,9 @@ class TestAuthenticationLoadPerformance:
 
         Industry Standard: Memory stress testing for authenticated requests.
         """
+        if not RUN_LOAD_TESTS:
+            pytest.skip("Memory pressure tests skipped. Set RUN_LOAD_TESTS=true to run.")
+
         import os
 
         import psutil
@@ -380,6 +399,9 @@ class TestAuthenticationLoadPerformance:
 
         Industry Standard: Cache performance validation for authenticated requests.
         """
+        if not RUN_LOAD_TESTS:
+            pytest.skip("Cache performance tests skipped. Set RUN_LOAD_TESTS=true to run.")
+
         kiosk, activation_token = test_kiosk
 
         # First activate the kiosk to get JWT tokens

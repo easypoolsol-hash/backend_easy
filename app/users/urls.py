@@ -11,6 +11,8 @@ router.register(r"audit-logs", views.AuditLogViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
+    # NOTE: User authentication is handled by Firebase (no JWT login endpoint)
+    # Kiosk authentication uses /api/v1/kiosks/activate/ endpoint
     # Parent-specific endpoints (IAM-filtered)
     path("parent/my-buses/", views.parent_bus_locations, name="parent_bus_locations"),
 ]

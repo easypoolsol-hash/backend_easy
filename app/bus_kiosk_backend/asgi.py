@@ -15,6 +15,8 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
 
+# Set Django settings module - check for override from environment (e.g., Makefile)
+# If DJANGO_SETTINGS_MODULE is set in environment, use it; otherwise default to production settings
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
 
 # Initialize Django ASGI application early to ensure AppRegistry is populated

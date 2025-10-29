@@ -10,7 +10,7 @@ import pytest
 import schemathesis
 
 # Load schema from file (generated via: python manage.py spectacular --file openapi-schema.yaml)
-schema = schemathesis.from_path("openapi-schema.yaml")
+schema = schemathesis.openapi.from_path("openapi-schema.yaml")
 
 
 @pytest.mark.django_db

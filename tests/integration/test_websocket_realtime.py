@@ -77,7 +77,7 @@ class TestBusTrackingWebSocket(TestCase):
 
         # Create a new bus location (triggers signal)
         await sync_to_async(BusLocation.objects.create)(
-            kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=45.5, heading=90.0, accuracy=10.0, timestamp=timezone.now()
+            bus=self.bus, kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=45.5, heading=90.0, accuracy=10.0, timestamp=timezone.now()
         )
 
         # Receive message from WebSocket
@@ -112,7 +112,9 @@ class TestBusTrackingWebSocket(TestCase):
         self.assertTrue(connected2)
 
         # Create bus location
-        await sync_to_async(BusLocation.objects.create)(kiosk=self.kiosk, latitude=22.5800, longitude=88.3700, speed=30.0, timestamp=timezone.now())
+        await sync_to_async(BusLocation.objects.create)(
+            bus=self.bus, kiosk=self.kiosk, latitude=22.5800, longitude=88.3700, speed=30.0, timestamp=timezone.now()
+        )
 
         # Both clients should receive the update
         response1 = await comm1.receive_json_from(timeout=5)
@@ -169,9 +171,13 @@ class TestBusTrackingWebSocket(TestCase):
         kiosk2 = await sync_to_async(Kiosk.objects.create)(kiosk_id="KIOSK002", bus=bus2, is_active=True)
 
         # Create existing locations for both buses
-        await sync_to_async(BusLocation.objects.create)(kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=45.0, timestamp=timezone.now())
+        await sync_to_async(BusLocation.objects.create)(
+            bus=self.bus, kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=45.0, timestamp=timezone.now()
+        )
 
-        await sync_to_async(BusLocation.objects.create)(kiosk=kiosk2, latitude=22.5826, longitude=88.3739, speed=30.0, timestamp=timezone.now())
+        await sync_to_async(BusLocation.objects.create)(
+            bus=bus2, kiosk=kiosk2, latitude=22.5826, longitude=88.3739, speed=30.0, timestamp=timezone.now()
+        )
 
         # Step 1: HTTP GET initial load (wrap sync client in sync_to_async)
         client = Client()
@@ -195,7 +201,9 @@ class TestBusTrackingWebSocket(TestCase):
         self.assertTrue(connected)
 
         # Step 3: Only Bus A moves (creates new location)
-        await sync_to_async(BusLocation.objects.create)(kiosk=self.kiosk, latitude=22.5750, longitude=88.3650, speed=50.0, timestamp=timezone.now())
+        await sync_to_async(BusLocation.objects.create)(
+            bus=self.bus, kiosk=self.kiosk, latitude=22.5750, longitude=88.3650, speed=50.0, timestamp=timezone.now()
+        )
 
         # Step 4: WebSocket should send ONLY Bus A update (not both)
         ws_response = await communicator.receive_json_from(timeout=5)
@@ -221,7 +229,9 @@ class TestBusTrackingWebSocket(TestCase):
     def test_signal_handler_publishes_location(self):
         """Test that signal handler publishes location to channel layer."""
         # This tests the synchronous signal handler
-        location = BusLocation.objects.create(kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=25.0, timestamp=timezone.now())
+        location = BusLocation.objects.create(
+            bus=self.bus, kiosk=self.kiosk, latitude=22.5726, longitude=88.3639, speed=25.0, timestamp=timezone.now()
+        )
 
         # Signal should have been triggered
         # (Actual message delivery tested in async tests above)

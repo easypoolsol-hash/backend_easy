@@ -56,7 +56,10 @@ def publish_boarding_event(sender, instance, created, **kwargs):
     # Update cached stats and broadcast
     today = timezone.now().date()
     cache_key_stats = f"dashboard_stats_{today}"
-    cache.delete(cache_key_stats)  # Invalidate cache
+    try:
+        cache.delete(cache_key_stats)  # Invalidate cache
+    except Exception:
+        pass  # Cache not available, continue
 
     # Calculate fresh stats
     students_boarded = BoardingEvent.objects.filter(timestamp__date=today).values("student").distinct().count()

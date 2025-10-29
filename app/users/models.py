@@ -21,14 +21,18 @@ class UserManager(BaseUserManager):
 
         email = self.normalize_email(email)
 
+        # Generate user_id if not provided (for development/test users)
+        if "user_id" not in extra_fields:
+            extra_fields["user_id"] = f"dev-{username}-{uuid.uuid4().hex[:8]}"
+
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)  # type: ignore[attr-defined]
         user.save(using=self._db)
 
-        # Assign default group if not provided
+        # Assign default group for new users (no permissions)
         if not user.groups.exists():
             try:
-                default_group, _ = Group.objects.get_or_create(name="Backend Engineer")
+                default_group, _ = Group.objects.get_or_create(name="New User")
                 user.groups.add(default_group)
             except Exception:  # nosec B110
                 # If Group table doesn't exist yet, skip setting group
@@ -39,6 +43,10 @@ class UserManager(BaseUserManager):
     def create_superuser(self, username, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
+
+        # Generate user_id if not provided (for development/test users)
+        if "user_id" not in extra_fields:
+            extra_fields["user_id"] = f"super-{username}-{uuid.uuid4().hex[:8]}"
 
         user = self.create_user(username, email, password, **extra_fields)
 
@@ -65,13 +73,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     - Backend Engineer: Read-only production access
     - School Administrator: Full control within assigned school
     - Parent: View own children and bus tracking
+    - New User: No permissions (default for Firebase-authenticated users)
     """
 
-    user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # Changed to CharField to store Firebase UIDs (strings)
+    user_id = models.CharField(max_length=128, unique=True, editable=False)
+    # Optional internal UUID for future use
+    internal_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=150, blank=True, default='')
-    last_name = models.CharField(max_length=150, blank=True, default='')
+    first_name = models.CharField(max_length=150, blank=True, default="")
+    last_name = models.CharField(max_length=150, blank=True, default="")
     # Note: groups and user_permissions come from PermissionsMixin
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)  # For Django admin access

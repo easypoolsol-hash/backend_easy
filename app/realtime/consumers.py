@@ -33,7 +33,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
-        if hasattr(self, 'group_name'):
+        if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
@@ -103,7 +103,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         if not user or not user.is_authenticated:
             return False
         # Only school admins can access dashboard
-        return user.groups.filter(name="SchoolAdmin").exists()
+        return user.groups.filter(name="School Administrator").exists()
 
 
 class BusTrackingConsumer(AsyncWebsocketConsumer):
@@ -139,7 +139,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
         # Leave bus updates group safely
-        if hasattr(self, 'group_name'):
+        if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(
                 self.group_name,  # Group to leave
                 self.channel_name,  # This connection's unique channel name

@@ -2696,13 +2696,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserCreate'
+              $ref: '#/components/schemas/User'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/UserCreate'
+              $ref: '#/components/schemas/User'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/UserCreate'
+              $ref: '#/components/schemas/User'
         required: true
       security:
       - jwtAuth: []
@@ -2714,18 +2714,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserCreate'
+                $ref: '#/components/schemas/User'
           description: ''
-  /api/v1/users/{user_id}/:
+  /api/v1/users/{id}/:
     get:
       operationId: api_v1_users_retrieve
       parameters:
       - in: path
-        name: user_id
+        name: id
         schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this user.
+          type: integer
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - api
@@ -2745,11 +2744,10 @@ paths:
       operationId: api_v1_users_update
       parameters:
       - in: path
-        name: user_id
+        name: id
         schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this user.
+          type: integer
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - api
@@ -2781,11 +2779,10 @@ paths:
       operationId: api_v1_users_partial_update
       parameters:
       - in: path
-        name: user_id
+        name: id
         schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this user.
+          type: integer
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - api
@@ -2816,11 +2813,10 @@ paths:
       operationId: api_v1_users_destroy
       parameters:
       - in: path
-        name: user_id
+        name: id
         schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this user.
+          type: integer
+        description: A unique integer value identifying this user.
         required: true
       tags:
       - api
@@ -2832,71 +2828,6 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/v1/users/login/:
-    post:
-      operationId: api_v1_users_login_create
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/User'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/User'
-        required: true
-      security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-          description: ''
-  /api/v1/users/logout/:
-    post:
-      operationId: api_v1_users_logout_create
-      description: |-
-        Logout endpoint - Blacklists refresh token (Fortune 500 standard)
-
-        Security: Prevents token reuse even if stolen
-
-        Request Body: { "refresh": "..." }
-        Returns: 200 { "message": "Logout successful" }
-      tags:
-      - api
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/User'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/User'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/User'
-        required: true
-      security:
-      - jwtAuth: []
-      - KioskJWTAuth: []
-      - cookieAuth: []
-      - Bearer: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-          description: ''
   /api/v1/users/me/:
     get:
       operationId: api_v1_users_me_retrieve
@@ -3050,8 +2981,7 @@ components:
           type: integer
           readOnly: true
         user:
-          type: string
-          format: uuid
+          type: integer
           nullable: true
         user_username:
           type: string
@@ -4457,7 +4387,6 @@ components:
       properties:
         user_id:
           type: string
-          format: uuid
           readOnly: true
         username:
           type: string
@@ -4827,7 +4756,6 @@ components:
       properties:
         user_id:
           type: string
-          format: uuid
           readOnly: true
         username:
           type: string
@@ -4867,32 +4795,6 @@ components:
       - last_login
       - updated_at
       - user_id
-      - username
-    UserCreate:
-      type: object
-      properties:
-        username:
-          type: string
-          maxLength: 150
-        email:
-          type: string
-          format: email
-          maxLength: 254
-        password:
-          type: string
-          writeOnly: true
-        password_confirm:
-          type: string
-          writeOnly: true
-        group_names:
-          type: array
-          items:
-            type: string
-          writeOnly: true
-      required:
-      - email
-      - password
-      - password_confirm
       - username
   securitySchemes:
     KioskJWTAuth:

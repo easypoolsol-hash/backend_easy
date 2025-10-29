@@ -11,8 +11,9 @@ Flow:
 4. Firebase auto-expires old data (keeps only 5 min)
 """
 
-import logging
 from datetime import datetime, timedelta
+import logging
+
 from django.utils import timezone
 from firebase_admin import db
 
@@ -26,8 +27,7 @@ class BusLocationService:
     """Manages bus location updates with dual storage"""
 
     @staticmethod
-    def update_location(bus_id: str, latitude: float, longitude: float,
-                       speed: float = 0, heading: float = 0, **kwargs):
+    def update_location(bus_id: str, latitude: float, longitude: float, speed: float = 0, heading: float = 0, **kwargs):
         """
         Update bus location in both Firebase and PostgreSQL
 
@@ -43,27 +43,29 @@ class BusLocationService:
 
         try:
             # 1. Write to Firebase Realtime DB (live tracking)
-            firebase_ref = db.reference(f'buses/{bus_id}/location')
-            firebase_ref.set({
-                'lat': latitude,
-                'lng': longitude,
-                'speed': speed,
-                'heading': heading,
-                'timestamp': timestamp.isoformat(),
-                'updated_at': {'.sv': 'timestamp'}  # Firebase server timestamp
-            })
+            firebase_ref = db.reference(f"buses/{bus_id}/location")
+            firebase_ref.set(
+                {
+                    "lat": latitude,
+                    "lng": longitude,
+                    "speed": speed,
+                    "heading": heading,
+                    "timestamp": timestamp.isoformat(),
+                    "updated_at": {".sv": "timestamp"},  # Firebase server timestamp
+                }
+            )
 
             # 2. Write to PostgreSQL (permanent storage)
-            bus = Bus.objects.get(bus_id=bus_id)
+            bus = Bus.objects.get(bus_number=bus_id)
+            kiosk = bus.kiosk
             BusLocation.objects.create(
-                bus=bus,
+                kiosk=kiosk,
                 latitude=latitude,
                 longitude=longitude,
                 speed=speed,
                 heading=heading,
+                accuracy=kwargs.get("accuracy"),
                 timestamp=timestamp,
-                altitude=kwargs.get('altitude'),
-                accuracy=kwargs.get('accuracy'),
             )
 
             # 3. Clean old Firebase data (keep only last 5 minutes)
@@ -83,12 +85,10 @@ class BusLocationService:
         """Remove Firebase data older than 5 minutes"""
         try:
             cutoff_time = timezone.now() - timedelta(minutes=5)
-            history_ref = db.reference(f'buses/{bus_id}/history')
+            history_ref = db.reference(f"buses/{bus_id}/history")
 
             # Query old data and remove
-            old_data = history_ref.order_by_child('timestamp').end_at(
-                cutoff_time.isoformat()
-            ).get()
+            old_data = history_ref.order_by_child("timestamp").end_at(cutoff_time.isoformat()).get()
 
             if old_data:
                 for key in old_data.keys():
@@ -101,7 +101,7 @@ class BusLocationService:
     def get_current_locations():
         """Get current locations for all active buses"""
         try:
-            buses_ref = db.reference('buses')
+            buses_ref = db.reference("buses")
             return buses_ref.get() or {}
         except Exception as e:
             logger.error(f"Failed to get current locations: {e}")
@@ -120,8 +120,4 @@ class BusLocationService:
         Returns:
             QuerySet of BusLocation objects
         """
-        return BusLocation.objects.filter(
-            bus__bus_id=bus_id,
-            timestamp__gte=start_time,
-            timestamp__lte=end_time
-        ).order_by('timestamp')
+        return BusLocation.objects.filter(kiosk__bus__bus_number=bus_id, timestamp__gte=start_time, timestamp__lte=end_time).order_by("timestamp")
