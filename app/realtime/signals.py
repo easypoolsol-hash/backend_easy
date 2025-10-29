@@ -29,6 +29,13 @@ def publish_boarding_event(sender, instance, created, **kwargs):
     if not created:
         return  # Only process new events
 
+    # Skip WebSocket notifications during data seeding (performance optimization)
+    # Seed scripts create hundreds of events - no need for real-time notifications
+    import sys
+
+    if "seed" in " ".join(sys.argv):
+        return  # Skip WebSocket during seeding
+
     channel_layer = get_channel_layer()
     if not channel_layer:
         return  # Channel layer not configured
@@ -50,8 +57,15 @@ def publish_boarding_event(sender, instance, created, **kwargs):
         "event_type": instance.metadata.get("event_type", "boarding"),
     }
 
-    # Publish to Redis channel (all servers will receive this)
-    async_to_sync(channel_layer.group_send)("dashboard_updates", event_data)
+    # Publish to channel layer (all servers will receive this)
+    try:
+        async_to_sync(channel_layer.group_send)("dashboard_updates", event_data)
+    except Exception as e:
+        # Channel layer not available or connection failed
+        # This is OK - event is still saved in database
+        # WebSocket notifications are best-effort, not critical
+        print(f"[WARN] Failed to publish boarding event to WebSocket: {e}")
+        return
 
     # Update cached stats and broadcast
     today = timezone.now().date()
@@ -71,7 +85,11 @@ def publish_boarding_event(sender, instance, created, **kwargs):
         "students_boarded_today": students_boarded,
         "total_events_today": total_events,
     }
-    async_to_sync(channel_layer.group_send)("dashboard_updates", stats_data)
+    try:
+        async_to_sync(channel_layer.group_send)("dashboard_updates", stats_data)
+    except Exception as e:
+        # Channel layer error - stats update is best-effort
+        print(f"[WARN] Failed to publish stats to WebSocket: {e}")
 
 
 @receiver(post_save, sender=BusLocation)
@@ -111,4 +129,8 @@ def publish_bus_location_update(sender, instance, created, **kwargs):
     }
 
     # Publish to channel (group send)
-    async_to_sync(channel_layer.group_send)("bus_updates", event_data)
+    try:
+        async_to_sync(channel_layer.group_send)("bus_updates", event_data)
+    except Exception as e:
+        # Channel layer not available - this is OK for local development
+        print(f"[WARN] Failed to publish bus location to WebSocket: {e}")

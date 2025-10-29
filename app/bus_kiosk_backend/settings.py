@@ -237,33 +237,28 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # Django Channels Configuration (WebSocket Support)
 ASGI_APPLICATION = "bus_kiosk_backend.asgi.application"
 
-# Channel Layers - Redis backend for WebSocket communication (with fallback)
-try:
-    # Try to use Redis if available
-    import importlib.util
-
-    if importlib.util.find_spec("redis"):
-        CHANNEL_LAYERS = {
-            "default": {
-                "BACKEND": "channels_redis.core.RedisChannelLayer",
-                "CONFIG": {
-                    "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
-                    "capacity": 1500,  # Max messages per channel
-                    "expiry": 10,  # Message expiry in seconds
-                },
-            },
-        }
-        print("[OK] Using Redis channel layer")
-    else:
-        raise ImportError("Redis not available")
-except ImportError:
-    # Fallback to in-memory for development when Redis is not available
+# Channel Layers - Use in-memory for local dev, Redis for production
+if DEBUG:
+    # Local development: Use in-memory channel layer (no Redis needed)
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer",
         },
     }
-    print("[WARN] Redis not available, using in-memory channel layer")
+    print("[OK] Using in-memory channel layer (local development)")
+else:
+    # Production: Use Redis for multi-instance WebSocket support
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")],
+                "capacity": 1500,  # type: ignore[dict-item]  # Max messages per channel
+                "expiry": 10,  # type: ignore[dict-item]  # Message expiry in seconds
+            },
+        },
+    }
+    print("[OK] Using Redis channel layer (production)")
 
 # Logging Configuration - Environment-based
 # Build handlers list based on USE_FILE_LOGGING environment variable
@@ -485,42 +480,9 @@ else:
         }
     }
 
-# Cache configuration
-redis_url = os.getenv("REDIS_URL")
-if redis_url and not os.getenv("GITHUB_ACTIONS"):  # Disable Redis in CI for now
-    try:
-        CACHES = {
-            "default": {
-                "BACKEND": "django.core.cache.backends.redis.RedisCache",
-                "LOCATION": redis_url,
-                "KEY_PREFIX": "bus_kiosk",
-                "TIMEOUT": 300,  # 5 minutes default
-            },
-            "api_cache": {
-                "BACKEND": "django.core.cache.backends.redis.RedisCache",
-                "LOCATION": redis_url,
-                "KEY_PREFIX": "api",
-                "TIMEOUT": 3600,  # 1 hour for API responses
-            },
-        }
-    except Exception:
-        # Fallback to memory cache if Redis fails
-        CACHES = {
-            "default": {
-                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                "LOCATION": "unique-snowflake",
-                "KEY_PREFIX": "bus_kiosk",
-                "TIMEOUT": 300,
-            },
-            "api_cache": {
-                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-                "LOCATION": "api-cache",
-                "KEY_PREFIX": "api",
-                "TIMEOUT": 3600,
-            },
-        }
-else:
-    # Fallback to local memory cache for development and CI
+# Cache configuration - Use in-memory for local dev, Redis for production
+if DEBUG:
+    # Local development: Use in-memory cache (no Redis needed)
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
@@ -531,6 +493,23 @@ else:
         "api_cache": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "api-cache",
+            "KEY_PREFIX": "api",
+            "TIMEOUT": 3600,  # 1 hour for API responses
+        },
+    }
+else:
+    # Production: Use Redis for caching
+    redis_url = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_url,
+            "KEY_PREFIX": "bus_kiosk",
+            "TIMEOUT": 300,  # 5 minutes default
+        },
+        "api_cache": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_url,
             "KEY_PREFIX": "api",
             "TIMEOUT": 3600,  # 1 hour for API responses
         },
