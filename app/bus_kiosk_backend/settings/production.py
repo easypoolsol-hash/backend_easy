@@ -13,6 +13,7 @@ Fortune 500 Pattern:
 """
 
 import os
+from typing import cast
 
 import dj_database_url
 
@@ -83,13 +84,8 @@ if not DATABASE_URL:
     raise ValueError("Production requires DATABASE_URL environment variable")
 
 # Parse DATABASE_URL using dj-database-url (12-factor app pattern)
-DATABASES = {
-    "default": dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)
+DATABASES = {"default": cast(dict[str, object], db_config)}
 
 # Add PostgreSQL-specific options
 DATABASES["default"]["OPTIONS"] = {
