@@ -211,3 +211,4 @@ This backend implements enterprise-grade quality assurance practices:
 - **Rate limiting**: DDoS protection
 - **Audit logging**: Complete action tracking
 # Test comment to trigger pre-commit hook
+# Test Firebase IAM fix
