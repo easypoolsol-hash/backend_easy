@@ -66,7 +66,7 @@ class JWTAuthMiddleware(BaseMiddleware):
             email = decoded_token.get("email")
 
             # Get or create user by Firebase UID
-            user, created = User.objects.get_or_create(
+            user, _created = User.objects.get_or_create(
                 user_id=firebase_uid,
                 defaults={
                     "username": firebase_uid,
