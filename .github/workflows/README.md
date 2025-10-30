@@ -1,272 +1,179 @@
-# CI/CD Pipeline Documentation
+# GitHub Actions Workflows
 
-## 🎯 Overview
+## Philosophy: Build → Push → Forget
 
-This repository implements a **production-grade CI/CD pipeline** following industry best practices with **production-test parity**. The pipeline ensures that Docker images are thoroughly tested before being pushed to Docker Hub.
-
-## 🏗️ Pipeline Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     CI Pipeline Flow                         │
-└─────────────────────────────────────────────────────────────┘
-
-1. Code Quality ⚡ (Fast Feedback)
-   ├─ Ruff Linting
-   └─ MyPy Type Checking
-
-2. Unit & Integration Tests 🧪
-   ├─ PostgreSQL 15 Service
-   ├─ Redis 7 Service
-   └─ Django Test Suite (51 tests)
-
-3. Build Docker Image 🐳
-   └─ Build & Save as Artifact
-
-4. Test Docker Image ✅ (Production Parity!)
-   ├─ Load Built Image
-   ├─ Start with docker-compose
-   │  ├─ PostgreSQL (matches prod)
-   │  ├─ Redis (matches prod)
-   │  └─ Backend Container
-   ├─ Run Migrations
-   ├─ Collect Static Files
-   └─ Run Full Test Suite in Container
-
-5. Security Scan 🔒
-   └─ Trivy Vulnerability Scan
-
-6. Push to Docker Hub 📦 (Only if ALL tests pass)
-   └─ Tags: latest, sha, blue, green, staging
-```
-
-## 🎖️ Why This Approach?
-
-### Production-Test Parity ✅
-
-This pipeline follows the **12-factor app** methodology by ensuring:
-
-1. **Same Environment**: Tests run in the exact Docker container that will run in production
-2. **Same Services**: PostgreSQL and Redis versions match production
-3. **Same Configuration**: Environment variables and settings mirror production
-4. **Same Commands**: Migrations and static file collection tested before deployment
-
-### Benefits
-
-| Benefit | Description |
-|---------|-------------|
-| 🐛 **Catch Docker Bugs** | Missing env vars, file permissions, volume issues |
-| 🔒 **Security** | Only tested images reach Docker Hub |
-| 🚀 **Confidence** | 95%+ bug detection rate |
-| 📊 **Observability** | Clear pass/fail at each stage |
-| ⚡ **Fast Feedback** | Fail at earliest possible stage |
-
-## 📋 Pipeline Jobs
-
-### Job 1: Code Quality (2-3 min)
-
-**Purpose**: Fast feedback on code style and type safety
-
-```yaml
-- Checkout code
-- Install linting dependencies
-- Run ruff check .
-- Run mypy .
-```
-
-**Fails if**: Linting errors or type checking errors
+**GitHub Actions:** Build image and push to registry
+**Terraform:** Already configured everything else
+**Cloud Run:** Auto-deploys when it sees new image
 
 ---
 
-### Job 2: Unit & Integration Tests (3-5 min)
+## Active Workflows
 
-**Purpose**: Test Django application with real database services
+### ✅ `deploy.yml` - Main Deployment
+**Trigger:** Push to `main` or `master`
 
-**Services**:
-- PostgreSQL 15 (port 5432)
-- Redis 7 (port 6379)
+**What it does:**
+1. Run tests (quality gate)
+2. Build Docker image
+3. Push to GCP Artifact Registry as `:latest`
+4. **Done!** Cloud Run auto-deploys
 
-```yaml
-- Checkout code
-- Set up Python 3.11
-- Install dependencies
-- Run Django tests
-- Upload coverage report
-```
+### ✅ `ci.yml` - Full CI Pipeline (Optional)
+**Trigger:** All pushes & PRs
 
-**Fails if**: Any test fails
-
----
-
-### Job 3: Build Docker Image (2-3 min)
-
-**Purpose**: Build production Docker image
-
-```yaml
-- Checkout code
-- Set up Docker Buildx
-- Build image (no push yet!)
-- Save as artifact for next job
-```
-
-**Output**: `docker-image` artifact
+**What it does:**
+- Full test suite (unit, integration, contract, e2e)
+- Security scanning
+- Smoke tests
+- Does NOT deploy
 
 ---
 
-### Job 4: Test Docker Image 🌟 (3-5 min)
+## Required GitHub Secrets
 
-**Purpose**: Test the actual Docker image with production-like setup
+After `terraform apply`, set these 2 secrets:
 
-**This is the key differentiator!**
+```bash
+# Get values from terraform
+cd backend_easy_infra/terraform
+terraform output
 
-```yaml
-- Load Docker image from artifact
-- Create test environment (.env.test)
-- Create docker-compose.test.yml
-  - PostgreSQL 15
-  - Redis 7
-  - Backend (your image)
-- Run in container:
-  - python manage.py migrate
-  - python manage.py collectstatic
-  - python manage.py test
-- Cleanup containers
+# Set in GitHub
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER \
+  --body="<value from terraform output>"
+
+gh secret set GCP_SERVICE_ACCOUNT \
+  --body="github-actions@backend-easypool.iam.gserviceaccount.com"
 ```
 
-**Fails if**:
-- Image fails to start
-- Migrations fail
-- Static files collection fails
-- Any test fails in container
+Or via GitHub UI: **Settings → Secrets → Actions**
 
 ---
 
-### Job 5: Security Scan (1-2 min)
+## How Deployment Works
 
-**Purpose**: Scan Docker image for vulnerabilities
-
-```yaml
-- Load Docker image
-- Run Trivy scanner
-- Upload results to GitHub Security
+```
+1. Git push to main
+   ↓
+2. deploy.yml runs tests
+   ↓ (tests pass)
+3. Builds Docker image
+   ↓
+4. Pushes to GCP Artifact Registry
+   ↓
+5. [GitHub Actions STOPS]
+   ↓
+6. Cloud Run sees new image
+   ↓
+7. Auto-deploys to production
 ```
 
-**Note**: Non-blocking (warnings only)
+**No manual deployment commands!**
+**Terraform configured Cloud Run to watch for new images.**
 
 ---
 
-### Job 6: Push to Docker Hub (1-2 min)
+## What Each Workflow Does
 
-**Purpose**: Push tested image to registry
+### `deploy.yml` (Simple - Just Push Image)
+- Tests → Build → Push
+- GitHub Actions does **NOT** touch Cloud Run
+- Cloud Run handles deployment automatically
 
-**Triggers**: Only on `master` or `main` branch
+### `ci.yml` (Full Testing - Optional)
+- Comprehensive testing for PRs
+- Runs on all branches
+- Does NOT push images or deploy
 
-```yaml
-- Load Docker image
-- Login to Docker Hub
-- Tag image:
-  - latest
-  - {commit-sha}
-  - blue
-  - green
-  - staging
-- Push all tags
-```
+### `railway-cd.yml` (DELETE THIS)
+- Old Railway deployment
+- Not needed for GCP
 
-**Fails if**: Docker Hub login fails or push fails
-
----
-
-## 🚀 Total Pipeline Time
-
-| Stage | Time | Cumulative |
-|-------|------|------------|
-| Code Quality | 2-3 min | 2-3 min |
-| Tests | 3-5 min | 5-8 min |
-| Build | 2-3 min | 7-11 min |
-| Test Image | 3-5 min | 10-16 min |
-| Security | 1-2 min | 11-18 min |
-| Push | 1-2 min | 12-20 min |
-
-**Average Total**: ~15 minutes for full pipeline
-
-## 🔧 Required GitHub Secrets
-
-Set these in your repository settings:
-
-```
-DOCKER_USERNAME: your-dockerhub-username
-DOCKER_PASSWORD: your-dockerhub-token (NOT password!)
-```
-
-## 📦 Docker Hub Tags
-
-After successful CI run on `master`/`main`:
-
-```
-dockerhub.io/username/bus_kiosk_backend:latest      # Latest stable
-dockerhub.io/username/bus_kiosk_backend:abc123      # Commit SHA
-dockerhub.io/username/bus_kiosk_backend:blue        # Blue deployment slot
-dockerhub.io/username/bus_kiosk_backend:green       # Green deployment slot
-dockerhub.io/username/bus_kiosk_backend:staging     # Staging environment
-```
-
-## 🎯 Production Parity Checklist
-
-✅ **Database**: PostgreSQL 15 (same as prod)
-✅ **Cache**: Redis 7 (same as prod)
-✅ **Container**: Exact same Docker image
-✅ **Migrations**: Tested before deployment
-✅ **Static Files**: Tested before deployment
-✅ **Environment Variables**: Validated
-✅ **Health Checks**: Services must be healthy
-✅ **Tests**: Run in containerized environment
-
-## 🔍 Troubleshooting
-
-### Tests pass locally but fail in CI?
-
-1. Check service health: PostgreSQL/Redis might not be ready
-2. Check environment variables in CI
-3. Check database connection string (host should be `postgres` in docker-compose)
-
-### Docker image build fails?
-
-1. Check Dockerfile syntax
-2. Check if all required files are present
-3. Review build logs in GitHub Actions
-
-### Tests pass in code but fail in Docker?
-
-This is EXACTLY why we test the image! Common issues:
-- Missing environment variables in Dockerfile
-- Wrong file permissions
-- Missing system dependencies
-- Volume mounting issues
-
-### Push to Docker Hub fails?
-
-1. Verify GitHub secrets are set correctly
-2. Use Docker Hub **token**, not password
-3. Check Docker Hub repository exists and is accessible
-
-## 📚 Additional Resources
-
-- [12-Factor App Methodology](https://12factor.net/)
-- [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Trivy Security Scanner](https://github.com/aquasecurity/trivy)
-
-## 🎓 Industry Standards Followed
-
-✅ **Shift-Left Testing**: Test early, test often
-✅ **Production Parity**: Test environment mirrors production
-✅ **Fail Fast**: Catch errors at earliest stage
-✅ **Immutable Infrastructure**: Test exact image that will be deployed
-✅ **Security Scanning**: Automated vulnerability detection
-✅ **Semantic Versioning**: Multiple tags for different use cases
+### `build-image.yml` (DELETE THIS)
+- Replaced by deploy.yml
+- Not needed anymore
 
 ---
 
-**Pipeline maintained by**: DevOps Team
-**Last updated**: October 4, 2025
+## Files to Delete
+
+```bash
+# Old/unused workflows
+rm .github/workflows/railway-cd.yml
+rm .github/workflows/build-image.yml
+
+# Old deployment action (GitHub doesn't deploy anymore)
+rm -rf .github/actions/deploy-cloud-run/
+```
+
+---
+
+## Cost
+
+| Service | Cost |
+|---------|------|
+| GitHub Actions | FREE (2000 min/month) |
+| Build time per push | ~5-10 minutes |
+| **Monthly cost** | **$0** |
+
+---
+
+## Troubleshooting
+
+### Authentication Error
+```bash
+# Check secrets are set
+gh secret list
+
+# Should see:
+# GCP_WORKLOAD_IDENTITY_PROVIDER
+# GCP_SERVICE_ACCOUNT
+```
+
+### Image Pushes But Cloud Run Doesn't Update
+```bash
+# Check Cloud Run configuration
+gcloud run services describe easypool-backend --region asia-south1 | grep image
+
+# Should point to :latest tag
+```
+
+### Tests Fail
+```bash
+# Run locally first
+python -m pytest tests/unit/ -v
+ruff check .
+```
+
+---
+
+## What Terraform Already Did
+
+✅ Created Cloud Run services
+✅ Configured to use `:latest` tag
+✅ Set up secrets from Secret Manager
+✅ Configured database connection
+✅ Set up Workload Identity for GitHub
+✅ Configured auto-deployment
+
+**GitHub just needs to push the image!**
+
+---
+
+## Summary
+
+**OLD WAY (Complex):**
+- GitHub builds image
+- GitHub pushes to registry
+- GitHub authenticates to GCP
+- GitHub runs `gcloud run deploy`
+- GitHub manages traffic splitting
+- GitHub handles rollback
+
+**NEW WAY (Simple):**
+- GitHub builds image
+- GitHub pushes to registry
+- **Done!**
+
+**Keep it simple!** 🎯

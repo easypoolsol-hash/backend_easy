@@ -1,0 +1,116 @@
+name: Deploy Pipeline
+
+# Push images to GCP Artifact Registry after CI passes
+# Three environments: staging, candidate, production
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    branches: [develop, master]
+    types: [completed]
+  push:
+    tags:
+      - 'v*'
+      - 'hotfix-*'
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
+jobs:
+  # STAGING: develop branch → :staging tag
+  push-staging:
+    name: Push Staging
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'develop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/push-image
+        with:
+          image_tag: staging
+          source_branch: ${{ github.event.workflow_run.head_branch }}
+          workflow_run_id: ${{ github.event.workflow_run.id }}
+          workflow_run_sha: ${{ github.event.workflow_run.head_sha }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+  # CANDIDATE: master branch → :candidate tag
+  push-candidate:
+    name: Push Candidate
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'master'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/push-image
+        with:
+          image_tag: candidate
+          source_branch: ${{ github.event.workflow_run.head_branch }}
+          workflow_run_id: ${{ github.event.workflow_run.id }}
+          workflow_run_sha: ${{ github.event.workflow_run.head_sha }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Ready for production message
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎯 **Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "git tag v1.0.0" >> $GITHUB_STEP_SUMMARY
+          echo "git push --tags" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # PRODUCTION: git tag → :latest tag (promotes candidate)
+  push-production:
+    name: Push Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get tag name
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Promote candidate to production
+        run: |
+          gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+          IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
+
+          # Pull tested candidate image
+          docker pull $IMAGE_URL:candidate
+
+          # Retag as latest and version
+          docker tag $IMAGE_URL:candidate $IMAGE_URL:latest
+          docker tag $IMAGE_URL:candidate $IMAGE_URL:${{ steps.tag.outputs.tag }}
+
+          # Push both
+          docker push $IMAGE_URL:latest
+          docker push $IMAGE_URL:${{ steps.tag.outputs.tag }}
+
+          echo "🚀 Production deployed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.tag.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Images:**" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$IMAGE_URL:latest\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`$IMAGE_URL:${{ steps.tag.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 Cloud Run will auto-deploy in ~30 seconds" >> $GITHUB_STEP_SUMMARY

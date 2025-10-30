@@ -1,0 +1,70 @@
+name: Push Image to Artifact Registry
+description: Download CI artifact, retag, and push to GCP Artifact Registry
+
+inputs:
+  image_tag:
+    description: 'Target image tag (staging, candidate, latest)'
+    required: true
+  source_branch:
+    description: 'Source branch name from CI artifact (develop, master, etc.)'
+    required: false
+  workflow_run_id:
+    description: 'Workflow run ID to download artifact from'
+    required: false
+  workflow_run_sha:
+    description: 'Workflow run SHA for artifact name'
+    required: false
+  skip_artifact_download:
+    description: 'Skip artifact download (for production that pulls from registry)'
+    required: false
+    default: 'false'
+  workload_identity_provider:
+    description: 'GCP Workload Identity Provider'
+    required: true
+  service_account:
+    description: 'GCP Service Account email'
+    required: true
+
+env:
+  IMAGE_NAME: backend_easy
+  GCP_REGION: asia-south1
+  GCP_PROJECT: backend-easypool
+  GAR_REPO: backend-repo
+
+runs:
+  using: composite
+  steps:
+    - name: Download CI artifact
+      if: inputs.skip_artifact_download != 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: docker-image-${{ inputs.source_branch }}-${{ inputs.workflow_run_sha }}
+        github-token: ${{ github.token }}
+        run-id: ${{ inputs.workflow_run_id }}
+
+    - name: Load and retag from artifact
+      if: inputs.skip_artifact_download != 'true'
+      shell: bash
+      run: |
+        gunzip -c image.tar.gz | docker load
+        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.source_branch }} ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Push to Artifact Registry
+      shell: bash
+      run: |
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+        IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.image_tag }}
+        docker push $IMAGE_URL:${{ inputs.image_tag }}
+
+        echo "✅ Image pushed!" >> $GITHUB_STEP_SUMMARY
+        echo "**Tag:** \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** \`$IMAGE_URL:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "🚀 Cloud Run will auto-deploy" >> $GITHUB_STEP_SUMMARY

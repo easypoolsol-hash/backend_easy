@@ -221,10 +221,15 @@ jobs:
   # Build image once and save as artifact (Fortune 500 pattern - no registry push)
   build:
     name: Build image (artifact)
+    runs-on: ubuntu-latest
     needs: [quality]
-    uses: ./.github/workflows/build-image.yml
-    with:
-      image_tag: ${{ github.ref_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/build-image
+        with:
+          image_tag: ${{ github.ref_name }}
 
   test-image:
     name: test image (smoke)
