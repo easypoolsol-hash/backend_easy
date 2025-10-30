@@ -6,6 +6,8 @@ This module contains all security-related settings that are then
 imported and customized by environment-specific settings.
 """
 
+from typing import Any
+
 # Security headers and HTTPS enforcement
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -22,7 +24,7 @@ CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_USE_SESSIONS = False  # Use cookies for CSRF tokens
 
 # Password validation
-AUTH_PASSWORD_VALIDATORS = [
+AUTH_PASSWORD_VALIDATORS: list[dict[str, Any]] = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
