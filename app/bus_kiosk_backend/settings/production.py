@@ -12,7 +12,11 @@ Fortune 500 Pattern:
 - File logging enabled
 """
 
+import json
 import os
+
+import firebase_admin
+from firebase_admin import credentials
 
 # Import all base settings
 from .base import *  # noqa: F403
@@ -56,13 +60,18 @@ CSRF_TRUSTED_ORIGINS = [
     "https://backendeasy-lela6xnh4q-el.a.run.app",
 ]
 
-# Production security (HTTPS enforcement)
+# Production security
 SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # Cloud Run handles HTTPS
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+# Firebase - Read from Secret Manager (required)
+_firebase_key = os.environ["FIREBASE_SERVICE_ACCOUNT_KEY"]
+cred = credentials.Certificate(json.loads(_firebase_key))
+firebase_admin.initialize_app(cred)
 
 # Production logging (less verbose, file-based)
 LOGGING["root"]["level"] = "WARNING"  # noqa: F405  # type: ignore[index]
