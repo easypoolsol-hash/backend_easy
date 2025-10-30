@@ -65,22 +65,20 @@ class JWTAuthMiddleware(BaseMiddleware):
             firebase_uid = decoded_token["uid"]
             email = decoded_token.get("email")
 
-            # Try to find user by Firebase UID
-            try:
-                user = User.objects.get(user_id=firebase_uid)
-            except User.DoesNotExist:
-                # Create new user if not found
-                user = User.objects.create_user(
-                    username=firebase_uid,
-                    email=email or "",
-                    user_id=firebase_uid,
-                    first_name=(decoded_token.get("name", "").split()[0] if decoded_token.get("name") else ""),
-                    last_name=(
+            # Get or create user by Firebase UID
+            user, created = User.objects.get_or_create(
+                user_id=firebase_uid,
+                defaults={
+                    "username": firebase_uid,
+                    "email": email or "",
+                    "first_name": (decoded_token.get("name", "").split()[0] if decoded_token.get("name") else ""),
+                    "last_name": (
                         " ".join(decoded_token.get("name", "").split()[1:])
                         if (decoded_token.get("name") and len(decoded_token.get("name", "").split()) > 1)
                         else ""
                     ),
-                )
+                },
+            )
 
             return user
         except Exception as e:
