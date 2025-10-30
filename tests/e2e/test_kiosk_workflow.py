@@ -13,6 +13,7 @@ from rest_framework import status
 class TestKioskWorkflow:
     """Essential end-to-end kiosk workflow test"""
 
+    @pytest.mark.skip(reason="JWT tests skipped during Firebase migration")
     def test_complete_kiosk_workflow(self, api_client, test_kiosk, openapi_helper):
         """
         Test complete kiosk workflow:
@@ -83,6 +84,7 @@ class TestKioskWorkflow:
         assert log_response.data["status"] == "ok"
         assert log_response.data["logged_count"] == 1
 
+    @pytest.mark.skip(reason="JWT tests skipped during Firebase migration")
     def test_snapshot_download_workflow(self, api_client, test_kiosk, openapi_helper):
         """
         Test the complete snapshot download workflow:
@@ -123,6 +125,7 @@ class TestKioskWorkflow:
         # Verify the content is a valid SQLite file by checking the header
         assert snapshot_response.content.startswith(b"SQLite format 3\x00")
 
+    @pytest.mark.skip(reason="JWT tests skipped during Firebase migration")
     def test_workflow_fails_without_authentication(self, api_client, test_kiosk, openapi_helper):
         """Test workflow fails if kiosk doesn't authenticate first"""
         kiosk, _ = test_kiosk

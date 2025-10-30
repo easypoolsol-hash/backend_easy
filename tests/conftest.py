@@ -4,7 +4,8 @@ import os
 # Some libraries (notably DRF) read Django settings at import time which will
 # raise ImproperlyConfigured unless the environment variable is present and
 # django.setup() has been called.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "app.bus_kiosk_backend.test_settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
+os.environ.setdefault("DJANGO_ENV", "ci")  # Use CI settings for tests
 
 from cryptography.fernet import Fernet
 import django
