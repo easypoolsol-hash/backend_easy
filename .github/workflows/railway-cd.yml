@@ -16,12 +16,21 @@ on:
       - 'hotfix-*'     # Emergency: hotfix-1.0.1
 
 env:
-  # GCP Configuration - update these values here (no GitHub secrets needed)
-  GCP_PROJECT_ID: project-283878a7-633d-4014-a7f
-  GCP_PROJECT_NUMBER: 683213759629
-  GCP_SA_EMAIL: github-actions-sa@project-283878a7-633d-4014-a7f.iam.gserviceaccount.com
-  GCP_REGION: asia-south1
-  GAR_REPO: backend-repo
+  # GCP Configuration - Set these as GitHub Repository Variables (not secrets):
+  # Go to: Settings → Secrets and variables → Actions → Variables tab
+  #
+  # Required Variables:
+  # - GCP_PROJECT_ID = project-283878a7-633d-4014-a7f
+  # - GCP_PROJECT_NUMBER = 683213759629
+  # - GCP_SA_EMAIL = github-actions-sa@project-283878a7-633d-4014-a7f.iam.gserviceaccount.com
+  # - GCP_REGION = asia-south1
+  # - GAR_REPO = backend-repo
+
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+  GCP_SA_EMAIL: ${{ vars.GCP_SA_EMAIL }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  GAR_REPO: ${{ vars.GAR_REPO }}
   IMAGE_NAME: backend_easy
 
 permissions:
