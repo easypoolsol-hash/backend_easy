@@ -34,15 +34,12 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import TokenObtainPairView
-
 from bus_kiosk_backend.health import (
     detailed_health_check,
     health_check,
     prometheus_metrics,
 )
 from buses.views import bus_locations_api
-from users.views import KioskTokenRefreshView
 
 
 @csrf_exempt
@@ -171,16 +168,6 @@ urlpatterns += [
         "api/v1/",
         include(
             [
-                path(
-                    "auth/token/",
-                    TokenObtainPairView.as_view(),
-                    name="token_obtain_pair",
-                ),
-                path(
-                    "auth/token/refresh/",
-                    KioskTokenRefreshView.as_view(),
-                    name="token_refresh",
-                ),
                 path("", include("users.urls")),
                 path("", include("students.urls")),
                 path("", include("buses.urls")),

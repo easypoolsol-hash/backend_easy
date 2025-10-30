@@ -4,7 +4,6 @@ from rest_framework import serializers, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenRefreshView
 
 from .models import APIKey, AuditLog, User
 from .serializers import (
@@ -130,49 +129,6 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(resource_type=resource_type)
 
         return queryset
-
-
-@extend_schema(
-    description="""
-    Custom TokenRefreshView that supports both regular JWT and kiosk JWT tokens.
-
-    **Token Rotation Security:**
-    - Accepts: refresh token only
-    - Returns: NEW access token (15 min) + NEW refresh token (60 days)
-    - Old refresh token is immediately blacklisted (cannot be reused)
-    """,
-    request=inline_serializer(
-        name="TokenRefreshRequest",
-        fields={
-            "refresh": serializers.CharField(help_text="The refresh token obtained from activation or previous refresh"),
-        },
-    ),
-    responses={
-        200: inline_serializer(
-            name="TokenRefreshResponse",
-            fields={
-                "access": serializers.CharField(help_text="New access token (valid for 15 minutes)"),
-                "refresh": serializers.CharField(help_text="New refresh token (valid for 60 days). Old refresh token is now blacklisted."),
-            },
-        ),
-    },
-    examples=[
-        OpenApiExample(
-            "Successful Token Refresh",
-            description="Example of successful token refresh with rotation",
-            value={"refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."},
-            request_only=True,
-        ),
-    ],
-)
-class KioskTokenRefreshView(TokenRefreshView):
-    """
-    Custom TokenRefreshView that supports both regular JWT and kiosk JWT tokens.
-
-    This ensures kiosk devices can refresh their tokens without authentication failures.
-    """
-
-    pass
 
 
 @extend_schema(
