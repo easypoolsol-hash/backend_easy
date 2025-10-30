@@ -1,2 +1,7 @@
+# Ignore all files by default (especially sensitive keys)
 *
+
+# But allow these files
 !.gitignore
+!README.md
+!*.bat
