@@ -115,18 +115,18 @@ else:
     }
 
 # Staging cache - Redis optional, fallback to dummy cache
-redis_url: str | None = os.getenv("REDIS_URL")
-if redis_url:
+_staging_redis_url = os.getenv("REDIS_URL")
+if _staging_redis_url:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": redis_url,
+            "LOCATION": _staging_redis_url,
             "KEY_PREFIX": "bus_kiosk_staging",
             "TIMEOUT": 300,
         },
         "api_cache": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": redis_url,
+            "LOCATION": _staging_redis_url,
             "KEY_PREFIX": "api_staging",
             "TIMEOUT": 3600,
         },
@@ -143,12 +143,12 @@ else:
     }
 
 # Staging channel layers - Redis optional, fallback to in-memory
-if redis_url:
+if _staging_redis_url:
     CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [redis_url],
+                "hosts": [_staging_redis_url],
                 "capacity": 1500,  # type: ignore[dict-item]
                 "expiry": 10,  # type: ignore[dict-item]
             },
@@ -193,7 +193,7 @@ SPECTACULAR_SETTINGS["SERVERS"] = [  # noqa: F405
 print("[STAGING] Staging settings loaded successfully")
 print(f"[STAGING] DEBUG = {DEBUG}")
 print(f"[STAGING] Database: {'PostgreSQL (Cloud SQL)' if database_url else 'SQLite (fallback)'}")
-print(f"[STAGING] Cache: {'Redis' if redis_url else 'Dummy (no caching)'}")
+print(f"[STAGING] Cache: {'Redis' if _staging_redis_url else 'Dummy (no caching)'}")
 print(f"[STAGING] Celery: {'Async (Redis broker)' if celery_broker else 'Synchronous (no broker)'}")
 print("[STAGING] HTTPS: Not enforced (testing)")
 print("[STAGING] CORS: Allow all origins")
