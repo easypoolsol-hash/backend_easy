@@ -13,6 +13,7 @@ Fortune 500 Pattern:
 """
 
 import os
+import re
 
 # Import all base settings
 from .base import *  # noqa: F403
@@ -75,30 +76,56 @@ LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"  # noqa: F405  # type:
 # Google Cloud Run connects to Cloud SQL via Unix socket
 # DATABASE_URL format: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 
-import dj_database_url  # noqa: E402
-
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("Production requires DATABASE_URL environment variable")
 
-# Parse DATABASE_URL (supports Cloud SQL Unix socket connections)
-DATABASES = {
-    "default": dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,  # Connection pooling (10 minutes)
-        conn_health_checks=True,
-    )
-}
-
-# Ensure it's PostgreSQL
-if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
-    raise ValueError(f"Production requires PostgreSQL. Got: {DATABASES['default']['ENGINE']}")
-
-# Add additional PostgreSQL options
-DATABASES["default"]["OPTIONS"] = {
-    "connect_timeout": 10,
-    "options": "-c timezone=UTC",
-}
+# Parse DATABASE_URL for Cloud SQL Unix socket format
+if "?host=/cloudsql/" in DATABASE_URL:
+    # Cloud SQL Unix socket: postgresql://user:pass@/dbname?host=/cloudsql/instance
+    match = re.match(r"postgresql://([^:]+):([^@]+)@/([^?]+)\?host=(.+)", DATABASE_URL)
+    if match:
+        user, password, dbname, host = match.groups()
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": dbname,
+                "USER": user,
+                "PASSWORD": password,
+                "HOST": host,
+                "OPTIONS": {
+                    "connect_timeout": 10,
+                    "options": "-c timezone=UTC",
+                },
+                "CONN_MAX_AGE": 600,
+                "CONN_HEALTH_CHECKS": True,
+            }
+        }
+    else:
+        raise ValueError(f"Invalid DATABASE_URL format: {DATABASE_URL}")
+else:
+    # Standard PostgreSQL: postgresql://user:pass@host:port/dbname
+    match = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):?(\d+)?/(.+)", DATABASE_URL)
+    if match:
+        user, password, host, port, dbname = match.groups()
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": dbname,
+                "USER": user,
+                "PASSWORD": password,
+                "HOST": host,
+                "PORT": port or "5432",
+                "OPTIONS": {
+                    "connect_timeout": 10,
+                    "options": "-c timezone=UTC",
+                },
+                "CONN_MAX_AGE": 600,
+                "CONN_HEALTH_CHECKS": True,
+            }
+        }
+    else:
+        raise ValueError(f"Invalid DATABASE_URL format: {DATABASE_URL}")
 
 # Production cache (Redis required)
 if not os.getenv("REDIS_URL"):
