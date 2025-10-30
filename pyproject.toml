@@ -36,7 +36,7 @@ dependencies = [
 
     # Database & Infrastructure
     "psycopg2-binary>=2.9.0,<3.0",
-    "dj-database-url>=2.1.0,<3.0",  # Parse DATABASE_URL (12-factor app pattern)
+    "django-environ>=0.11.2,<1.0",  # Parse DATABASE_URL (Google Cloud official recommendation)
     "celery>=5.3.0,<6.0",
     "redis>=5.0.0,<6.0",
     "django-redis>=5.4.0,<6.0",
