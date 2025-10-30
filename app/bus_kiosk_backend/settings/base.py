@@ -393,3 +393,20 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Google Maps API Key
 GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
+# Firebase Admin SDK - Common initialization for all environments
+# Initialized once here, all environments inherit it
+try:
+    import json
+
+    import firebase_admin
+    from firebase_admin import credentials
+
+    _firebase_key = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
+    if _firebase_key and not firebase_admin._apps:
+        cred = credentials.Certificate(json.loads(_firebase_key))
+        firebase_admin.initialize_app(cred)
+        print("[FIREBASE] Firebase Admin initialized successfully")
+except (ImportError, ValueError, KeyError) as e:
+    print(f"[FIREBASE] Firebase initialization skipped: {e}")
+    pass  # Firebase optional in local/CI environments
