@@ -1,0 +1,67 @@
+name: Deploy to Cloud Run
+description: Deploy a service to Google Cloud Run with standard configuration
+
+inputs:
+  environment:
+    description: 'Environment name (staging/candidate/production)'
+    required: true
+  service_name:
+    description: 'Cloud Run service name'
+    required: true
+  image_tag:
+    description: 'Docker image tag to deploy'
+    required: true
+  min_instances:
+    description: 'Minimum instances'
+    required: true
+  max_instances:
+    description: 'Maximum instances'
+    required: true
+  memory:
+    description: 'Memory limit (e.g., 512Mi, 1Gi)'
+    required: true
+  cpu:
+    description: 'CPU limit'
+    required: true
+  django_env:
+    description: 'DJANGO_ENV value'
+    required: true
+  debug:
+    description: 'Enable DEBUG mode'
+    required: false
+    default: 'False'
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+        service_account: ${{ env.GCP_SA_EMAIL }}
+
+    - name: Deploy to Cloud Run
+      shell: bash
+      run: |
+        GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
+
+        gcloud run deploy ${{ inputs.service_name }} \
+          --image=$GAR_IMAGE:${{ inputs.image_tag }} \
+          --region=${{ env.GCP_REGION }} \
+          --platform=managed \
+          --allow-unauthenticated \
+          --min-instances=${{ inputs.min_instances }} \
+          --max-instances=${{ inputs.max_instances }} \
+          --memory=${{ inputs.memory }} \
+          --cpu=${{ inputs.cpu }} \
+          --port=8000 \
+          --service-account=cloud-run-backend-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+          --set-env-vars="DJANGO_ENV=${{ inputs.django_env }},DEBUG=${{ inputs.debug }}" \
+          --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
+
+        SERVICE_URL=$(gcloud run services describe ${{ inputs.service_name }} --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+        echo "🚂 ${{ inputs.environment }} DEPLOYED" >> $GITHUB_STEP_SUMMARY
+        echo "**Service:** ${{ inputs.service_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** $GAR_IMAGE:${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
