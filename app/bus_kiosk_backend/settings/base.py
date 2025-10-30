@@ -13,26 +13,9 @@ from typing import Any
 # NOTE: Firebase initialization is deferred to environment-specific settings
 # Production: Injected via Google Secret Manager
 # Local: Loaded in local.py via .env
-try:
-    import firebase_admin
-    from firebase_admin import credentials
-
-    # Initialize Firebase Admin SDK for token verification
-    firebase_cred_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH")
-    if firebase_cred_path and Path(firebase_cred_path).exists():
-        cred = credentials.Certificate(firebase_cred_path)
-        firebase_admin.initialize_app(cred)
-    else:
-        # Fallback: try to initialize without credentials (for development)
-        # In production, FIREBASE_SERVICE_ACCOUNT_KEY_PATH must be set
-        try:
-            firebase_admin.initialize_app()
-        except ValueError:
-            # Firebase already initialized or no credentials available
-            pass
-except ImportError:
-    # firebase-admin not installed - will be handled gracefully
-    pass
+# Firebase initialization - done in environment-specific settings
+# Local: local.py reads from file
+# Production/Staging: production.py/staging.py read from Secret Manager
 
 # 12-Factor App Pattern: NO .env loading in base settings
 # - Production: Environment variables injected by container orchestration (GCP Secret Manager, K8s secrets)

@@ -52,13 +52,27 @@ CSRF_TRUSTED_ORIGINS = [
     "https://backendeasy-candidate-683213759629.asia-south1.run.app",
 ]
 
-# Staging: Basic HTTPS security (still enforce HTTPS)
-SECURE_HSTS_SECONDS = 3600  # 1 hour (lighter than production's 1 year)
+# Staging: Basic HTTPS security
+SECURE_HSTS_SECONDS = 3600  # 1 hour
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
-SECURE_SSL_REDIRECT = True  # Enforce HTTPS
-SESSION_COOKIE_SECURE = True  # Secure cookies
-CSRF_COOKIE_SECURE = True  # Secure CSRF cookies
+SECURE_SSL_REDIRECT = False  # Cloud Run handles HTTPS
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+# Firebase - Read from Secret Manager
+try:
+    import json
+
+    import firebase_admin
+    from firebase_admin import credentials
+
+    _firebase_key = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
+    if _firebase_key:
+        cred = credentials.Certificate(json.loads(_firebase_key))
+        firebase_admin.initialize_app(cred)
+except (ImportError, ValueError):
+    pass  # Firebase optional in staging
 
 # Staging logging
 LOGGING["root"]["level"] = "INFO"  # noqa: F405  # type: ignore[index]

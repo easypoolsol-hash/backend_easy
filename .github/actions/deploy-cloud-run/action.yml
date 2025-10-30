@@ -57,7 +57,7 @@ runs:
           --port=8000 \
           --service-account=cloud-run-backend-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
           --set-env-vars="DJANGO_ENV=${{ inputs.django_env }},DEBUG=${{ inputs.debug }}" \
-          --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
+          --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest,FIREBASE_SERVICE_ACCOUNT_KEY=firebase-service-account-key:latest"
 
         SERVICE_URL=$(gcloud run services describe ${{ inputs.service_name }} --region=${{ env.GCP_REGION }} --format='value(status.url)')
 
