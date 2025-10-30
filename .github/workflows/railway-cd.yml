@@ -206,8 +206,8 @@ jobs:
           max_instances: 1
           memory: 512Mi
           cpu: 1
-          django_env: production
-          debug: False
+          django_env: staging
+          debug: true
 
   candidate-test:
     name: "🤖 Candidate: Automated Tests"
