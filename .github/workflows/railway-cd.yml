@@ -30,9 +30,10 @@ permissions:
   actions: read
 
 jobs:
-  # 🚂 STATION 1: Staging (develop branch)
-  deploy-staging:
-    name: "🚂 Station 1: Staging"
+  # 🚂 STATION 1: STAGING
+
+  staging-setup:
+    name: "📦 Staging: Setup"
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_run' &&
@@ -42,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download artifact
+      - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
           name: docker-image-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
@@ -53,21 +54,62 @@ jobs:
         run: |
           gunzip -c image.tar.gz | docker load
           docker tag ${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_branch }} ${{ env.IMAGE_NAME }}:staging
+          docker save ${{ env.IMAGE_NAME }}:staging | gzip > staging-image.tar.gz
+
+      - name: Upload staged image
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-image-${{ github.run_id }}
+          path: staging-image.tar.gz
+          retention-days: 1
+
+  staging-push:
+    name: "🚀 Staging: Push to GAR"
+    runs-on: ubuntu-latest
+    needs: [staging-setup]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download staged image
+        uses: actions/download-artifact@v4
+        with:
+          name: staging-image-${{ github.run_id }}
+
+      - name: Load image
+        run: gunzip -c staging-image.tar.gz | docker load
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-          service_account: "${{ env.GCP_SA_EMAIL }}"
+          service_account: ${{ env.GCP_SA_EMAIL }}
 
-      - name: Push to GAR and Deploy
+      - name: Push to Artifact Registry
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
           GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
           docker tag ${{ env.IMAGE_NAME }}:staging $GAR_IMAGE:staging
           docker push $GAR_IMAGE:staging
+
+          echo "✅ Image pushed to GAR: $GAR_IMAGE:staging" >> $GITHUB_STEP_SUMMARY
+
+  staging-deploy:
+    name: "🚂 Staging: Deploy to Cloud Run"
+    runs-on: ubuntu-latest
+    needs: [staging-push]
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: ${{ env.GCP_SA_EMAIL }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
 
           gcloud run deploy backendeasy-staging \
             --image=$GAR_IMAGE:staging \
@@ -85,25 +127,23 @@ jobs:
           SERVICE_URL=$(gcloud run services describe backendeasy-staging --region=${{ env.GCP_REGION }} --format='value(status.url)')
 
           echo "🚂 Station 1: STAGING DEPLOYED" >> $GITHUB_STEP_SUMMARY
-          echo "URL: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
-          echo "Next: Test manually, then merge to master" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "**Next:** Test manually, then merge to master" >> $GITHUB_STEP_SUMMARY
 
-  # 🚂 STATION 2: Candidate (master branch - automated testing)
-  deploy-candidate:
-    name: "🚂 Station 2: Candidate"
+  # 🚂 STATION 2: CANDIDATE
+
+  candidate-setup:
+    name: "📦 Candidate: Setup"
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'master'
 
-    outputs:
-      candidate_passed: ${{ steps.health_check.outputs.passed }}
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download artifact
+      - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
           name: docker-image-${{ github.event.workflow_run.head_branch }}-${{ github.event.workflow_run.head_sha }}
@@ -114,21 +154,62 @@ jobs:
         run: |
           gunzip -c image.tar.gz | docker load
           docker tag ${{ env.IMAGE_NAME }}:${{ github.event.workflow_run.head_branch }} ${{ env.IMAGE_NAME }}:candidate
+          docker save ${{ env.IMAGE_NAME }}:candidate | gzip > candidate-image.tar.gz
+
+      - name: Upload staged image
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-image-${{ github.run_id }}
+          path: candidate-image.tar.gz
+          retention-days: 1
+
+  candidate-push:
+    name: "🚀 Candidate: Push to GAR"
+    runs-on: ubuntu-latest
+    needs: [candidate-setup]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download staged image
+        uses: actions/download-artifact@v4
+        with:
+          name: candidate-image-${{ github.run_id }}
+
+      - name: Load image
+        run: gunzip -c candidate-image.tar.gz | docker load
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-          service_account: "${{ env.GCP_SA_EMAIL }}"
+          service_account: ${{ env.GCP_SA_EMAIL }}
 
-      - name: Push to GAR and Deploy
+      - name: Push to Artifact Registry
         run: |
           gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
 
           GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
           docker tag ${{ env.IMAGE_NAME }}:candidate $GAR_IMAGE:candidate
           docker push $GAR_IMAGE:candidate
+
+          echo "✅ Image pushed to GAR: $GAR_IMAGE:candidate" >> $GITHUB_STEP_SUMMARY
+
+  candidate-deploy:
+    name: "🚂 Candidate: Deploy to Cloud Run"
+    runs-on: ubuntu-latest
+    needs: [candidate-push]
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: ${{ env.GCP_SA_EMAIL }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          GAR_IMAGE="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
 
           gcloud run deploy backendeasy-candidate \
             --image=$GAR_IMAGE:candidate \
@@ -143,20 +224,40 @@ jobs:
             --set-env-vars="DJANGO_ENV=production" \
             --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,DB_HOST=db-host:latest,REDIS_URL=redis-url:latest,CELERY_BROKER_URL=celery-broker-url:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
 
-      - name: Wait for deployment
+          SERVICE_URL=$(gcloud run services describe backendeasy-candidate --region=${{ env.GCP_REGION }} --format='value(status.url)')
+
+          echo "🚂 Candidate deployed: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+
+  candidate-test:
+    name: "🤖 Candidate: Automated Tests"
+    runs-on: ubuntu-latest
+    needs: [candidate-deploy]
+
+    outputs:
+      passed: ${{ steps.health_check.outputs.passed }}
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: ${{ env.GCP_SA_EMAIL }}
+
+      - name: Wait for deployment to stabilize
         run: sleep 30
 
-      - name: Run automated health checks
+      - name: Run health checks
         id: health_check
         run: |
           SERVICE_URL=$(gcloud run services describe backendeasy-candidate --region=${{ env.GCP_REGION }} --format='value(status.url)')
 
-          echo "🤖 Running automated tests..."
+          echo "🤖 Running automated tests against: $SERVICE_URL"
 
           # Health check
           if ! curl -f -s "$SERVICE_URL/health/" > /dev/null; then
             echo "❌ Health check failed"
             echo "passed=false" >> $GITHUB_OUTPUT
+            echo "🚨 CANDIDATE FAILED: Health check" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
           echo "✅ Health check passed"
@@ -165,16 +266,17 @@ jobs:
           if ! curl -f -s "$SERVICE_URL/api/v1/" > /dev/null; then
             echo "❌ API check failed"
             echo "passed=false" >> $GITHUB_OUTPUT
+            echo "🚨 CANDIDATE FAILED: API check" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
           echo "✅ API check passed"
 
           echo "passed=true" >> $GITHUB_OUTPUT
 
-          echo "🚂 Station 2: CANDIDATE READY" >> $GITHUB_STEP_SUMMARY
-          echo "URL: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "🚂 Station 2: CANDIDATE READY ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ All automated checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "**All automated checks passed**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deploy to production:**" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
@@ -182,16 +284,10 @@ jobs:
           echo "git push --tags" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Candidate failed
-        if: failure()
-        run: |
-          echo "🚨 Station 2: CANDIDATE FAILED" >> $GITHUB_STEP_SUMMARY
-          echo "Production deployment BLOCKED" >> $GITHUB_STEP_SUMMARY
-          exit 1
+  # 🚂 STATION 3: PRODUCTION
 
-  # 🚂 STATION 3: Production (git tag)
-  deploy-production:
-    name: "🚂 Station 3: Production"
+  production-deploy:
+    name: "🚂 Production: Deploy"
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
 
@@ -205,9 +301,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          project_id: ${{ env.GCP_PROJECT_ID }}
           workload_identity_provider: "projects/${{ env.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-          service_account: "${{ env.GCP_SA_EMAIL }}"
+          service_account: ${{ env.GCP_SA_EMAIL }}
 
       - name: Deploy to Production
         run: |
