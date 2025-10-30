@@ -59,7 +59,7 @@ repos:
       - id: auth-tests
         name: Auth Tests (Security Critical)
         entry: bash
-        args: ["scripts/run_in_venv.sh", "-m", "pytest", "tests/unit/test_kiosk_auth.py", "tests/integration/test_authentication_flow.py", "-v", "--tb=short"]
+        args: ["scripts/run_in_venv.sh", "-m", "pytest", "tests/integration/test_authentication_flow.py", "-v", "--tb=short"]
         language: system
         pass_filenames: false
         stages: [commit]

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import timedelta
 import hashlib
-import logging
 from typing import Any, cast
 
 from django.db.models import Count
@@ -21,9 +20,9 @@ from rest_framework.decorators import (
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from bus_kiosk_backend.core.authentication import FirebaseAuthentication
 from bus_kiosk_backend.permissions import IsSchoolAdmin
 
-from .authentication import KioskJWTAuthentication, activate_kiosk
 from .models import DeviceLog, Kiosk, KioskStatus
 from .permissions import IsKiosk
 from .serializers import (
@@ -32,8 +31,6 @@ from .serializers import (
     CheckUpdatesSerializer,
     DeviceLogSerializer,
     HeartbeatSerializer,
-    KioskActivationResponseSerializer,
-    KioskActivationSerializer,
     KioskSerializer,
 )
 from .services import SnapshotGenerator
@@ -42,97 +39,6 @@ from .services import SnapshotGenerator
 def calculate_checksum(data: bytes) -> str:
     """Calculate SHA-256 checksum of data."""
     return hashlib.sha256(data).hexdigest()
-
-
-# Fortune 500 Standard: DRF APIView for kiosk activation
-@extend_schema(
-    request=KioskActivationSerializer,
-    responses={
-        200: KioskActivationResponseSerializer,
-        400: {"description": "Invalid activation token or kiosk not found"},
-    },
-    operation_id="kiosk_activate",
-    description="""
-    **Fortune 500 Standard: One-time Device Activation**
-
-    Used by: Google Nest, Amazon Alexa, Netflix devices
-
-    Activates a kiosk using a disposable activation token.
-    After activation, the token becomes garbage and cannot be reused.
-
-    **Security Features:**
-    - One-time use activation tokens (WhatsApp leak protection)
-    - Tokens destroyed after first use
-    - 60-day rotating refresh tokens
-    - 15-minute access tokens
-
-    **Example Request:**
-    ```json
-    {
-        "kiosk_id": "KIOSK-SCHOOL-001",
-        "activation_token": "8Jz4Y-x9K2mQ_r5WvLp3NcTg7HfB6DsA1eU0oI9j8Xw"
-    }
-    ```
-    """,
-    tags=["Kiosk Activation"],
-)
-@api_view(["POST"])
-@authentication_classes([])  # No authentication required for activation
-@permission_classes([])  # Public endpoint
-def activate_kiosk_view(request: Request) -> Response:
-    """
-    Fortune 500 Standard: DRF APIView for kiosk activation
-
-    Replaces plain Django view with proper DRF patterns:
-    - Automatic serialization/deserialization
-    - Built-in validation
-    - OpenAPI schema generation
-    - Consistent error responses
-    """
-    # Validate input using DRF serializer (Fortune 500 pattern)
-    serializer = KioskActivationSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    kiosk_id = serializer.validated_data["kiosk_id"]
-    activation_token = serializer.validated_data["activation_token"]
-
-    # Activate kiosk (business logic in authentication module)
-    try:
-        result = activate_kiosk(kiosk_id, activation_token)
-    except ValueError as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Prepare response data (Fortune 500 standard structure)
-    response_data = {
-        "message": result["message"],
-        "refresh": result["refresh_token"],
-        "access": result["access_token"],
-        "kiosk_id": result["kiosk"].kiosk_id,
-        "bus_id": result["kiosk"].bus.bus_id if result["kiosk"].bus else None,
-        "activation_token_destroyed": True,
-    }
-
-    # Log successful activation (Fortune 500: audit trail)
-    # Be defensive: logging/audit may touch external systems (cache, etc.).
-    # If audit logging fails, don't fail the activation request.
-    logger = logging.getLogger(__name__)
-    try:
-        DeviceLog.log(
-            kiosk=result["kiosk"],
-            level="INFO",
-            message="Kiosk activated successfully",
-            metadata={
-                "ip_address": request.META.get("REMOTE_ADDR"),
-                "user_agent": request.META.get("HTTP_USER_AGENT"),
-            },
-        )
-    except Exception as exc:  # pragma: no cover - defensive safety net
-        # Log the failure to the application logger, but don't surface to client
-        logger.exception("Failed to record DeviceLog for kiosk activation: %s", exc)
-
-    # Return DRF Response (not JsonResponse)
-    return Response(response_data, status=status.HTTP_200_OK)
 
 
 class KioskViewSet(viewsets.ModelViewSet):
@@ -149,7 +55,7 @@ class KioskViewSet(viewsets.ModelViewSet):
     description="Kiosk logging endpoint for device log submission",
 )
 @api_view(["POST"])
-@authentication_classes([KioskJWTAuthentication])
+@authentication_classes([FirebaseAuthentication])
 @permission_classes([IsKiosk])
 def kiosk_log(request: Request) -> Response:
     """
@@ -229,7 +135,7 @@ class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
     description="Check if kiosk needs database update",
 )
 @api_view(["GET"])
-@authentication_classes([KioskJWTAuthentication])
+@authentication_classes([FirebaseAuthentication])
 @permission_classes([IsKiosk])
 def check_updates(request: Request, kiosk_id: str) -> Response:
     """
@@ -294,7 +200,7 @@ def check_updates(request: Request, kiosk_id: str) -> Response:
     description="Download kiosk database snapshot (binary SQLite file). Returns raw binary data with x-snapshot-checksum header for verification.",
 )
 @api_view(["GET"])
-@authentication_classes([KioskJWTAuthentication])
+@authentication_classes([FirebaseAuthentication])
 @permission_classes([IsKiosk])
 def download_snapshot(request: Request, kiosk_id: str) -> Response | HttpResponse:
     """
@@ -350,7 +256,7 @@ def download_snapshot(request: Request, kiosk_id: str) -> Response | HttpRespons
     description="Report kiosk health and sync status",
 )
 @api_view(["POST"])
-@authentication_classes([KioskJWTAuthentication])
+@authentication_classes([FirebaseAuthentication])
 @permission_classes([IsKiosk])
 def heartbeat(request: Request, kiosk_id: str) -> Response:
     """
@@ -436,7 +342,7 @@ def heartbeat(request: Request, kiosk_id: str) -> Response:
     description="Update bus GPS location. Kiosk sends location when bus moves significantly or every 2 minutes.",
 )
 @api_view(["POST"])
-@authentication_classes([KioskJWTAuthentication])
+@authentication_classes([FirebaseAuthentication])
 @permission_classes([IsKiosk])
 def update_location(request: Request, kiosk_id: str) -> Response:
     """

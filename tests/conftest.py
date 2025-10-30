@@ -93,13 +93,12 @@ def authenticated_client(db):
 
 @pytest.fixture
 def test_kiosk(db):
-    """Creates an active kiosk and returns the instance and its activation token."""
+    """Creates an active kiosk for testing."""
     # Import factories lazily to avoid importing Django models at collection time
     from tests.factories import KioskFactory
 
     kiosk = KioskFactory(is_active=True)
-    # The raw token is stored on the factory instance for test purposes
-    return kiosk, kiosk._activation_token
+    return kiosk
 
 
 @pytest.fixture

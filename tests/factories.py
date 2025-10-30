@@ -92,18 +92,6 @@ class KioskFactory(DjangoModelFactory):
     bus = factory.SubFactory(BusFactory)
     is_active = False  # Kiosks start inactive now
 
-    @factory.post_generation
-    def create_activation_token(self, create, extracted, **kwargs):
-        """Create activation token for the kiosk after creation"""
-        if not create:
-            return
-
-        from kiosks.models import KioskActivationToken
-
-        raw_token, _ = KioskActivationToken.generate_for_kiosk(self)
-        # Store the raw token for test access
-        self._activation_token = raw_token
-
 
 class StudentFactory(DjangoModelFactory):
     """

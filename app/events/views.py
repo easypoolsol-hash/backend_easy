@@ -7,8 +7,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from bus_kiosk_backend.core.authentication import FirebaseAuthentication
 from bus_kiosk_backend.permissions import IsSchoolAdmin
-from kiosks.authentication import KioskJWTAuthentication
 from kiosks.permissions import IsKiosk
 from students.models import Student
 
@@ -35,7 +35,7 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
     """
 
     queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
-    authentication_classes = [KioskJWTAuthentication]
+    authentication_classes = [FirebaseAuthentication]
     permission_classes = [IsSchoolAdmin]  # Default: school admin only for list/retrieve
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]

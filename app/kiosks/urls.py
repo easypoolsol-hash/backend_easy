@@ -4,7 +4,6 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     DeviceLogViewSet,
     KioskViewSet,
-    activate_kiosk_view,
     check_updates,
     download_snapshot,
     heartbeat,
@@ -19,8 +18,6 @@ router.register(r"logs", DeviceLogViewSet, basename="device-log")
 
 # URL patterns
 urlpatterns = [
-    # Specific endpoints before router
-    path("kiosks/activate/", activate_kiosk_view, name="kiosk-activate"),
     # Individual kiosk endpoints (flattened to avoid URLResolver issues)
     path("kiosks/logs/", kiosk_log, name="kiosk-logs"),
     path(

@@ -112,20 +112,6 @@ class Kiosk(models.Model):
         self.last_heartbeat = timezone.now()
         self.save(update_fields=["last_heartbeat", "updated_at"])
 
-    def generate_activation_token(self):
-        """Convenience wrapper to generate an activation token for this kiosk.
-
-        Returns the raw token string. Uses KioskActivationToken.generate_for_kiosk
-        which also persists the activation record.
-        """
-        # Import model here to avoid circular import at module load time
-        from .models import (
-            KioskActivationToken as KioskActivationTokenModel,
-        )
-
-        raw_token, _ = KioskActivationTokenModel.generate_for_kiosk(self)
-        return raw_token
-
 
 class KioskStatus(models.Model):
     """
@@ -279,95 +265,6 @@ class DeviceLog(models.Model):
         if timestamp is not None:
             data["timestamp"] = timestamp
         return cls.objects.create(**data)
-
-
-class KioskActivationToken(models.Model):
-    """
-    One-time activation token (like Windows license key).
-    Becomes garbage after first use.
-
-    Security: Prevents WhatsApp leak after setup.
-    Each token is valid for 24 hours and can only be used once.
-    """
-
-    kiosk = models.ForeignKey(
-        Kiosk,
-        on_delete=models.CASCADE,
-        related_name="activation_tokens",
-        help_text="Kiosk this activation token belongs to",
-    )
-
-    token_hash = models.CharField(
-        max_length=64,  # HMAC-SHA256 hex length
-        unique=True,
-        help_text="HMAC-SHA256 hash of activation token",
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True, help_text="When this activation token was created")
-
-    expires_at = models.DateTimeField(help_text="Token expires after 24 hours")
-
-    # One-time use tracking
-    is_used = models.BooleanField(default=False, help_text="Whether this token has been used for activation")
-
-    used_at = models.DateTimeField(null=True, blank=True, help_text="When this token was used for activation")
-
-    used_by_ip = models.GenericIPAddressField(null=True, blank=True, help_text="IP address that used this token")
-
-    class Meta:
-        db_table = "kiosk_activation_tokens"
-        ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["token_hash"], name="idx_activation_token_hash"),
-            models.Index(fields=["kiosk", "is_used"], name="idx_activation_kiosk_used"),
-            models.Index(fields=["expires_at"], name="idx_activation_expires"),
-        ]
-        verbose_name = "Kiosk Activation Token"
-        verbose_name_plural = "Kiosk Activation Tokens"
-
-    def is_valid(self):
-        """Check if token can still be used"""
-        if self.is_used:
-            return False
-        if timezone.now() > self.expires_at:
-            return False
-        return True
-
-    @classmethod
-    def generate_for_kiosk(cls, kiosk):
-        """
-        Generate a new activation token for a kiosk.
-
-        Returns:
-            tuple: (raw_token, activation_record)
-        """
-        from hashlib import sha256
-        import hmac
-        import secrets
-
-        from django.conf import settings
-
-        # Generate cryptographically secure random token
-        raw_token = secrets.token_urlsafe(32)
-
-        # Hash with HMAC for security (database breach protection)
-        token_hash = hmac.new(settings.SECRET_KEY.encode(), raw_token.encode(), sha256).hexdigest()
-
-        # Create database record
-        from datetime import timedelta
-
-        activation = cls.objects.create(
-            kiosk=kiosk,
-            token_hash=token_hash,
-            expires_at=timezone.now() + timedelta(hours=24),
-        )
-
-        # Return raw token (show to admin ONCE)
-        return raw_token, activation
-
-    def __str__(self):
-        status = "USED" if self.is_used else "VALID" if self.is_valid() else "EXPIRED"
-        return f"{self.kiosk.kiosk_id} - {status} ({self.created_at.date()})"
 
 
 class BusLocation(models.Model):

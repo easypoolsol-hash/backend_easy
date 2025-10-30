@@ -6,7 +6,6 @@ from .models import (
     BusLocation,
     DeviceLog,
     Kiosk,
-    KioskActivationToken,
     KioskStatus,
 )
 
@@ -112,31 +111,6 @@ class KioskAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Optimize queryset"""
         return super().get_queryset(request).select_related("bus")
-
-    actions = ["mark_active", "mark_inactive", "generate_activation_token"]
-
-    @admin.action(description="Generate Activation Tokens")
-    def generate_activation_token(self, request, queryset):
-        """Generate activation tokens for selected kiosks"""
-        from django.contrib import messages
-
-        tokens = []
-        for kiosk in queryset:
-            raw_token, _ = KioskActivationToken.generate_for_kiosk(kiosk)
-            tokens.append(f"{kiosk.kiosk_id}: {raw_token}")
-
-        # Show tokens to admin (copy to clipboard - won't show again!)
-        message_lines = [
-            "⚠️ ACTIVATION TOKENS (COPY NOW - Won't show again):",
-            "",
-        ]
-        message_lines.extend(tokens)
-        message_lines.append("")
-        message_lines.append("Send tokens to technicians via secure channel")
-        message = "\n".join(message_lines)
-        self.message_user(request, message, level=messages.WARNING)
-
-    # admin.action used for description
 
 
 @admin.register(DeviceLog)
@@ -298,70 +272,6 @@ class KioskStatusAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related("kiosk__bus")
 
     # Prevent manual editing - should be updated via heartbeat API
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-
-@admin.register(KioskActivationToken)
-class KioskActivationTokenAdmin(admin.ModelAdmin):
-    """Admin interface for kiosk activation tokens"""
-
-    list_display = [
-        "kiosk",
-        "status_badge",
-        "created_at",
-        "expires_at",
-        "used_at",
-        "used_by_ip",
-    ]
-    list_filter = ["is_used", "created_at", "expires_at"]
-    search_fields = ["kiosk__kiosk_id"]
-    readonly_fields = [
-        "kiosk",
-        "token_hash",
-        "created_at",
-        "used_at",
-        "used_by_ip",
-    ]
-    ordering = ["-created_at"]
-
-    fieldsets = (
-        (
-            "Token Info",
-            {"fields": ("kiosk", "token_hash", "created_at", "expires_at")},
-        ),
-        ("Usage", {"fields": ("is_used", "used_at", "used_by_ip")}),
-    )
-
-    @display(description="Status")
-    def status_badge(self, obj):
-        """Display status with color badge"""
-        if obj.is_used:
-            color = "red"
-            text = "USED"
-        elif obj.is_valid():
-            color = "green"
-            text = "VALID"
-        else:
-            color = "gray"
-            text = "EXPIRED"
-        return format_html(
-            ('<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px;">{}</span>'),
-            color,
-            text,
-        )
-
-    # decorator sets short_description
-
-    def get_queryset(self, request):
-        """Optimize queryset"""
-        return super().get_queryset(request).select_related("kiosk")
-
-    # Prevent manual creation/editing -
-    # tokens should be generated via admin action
     def has_add_permission(self, request):
         return False
 

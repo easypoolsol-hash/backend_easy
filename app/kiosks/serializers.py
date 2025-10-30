@@ -175,50 +175,6 @@ class KioskStatusSerializer(serializers.ModelSerializer):
         read_only_fields = ["updated_at"]
 
 
-class KioskActivationSerializer(serializers.Serializer):
-    """
-    Fortune 500 Standard: One-time kiosk activation
-
-    Used by: Google, Amazon, Netflix for device activation
-    Pattern: Disposable tokens that become garbage after first use
-    """
-
-    kiosk_id = serializers.CharField(
-        max_length=100,
-        required=True,
-        help_text="Kiosk identifier (e.g., KIOSK-SCHOOL-001)",
-        error_messages={
-            "required": "Kiosk ID is required",
-            "blank": "Kiosk ID cannot be blank",
-        },
-    )
-    activation_token = serializers.CharField(
-        max_length=255,
-        required=True,
-        write_only=True,
-        help_text="One-time activation token (destroyed after use)",
-        error_messages={
-            "required": "Activation token is required",
-            "blank": "Activation token cannot be blank",
-        },
-    )
-
-
-class KioskActivationResponseSerializer(serializers.Serializer):
-    """
-    Response for successful kiosk activation
-
-    Fortune 500 Pattern: Include everything needed for device operation
-    """
-
-    message = serializers.CharField(help_text="Success message")
-    access = serializers.CharField(help_text="JWT access token (15 minutes)")
-    refresh = serializers.CharField(help_text="JWT refresh token (60 days)")
-    kiosk_id = serializers.CharField(help_text="Activated kiosk ID")
-    bus_id = serializers.UUIDField(help_text="Assigned bus ID", allow_null=True, required=False)
-    activation_token_destroyed = serializers.BooleanField(help_text="Confirms token is now garbage")
-
-
 class BusLocationSerializer(serializers.ModelSerializer):
     """Serializer for GPS location updates from kiosk"""
 
