@@ -131,7 +131,7 @@ jobs:
             --cpu=1 \
             --port=8000 \
             --set-env-vars="DJANGO_ENV=production" \
-            --update-secrets="SECRET_KEY=django-secret-key-staging:latest,ENCRYPTION_KEY=encryption-key-staging:latest,DB_NAME=db-name-staging:latest,DB_USER=db-user-staging:latest,DB_PASSWORD=db-password-staging:latest,DB_HOST=db-host-staging:latest,REDIS_URL=redis-url-staging:latest,CELERY_BROKER_URL=celery-broker-url-staging:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
+            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
 
           SERVICE_URL=$(gcloud run services describe backendeasy-staging --region=${{ env.GCP_REGION }} --format='value(status.url)')
 
@@ -231,7 +231,7 @@ jobs:
             --cpu=1 \
             --port=8000 \
             --set-env-vars="DJANGO_ENV=production" \
-            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,DB_HOST=db-host:latest,REDIS_URL=redis-url:latest,CELERY_BROKER_URL=celery-broker-url:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
+            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
 
           SERVICE_URL=$(gcloud run services describe backendeasy-candidate --region=${{ env.GCP_REGION }} --format='value(status.url)')
 
@@ -330,7 +330,7 @@ jobs:
             --port=8000 \
             --tag=${{ steps.tag.outputs.tag }} \
             --set-env-vars="DJANGO_ENV=production" \
-            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DB_NAME=db-name:latest,DB_USER=db-user:latest,DB_PASSWORD=db-password:latest,DB_HOST=db-host:latest,REDIS_URL=redis-url:latest,CELERY_BROKER_URL=celery-broker-url:latest,GOOGLE_MAPS_API_KEY=google-maps-api-key:latest,FIREBASE_SERVICE_ACCOUNT_KEY_PATH=firebase-service-account-key-path:latest"
+            --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
 
           SERVICE_URL=$(gcloud run services describe backendeasy --region=${{ env.GCP_REGION }} --format='value(status.url)')
 

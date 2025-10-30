@@ -1,4 +1,8 @@
+import logging
+
 from rest_framework.permissions import BasePermission
+
+logger = logging.getLogger(__name__)
 
 
 class DenyByDefault(BasePermission):
@@ -49,8 +53,15 @@ class IsSchoolAdmin(BasePermission):
     def has_permission(self, request, view):
         # 1. Deny unauthenticated
         if not request.user or not request.user.is_authenticated:
+            logger.warning("IsSchoolAdmin: User not authenticated")
             return False
 
         # 2. Allow ONLY users in "School Administrator" group
         # Uses Django's built-in permission system (battery-included)
-        return request.user.groups.filter(name="School Administrator").exists()
+        has_permission = request.user.groups.filter(name="School Administrator").exists()
+
+        if not has_permission:
+            user_groups = list(request.user.groups.values_list("name", flat=True))
+            logger.warning(f"IsSchoolAdmin DENIED: user={request.user.username}, groups={user_groups}")
+
+        return has_permission
