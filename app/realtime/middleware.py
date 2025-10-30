@@ -82,5 +82,7 @@ class JWTAuthMiddleware(BaseMiddleware):
 
             return user
         except Exception as e:
-            print(f"Firebase token validation error: {e}")
+            import traceback
+            print(f"[WebSocket Middleware] Firebase token validation error: {e}")
+            print(f"[WebSocket Middleware] Traceback: {traceback.format_exc()}")
             return AnonymousUser()

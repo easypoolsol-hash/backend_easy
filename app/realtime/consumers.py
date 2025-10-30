@@ -100,10 +100,14 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     def is_authenticated(self):
         """Check if user is authenticated and is school admin."""
         user = self.scope.get("user")
+        print(f"[DashboardConsumer] User: {user}, is_authenticated: {user.is_authenticated if user else 'N/A'}")
         if not user or not user.is_authenticated:
+            print(f"[DashboardConsumer] User not authenticated")
             return False
         # Only school admins can access dashboard
-        return user.groups.filter(name="School Administrator").exists()
+        has_group = user.groups.filter(name="School Administrator").exists()
+        print(f"[DashboardConsumer] Has School Administrator group: {has_group}")
+        return has_group
 
 
 class BusTrackingConsumer(AsyncWebsocketConsumer):
@@ -195,6 +199,10 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
     def is_authenticated(self):
         """Check if user is authenticated."""
         user = self.scope.get("user")
+        print(f"[BusTrackingConsumer] User: {user}, is_authenticated: {user.is_authenticated if user else 'N/A'}")
         if not user:
+            print(f"[BusTrackingConsumer] No user in scope")
             return False
-        return user.is_authenticated
+        result = user.is_authenticated
+        print(f"[BusTrackingConsumer] Returning: {result}")
+        return result
