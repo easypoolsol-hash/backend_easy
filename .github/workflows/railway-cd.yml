@@ -130,6 +130,7 @@ jobs:
             --memory=512Mi \
             --cpu=1 \
             --port=8000 \
+            --service-account=cloud-run-backend-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars="DJANGO_ENV=production" \
             --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
 
@@ -230,6 +231,7 @@ jobs:
             --memory=512Mi \
             --cpu=1 \
             --port=8000 \
+            --service-account=cloud-run-backend-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars="DJANGO_ENV=production" \
             --update-secrets="SECRET_KEY=django-secret-key:latest,ENCRYPTION_KEY=encryption-key:latest,DATABASE_URL=database-url:latest,DJANGO_SUPERUSER_USERNAME=django-superuser-username:latest,DJANGO_SUPERUSER_EMAIL=django-superuser-email:latest,DJANGO_SUPERUSER_PASSWORD=django-superuser-password:latest"
 
