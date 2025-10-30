@@ -93,54 +93,80 @@ DATABASES["default"]["OPTIONS"] = {
     "options": "-c timezone=UTC",
 }
 
-# Production cache (Redis required)
-if not os.getenv("REDIS_URL"):
-    raise ValueError("Production requires Redis cache. Set REDIS_URL environment variable (e.g., redis://127.0.0.1:6379/0)")
-
-redis_url = os.environ["REDIS_URL"]
-
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": redis_url,
-        "KEY_PREFIX": "bus_kiosk_prod",
-        "TIMEOUT": 300,
-    },
-    "api_cache": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": redis_url,
-        "KEY_PREFIX": "api_prod",
-        "TIMEOUT": 3600,
-    },
-}
-
-# Production channel layers (Redis required for WebSocket)
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [redis_url],
-            "capacity": 1500,  # type: ignore[dict-item]
-            "expiry": 10,  # type: ignore[dict-item]
+# Production cache (Redis - temporarily use in-memory fallback)
+# TODO: Re-enable Redis once REDIS_URL secret is added to GCP Secret Manager
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_url,
+            "KEY_PREFIX": "bus_kiosk_prod",
+            "TIMEOUT": 300,
         },
-    },
-}
+        "api_cache": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": redis_url,
+            "KEY_PREFIX": "api_prod",
+            "TIMEOUT": 3600,
+        },
+    }
+else:
+    # Fallback to in-memory cache (not recommended for production)
+    print("[PRODUCTION] WARNING: Using in-memory cache. Set REDIS_URL for production Redis cache.")
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "bus_kiosk_prod",
+        },
+        "api_cache": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "api_prod",
+        },
+    }
 
-# Production Celery (Redis required)
-if not os.getenv("CELERY_BROKER_URL"):
-    raise ValueError("Production requires Celery broker. Set CELERY_BROKER_URL environment variable (e.g., redis://127.0.0.1:6379/0)")
+# Production channel layers (Redis - fallback to in-memory for WebSocket)
+# TODO: Re-enable Redis once REDIS_URL secret is added to GCP Secret Manager
+if redis_url:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [redis_url],
+                "capacity": 1500,  # type: ignore[dict-item]
+                "expiry": 10,  # type: ignore[dict-item]
+            },
+        },
+    }
+else:
+    # Fallback to in-memory channel layer (not recommended for production)
+    print("[PRODUCTION] WARNING: Using in-memory channel layer. Set REDIS_URL for production Redis.")
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
 
-CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
+# Production Celery (Redis - make optional for now)
+# TODO: Re-enable strict requirement once CELERY_BROKER_URL secret is added
+celery_broker_url = os.getenv("CELERY_BROKER_URL")
+if celery_broker_url:
+    CELERY_BROKER_URL = celery_broker_url
+else:
+    print("[PRODUCTION] WARNING: CELERY_BROKER_URL not set. Background tasks disabled.")
+    CELERY_TASK_ALWAYS_EAGER = True  # Run tasks synchronously
 
-# Production: Google Maps API Key (required)
-if not os.getenv("GOOGLE_MAPS_API_KEY"):
-    raise ValueError("Production requires Google Maps API Key. Set GOOGLE_MAPS_API_KEY environment variable")
+# Production: Google Maps API Key (optional for now)
+# TODO: Re-enable strict requirement once GOOGLE_MAPS_API_KEY secret is added
+google_maps_api_key = os.getenv("GOOGLE_MAPS_API_KEY")
+if google_maps_api_key:
+    GOOGLE_MAPS_API_KEY = google_maps_api_key
+else:
+    print("[PRODUCTION] WARNING: GOOGLE_MAPS_API_KEY not set. Maps features may not work.")
+    GOOGLE_MAPS_API_KEY = ""
 
-GOOGLE_MAPS_API_KEY = os.environ["GOOGLE_MAPS_API_KEY"]
-
-# Production: Firebase Admin SDK (required for authentication)
-if not os.getenv("FIREBASE_SERVICE_ACCOUNT_KEY_PATH"):
-    raise ValueError("Production requires Firebase service account. Set FIREBASE_SERVICE_ACCOUNT_KEY_PATH environment variable")
+# Firebase - Already initialized in base.py (common for all environments)
+# Secret: firebase-service-account-key is injected as FIREBASE_SERVICE_ACCOUNT_KEY env var
 
 # Production: Remove DRF Browsable API (security)
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [  # noqa: F405
