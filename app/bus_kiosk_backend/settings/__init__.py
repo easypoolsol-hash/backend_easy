@@ -38,7 +38,7 @@ def get_environment() -> str:
     """
     # 1. Explicit override via DJANGO_ENV
     django_env = os.getenv("DJANGO_ENV", "").lower()
-    if django_env in ("local", "ci", "production"):
+    if django_env in ("local", "ci", "staging", "production"):
         return django_env
 
     # 2. CI/CD detection
@@ -73,6 +73,10 @@ if environment == "production":
     from .production import *  # noqa: F403
 
     print("[SETTINGS] Loaded PRODUCTION settings")
+elif environment == "staging":
+    from .staging import *  # noqa: F403
+
+    print("[SETTINGS] Loaded STAGING settings")
 elif environment == "ci":
     from .ci import *  # noqa: F403
 
@@ -87,4 +91,4 @@ ENVIRONMENT = environment
 
 print(f"[SETTINGS] Auto-detected environment: {environment.upper()}")
 print(f"[SETTINGS] Settings module: bus_kiosk_backend.settings.{environment}")
-print("[SETTINGS] Override with: export DJANGO_ENV=<local|ci|production>")
+print("[SETTINGS] Override with: export DJANGO_ENV=<local|ci|staging|production>")
