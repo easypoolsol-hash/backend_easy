@@ -79,24 +79,32 @@ LOGGING["loggers"]["django"]["level"] = "WARNING"  # noqa: F405  # type: ignore[
 LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"  # noqa: F405  # type: ignore[index]
 
 # Production database (PostgreSQL required)
-if os.getenv("DB_ENGINE") != "django.db.backends.postgresql":
-    raise ValueError("Production requires PostgreSQL database. Set DB_ENGINE=django.db.backends.postgresql")
+# Google Cloud Run connects to Cloud SQL via Unix socket
+# DATABASE_URL format: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 
+import dj_database_url  # noqa: E402
+
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("Production requires DATABASE_URL environment variable")
+
+# Parse DATABASE_URL (supports Cloud SQL Unix socket connections)
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ["DB_NAME"],  # Fails fast if not set
-        "USER": os.environ["DB_USER"],  # Fails fast if not set
-        "PASSWORD": os.environ["DB_PASSWORD"],  # Fails fast if not set
-        "HOST": os.environ["DB_HOST"],  # Fails fast if not set
-        "PORT": os.getenv("DB_PORT", "5432"),
-        "OPTIONS": {
-            "connect_timeout": 10,
-            "options": "-c timezone=UTC",
-        },
-        "CONN_MAX_AGE": 600,  # Connection pooling (10 minutes)
-        "CONN_HEALTH_CHECKS": True,
-    }
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,  # Connection pooling (10 minutes)
+        conn_health_checks=True,
+    )
+}
+
+# Ensure it's PostgreSQL
+if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
+    raise ValueError(f"Production requires PostgreSQL. Got: {DATABASES['default']['ENGINE']}")
+
+# Add additional PostgreSQL options
+DATABASES["default"]["OPTIONS"] = {
+    "connect_timeout": 10,
+    "options": "-c timezone=UTC",
 }
 
 # Production cache (Redis required)
