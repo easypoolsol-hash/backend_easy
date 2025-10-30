@@ -17,6 +17,9 @@ import os
 # Import all base settings
 from .base import *  # noqa: F403
 
+# Import security settings
+from .security import *  # noqa: F403
+
 # Production: DEBUG must be False (hard-coded, no override)
 DEBUG = False
 
@@ -38,24 +41,20 @@ if os.getenv("ALLOWED_HOSTS"):
     additional_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
     ALLOWED_HOSTS.extend(additional_hosts)
 
-# Production CORS (HTTPS only - no localhost)
+# Production CORS - Extend base config with production backend URLs
 CORS_ALLOWED_ORIGINS = [
-    "https://easypool.in",
-    "https://www.easypool.in",
-    "https://api.easypool.in",
+    *CORS_ALLOWED_ORIGINS,  # noqa: F405
+    "https://backendeasy-683213759629.asia-south1.run.app",
+    "https://backendeasy-lela6xnh4q-el.a.run.app",
 ]
 
-# Production CSRF trusted origins (HTTPS only)
+# Production CSRF - Extend base config with production backend URLs
+# Hardcoded only - no injection for security
 CSRF_TRUSTED_ORIGINS = [
-    "https://easypool.in",
-    "https://www.easypool.in",
-    "https://api.easypool.in",
+    *CSRF_TRUSTED_ORIGINS,  # noqa: F405
+    "https://backendeasy-683213759629.asia-south1.run.app",
+    "https://backendeasy-lela6xnh4q-el.a.run.app",
 ]
-
-# Add environment variable origins if specified
-if os.getenv("CSRF_TRUSTED_ORIGINS"):
-    csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
-    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in csrf_origins])
 
 # Production security (HTTPS enforcement)
 SECURE_HSTS_SECONDS = 31536000  # 1 year

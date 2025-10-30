@@ -15,6 +15,9 @@ import os
 # Import all base settings
 from .base import *  # noqa: F403
 
+# Import security settings
+from .security import *  # noqa: F403
+
 # Staging: DEBUG can be True for easier troubleshooting
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
@@ -32,23 +35,30 @@ if os.getenv("ALLOWED_HOSTS"):
     additional_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
     ALLOWED_HOSTS = additional_hosts
 
-# Staging CORS - Allow all for testing
-CORS_ALLOWED_ORIGINS = []
-CORS_ALLOW_ALL_ORIGINS = True
+# Staging CORS - Add staging + candidate backend URLs to base
+CORS_ALLOWED_ORIGINS = [
+    *CORS_ALLOWED_ORIGINS,  # noqa: F405
+    "https://backendeasy-staging-683213759629.asia-south1.run.app",
+    "https://backendeasy-staging-lela6xnh4q-el.a.run.app",
+    "https://backendeasy-candidate-683213759629.asia-south1.run.app",
+]
 
-# Staging CSRF - Flexible
-CSRF_TRUSTED_ORIGINS = []
-if os.getenv("CSRF_TRUSTED_ORIGINS"):
-    csrf_origins = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
-    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins]
+# Staging CSRF - Add staging + candidate backend URLs to base
+# Hardcoded only - no injection for security
+CSRF_TRUSTED_ORIGINS = [
+    *CSRF_TRUSTED_ORIGINS,  # noqa: F405
+    "https://backendeasy-staging-683213759629.asia-south1.run.app",
+    "https://backendeasy-staging-lela6xnh4q-el.a.run.app",
+    "https://backendeasy-candidate-683213759629.asia-south1.run.app",
+]
 
-# Staging: Relaxed security (not HTTPS enforced)
-SECURE_HSTS_SECONDS = 0
+# Staging: Basic HTTPS security (still enforce HTTPS)
+SECURE_HSTS_SECONDS = 3600  # 1 hour (lighter than production's 1 year)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = False
 SECURE_HSTS_PRELOAD = False
-SECURE_SSL_REDIRECT = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+SECURE_SSL_REDIRECT = True  # Enforce HTTPS
+SESSION_COOKIE_SECURE = True  # Secure cookies
+CSRF_COOKIE_SECURE = True  # Secure CSRF cookies
 
 # Staging logging
 LOGGING["root"]["level"] = "INFO"  # noqa: F405  # type: ignore[index]
