@@ -13,17 +13,13 @@ Fortune 500 Pattern:
 """
 
 import os
-
-import environ
+import re
 
 # Import all base settings
 from .base import *  # noqa: F403
 
 # Import security settings
 from .security import *  # noqa: F403
-
-# Initialize django-environ
-env = environ.Env()
 
 # Production: DEBUG must be False (hard-coded, no override)
 DEBUG = False
@@ -81,22 +77,72 @@ LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"  # noqa: F405  # type:
 # Google Cloud SQL: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 # Standard PostgreSQL: postgresql://user:pass@host:5432/dbname
 
-# Production database - Use django-environ to parse DATABASE_URL
-# Official Google Cloud recommended approach for Cloud SQL connections
-# Format: postgres://USER:PASS@//cloudsql/PROJECT:REGION:INSTANCE/DBNAME
-if not os.environ.get("DATABASE_URL"):
+# Production database - Parse DATABASE_URL manually (same as staging.py)
+# Format: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
     raise ValueError("Production requires DATABASE_URL environment variable")
 
-# Parse DATABASE_URL using django-environ (handles Cloud SQL unix sockets correctly)
-DATABASES = {"default": env.db()}
+# Parse DATABASE_URL manually for Cloud SQL Unix socket format
+if "?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL:
+    # Cloud SQL Unix socket format - supports both old and new formats
+    # Old: postgresql://user:pass@/dbname?host=/cloudsql/instance
+    # New: postgres://user:pass@//cloudsql/instance/dbname
 
-# Add PostgreSQL-specific options
-DATABASES["default"]["CONN_MAX_AGE"] = 600
-DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
-DATABASES["default"]["OPTIONS"] = {
-    "connect_timeout": 10,
-    "options": "-c timezone=UTC",
-}
+    if "?host=/cloudsql/" in DATABASE_URL:
+        # Query parameter format
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@/([^?]+)\?host=(.+)", DATABASE_URL)
+        if match:
+            user, password, dbname, host = match.groups()
+        else:
+            raise ValueError(f"Invalid Cloud SQL DATABASE_URL format: {DATABASE_URL}")
+    else:
+        # Path format
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@//cloudsql/([^/]+)/(.+)", DATABASE_URL)
+        if match:
+            user, password, instance, dbname = match.groups()
+            host = f"/cloudsql/{instance}"
+        else:
+            raise ValueError(f"Invalid Cloud SQL DATABASE_URL format: {DATABASE_URL}")
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": dbname,
+            "USER": user,
+            "PASSWORD": password,
+            "HOST": host,  # /cloudsql/PROJECT:REGION:INSTANCE
+            "OPTIONS": {
+                "connect_timeout": 10,
+                "options": "-c timezone=UTC",
+            },
+            "CONN_MAX_AGE": 600,
+            "CONN_HEALTH_CHECKS": True,
+        }
+    }
+else:
+    # Standard PostgreSQL URL format
+    match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):?(\d+)?/(.+)", DATABASE_URL)
+    if match:
+        user, password, host, port, dbname = match.groups()
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": dbname,
+                "USER": user,
+                "PASSWORD": password,
+                "HOST": host,
+                "PORT": port or "5432",
+                "OPTIONS": {
+                    "connect_timeout": 10,
+                    "options": "-c timezone=UTC",
+                },
+                "CONN_MAX_AGE": 600,
+                "CONN_HEALTH_CHECKS": True,
+            }
+        }
+    else:
+        raise ValueError(f"Invalid DATABASE_URL format: {DATABASE_URL}")
 
 # Production cache (Redis - temporarily use in-memory fallback)
 # TODO: Re-enable Redis once REDIS_URL secret is added to GCP Secret Manager
