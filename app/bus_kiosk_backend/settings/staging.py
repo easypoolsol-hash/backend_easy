@@ -71,13 +71,37 @@ LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "DEBUG"  # noqa: F405  # type
 database_url = os.environ.get("DATABASE_URL")
 if database_url:
     # Parse DATABASE_URL manually (simple parsing for Cloud SQL)
-    # Format: postgresql://user:pass@/dbname?host=/cloudsql/instance
+    # Supports both formats:
+    # 1. Google Cloud format: postgres://user:pass@//cloudsql/PROJECT:REGION:INSTANCE/dbname
+    # 2. Query parameter format: postgresql://user:pass@/dbname?host=/cloudsql/instance
     import re
 
-    # For Cloud SQL Unix socket format
-    if "?host=/cloudsql/" in database_url:
-        # Extract components
-        match = re.match(r"postgresql://([^:]+):([^@]+)@/([^?]+)\?host=(.+)", database_url)
+    # Check for Google Cloud format (path-based with //)
+    if "@//cloudsql/" in database_url:
+        # Format: postgres://user:pass@//cloudsql/PROJECT:REGION:INSTANCE/dbname
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@//cloudsql/([^/]+)/(.+)", database_url)
+        if match:
+            user, password, instance, dbname = match.groups()
+            host = f"/cloudsql/{instance}"
+            DATABASES = {
+                "default": {
+                    "ENGINE": "django.db.backends.postgresql",
+                    "NAME": dbname,
+                    "USER": user,
+                    "PASSWORD": password,
+                    "HOST": host,
+                    "OPTIONS": {
+                        "connect_timeout": 10,
+                        "options": "-c timezone=UTC",
+                    },
+                    "CONN_MAX_AGE": 600,
+                    "CONN_HEALTH_CHECKS": True,
+                }
+            }
+    # Check for query parameter format
+    elif "?host=/cloudsql/" in database_url:
+        # Format: postgresql://user:pass@/dbname?host=/cloudsql/instance
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@/([^?]+)\?host=(.+)", database_url)
         if match:
             user, password, dbname, host = match.groups()
             DATABASES = {
@@ -98,7 +122,7 @@ if database_url:
     else:
         # Standard PostgreSQL URL format
         # Format: postgresql://user:pass@host:port/dbname
-        match = re.match(r"postgresql://([^:]+):([^@]+)@([^:]+):?(\d+)?/(.+)", database_url)
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):?(\d+)?/(.+)", database_url)
         if match:
             user, password, host, port, dbname = match.groups()
             DATABASES = {
