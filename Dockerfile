@@ -82,47 +82,94 @@ RUN python manage.py collectstatic --noinput --clear
 # Switch to non-root user for security
 USER django
 
-# Health check for ASGI application (supports both HTTP and WebSockets)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health/ || exit 1
+# Health check for ASGI application (uses liveness probe - always succeeds if server is up)
+# This matches Cloud Run's startup probe behavior
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/health/live/ || exit 1
 
 # Expose port
 EXPOSE 8000
 
-# Create production-grade startup script with Cloud SQL proxy wait
+# Create production-grade startup script with industry-standard resilience
 USER root
 RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
-echo "🚀 Starting application initialization..."\n\
+echo "🚀 Starting EasyPool Backend - Industry Standard Startup"\n\
+echo "ℹ️  Application will start FIRST, then initialize database"\n\
 \n\
-# Wait for Cloud SQL proxy to be ready (retry for up to 30 seconds)\n\
-echo "⏳ Waiting for database connection..."\n\
-for i in {1..15}; do\n\
-    if python manage.py check --database default 2>/dev/null; then\n\
-        echo "✅ Database connection established"\n\
-        break\n\
+# Function to run database operations in background\n\
+run_db_init() {\n\
+    echo "📦 [BACKGROUND] Starting database initialization..."\n\
+    \n\
+    # Wait for database with exponential backoff (up to 2 minutes)\n\
+    attempt=1\n\
+    max_attempts=12\n\
+    wait_time=5\n\
+    \n\
+    while [ $attempt -le $max_attempts ]; do\n\
+        echo "⏳ [DB-INIT] Attempt $attempt/$max_attempts: Checking database connectivity..."\n\
+        if python manage.py check --database default 2>/dev/null; then\n\
+            echo "✅ [DB-INIT] Database connection established on attempt $attempt"\n\
+            break\n\
+        fi\n\
+        \n\
+        if [ $attempt -eq $max_attempts ]; then\n\
+            echo "⚠️  [DB-INIT] Database connection failed after $max_attempts attempts"\n\
+            echo "⚠️  [DB-INIT] Application will continue running, but migrations were not applied"\n\
+            echo "⚠️  [DB-INIT] Check /health/ready/ endpoint for database status"\n\
+            return 1\n\
+        fi\n\
+        \n\
+        echo "⏳ [DB-INIT] Waiting ${wait_time}s before retry..."\n\
+        sleep $wait_time\n\
+        \n\
+        # Exponential backoff (5s, 10s, 15s, 20s, max 30s)\n\
+        wait_time=$((wait_time + 5))\n\
+        if [ $wait_time -gt 30 ]; then\n\
+            wait_time=30\n\
+        fi\n\
+        \n\
+        attempt=$((attempt + 1))\n\
+    done\n\
+    \n\
+    # Run migrations (idempotent - safe to run multiple times)\n\
+    echo "📦 [DB-INIT] Running database migrations..."\n\
+    if python manage.py migrate --noinput; then\n\
+        echo "✅ [DB-INIT] Migrations completed successfully"\n\
+    else\n\
+        echo "⚠️  [DB-INIT] Migrations failed - check logs"\n\
+        return 1\n\
     fi\n\
-    if [ $i -eq 15 ]; then\n\
-        echo "❌ Database connection timeout"\n\
-        exit 1\n\
+    \n\
+    # Create superuser if credentials are provided\n\
+    if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then\n\
+        echo "👤 [DB-INIT] Checking superuser..."\n\
+        if python manage.py createsuperuser_secure --no-input 2>/dev/null; then\n\
+            echo "✅ [DB-INIT] Superuser created"\n\
+        else\n\
+            echo "ℹ️  [DB-INIT] Superuser already exists or creation skipped"\n\
+        fi\n\
     fi\n\
-    echo "⏳ Waiting for database... ($i/15)"\n\
-    sleep 2\n\
-done\n\
+    \n\
+    echo "✅ [DB-INIT] Database initialization complete"\n\
+}\n\
 \n\
-# Run migrations (idempotent - safe to run multiple times)\n\
-echo "📦 Running database migrations..."\n\
-python manage.py migrate --noinput\n\
+# Start database initialization in background\n\
+run_db_init &\n\
+DB_INIT_PID=$!\n\
 \n\
-# Create superuser if credentials are provided and user does not exist\n\
-if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then\n\
-    echo "👤 Checking superuser..."\n\
-    python manage.py createsuperuser_secure --no-input || echo "Superuser already exists or creation failed"\n\
-fi\n\
+# Give database init a brief head start (allows faster startup if DB is available)\n\
+sleep 2\n\
 \n\
-echo "✅ Initialization complete"\n\
-echo "🌐 Starting Daphne ASGI server on port 8000..."\n\
+# Start the ASGI server IMMEDIATELY (industry standard)\n\
+echo "✅ Application process starting - listening on port 8000"\n\
+echo "🌐 Health checks available at:"\n\
+echo "   - /health/live/  (liveness - always returns 200 if process alive)"\n\
+echo "   - /health/ready/ (readiness - checks database with retry)"\n\
+echo "   - /health/       (basic health check)"\n\
+echo ""\n\
+echo "🚀 Starting Daphne ASGI server..."\n\
 exec daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application' > /app/start.sh && \
     chmod +x /app/start.sh && \
     chown django:django /app/start.sh
