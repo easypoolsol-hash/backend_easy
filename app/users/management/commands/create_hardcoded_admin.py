@@ -6,6 +6,8 @@ After first login, create proper SSO admin and delete this account
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.db import connection
+from django.db.utils import OperationalError
 
 User = get_user_model()
 
@@ -20,6 +22,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         try:
+            # Check if database table exists
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM auth_user LIMIT 1")
+        except OperationalError:
+            self.stdout.write("[SKIP] Database not ready, migrations not applied yet")
+            return
+
+        try:
             user, created = User.objects.update_or_create(
                 username=ADMIN_USERNAME,
                 defaults={
@@ -33,7 +43,7 @@ class Command(BaseCommand):
             user.save()
 
             action = "Created" if created else "Updated"
-            self.stdout.write(self.style.SUCCESS(f"✅ {action} hardcoded admin: {ADMIN_USERNAME}"))
+            self.stdout.write(f"[SUCCESS] {action} hardcoded admin: {ADMIN_USERNAME}")
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Failed to create admin: {e}"))
+            self.stdout.write(f"[ERROR] Failed to create admin: {e}")
