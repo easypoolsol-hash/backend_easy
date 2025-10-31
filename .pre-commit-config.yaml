@@ -9,10 +9,11 @@ repos:
     hooks:
       # Branch Protection: Prevent direct commits to master
       # Only allow merges from develop branch
+      # CRITICAL: This hook CANNOT be skipped - constitutional protection
       - id: protect-master-branch
         name: Protect Master Branch (Merge Only)
         entry: bash
-        args: ["-c", "BRANCH=$(git symbolic-ref HEAD | sed -e 's,.*/\\(.*\\),\\1,'); if [ \"$BRANCH\" = \"master\" ]; then if git rev-parse -q --verify MERGE_HEAD > /dev/null; then exit 0; else echo '❌ ERROR: Direct commits to master are not allowed!'; echo '✅ Please commit to develop branch, then merge to master:'; echo '   git checkout develop'; echo '   git add .'; echo '   git commit -m \"your message\"'; echo '   git push origin develop'; echo ''; echo '💡 To merge develop → master:'; echo '   git checkout master'; echo '   git merge develop'; echo '   git push origin master'; exit 1; fi; fi"]
+        args: ["-c", "if echo \"$SKIP\" | grep -q 'protect-master-branch\\|all'; then echo '🛡️  CONSTITUTIONAL PROTECTION: protect-master-branch hook cannot be skipped'; echo '❌ Attempted to bypass master branch protection - BLOCKED'; exit 1; fi; BRANCH=$(git symbolic-ref HEAD | sed -e 's,.*/\\(.*\\),\\1,'); if [ \"$BRANCH\" = \"master\" ]; then if git rev-parse -q --verify MERGE_HEAD > /dev/null; then exit 0; else echo '❌ ERROR: Direct commits to master are not allowed!'; echo '✅ Please commit to develop branch, then merge to master:'; echo '   git checkout develop'; echo '   git add .'; echo '   git commit -m \"your message\"'; echo '   git push origin develop'; echo ''; echo '💡 To merge develop → master:'; echo '   git checkout master'; echo '   git merge develop'; echo '   git push origin master'; echo ''; echo '⚡ Quick commit (skip other hooks): SKIP=openapi-schema,unit-tests-core git commit -m \"msg\"'; echo '⛔ Cannot skip: protect-master-branch'; exit 1; fi; fi"]
         language: system
         pass_filenames: false
         stages: [commit]

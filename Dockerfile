@@ -142,32 +142,36 @@ run_db_init() {\n\
         return 1\n\
     fi\n\
     \n\
-    # Create superuser with hardcoded credentials (DEVELOPMENT ONLY)\n\
-    echo "👤 [DB-INIT] Creating/updating hardcoded admin superuser..."\n\
-    if python manage.py create_hardcoded_admin 2>/dev/null; then\n\
-        echo "✅ [DB-INIT] Admin superuser created/updated"\n\
-    else\n\
-        echo "⚠️  [DB-INIT] Failed to create/update admin superuser"\n\
-    fi\n\
-    \n\
     echo "✅ [DB-INIT] Database initialization complete"\n\
+    \n\
+    # Create bootstrap admin (singleton, atomic, waits for DB)\n\
+    python manage.py ensure_bootstrap_admin || echo "[DB-INIT] Admin creation deferred"\n\
 }\n\
 \n\
 # Start database initialization in background\n\
 run_db_init &\n\
 DB_INIT_PID=$!\n\
 \n\
-# Give database init a brief head start (allows faster startup if DB is available)\n\
+# Give database init a brief head start\n\
 sleep 2\n\
 \n\
-# Start the ASGI server IMMEDIATELY (industry standard)\n\
-echo "✅ Application process starting - listening on port 8000"\n\
-echo "🌐 Health checks available at:"\n\
-echo "   - /health/live/  (liveness - always returns 200 if process alive)"\n\
-echo "   - /health/ready/ (readiness - checks database with retry)"\n\
-echo "   - /health/       (basic health check)"\n\
-echo ""\n\
-echo "🚀 Starting Daphne ASGI server..."\n\
+# Ensure admin exists (retry every 10s for 2 min in background)\n\
+(\n\
+    for i in {1..12}; do\n\
+        output=$(python manage.py ensure_bootstrap_admin 2>&1)\n\
+        echo \"$output\"\n\
+        if echo \"$output\" | grep -q SUCCESS; then\n\
+            break\n\
+        fi\n\
+        sleep 10\n\
+    done\n\
+) &\n\
+\n\
+# Start the ASGI server IMMEDIATELY\n\
+echo "✅ Application starting on port 8000"\n\
+echo "🌐 Health: /health/live/ /health/ready/ /health/"\n\
+echo "🔐 Admin: /admin/ (admin123 / EasyPool2025Admin)"\n\
+echo "🚀 Starting Daphne..."\n\
 exec daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application' > /app/start.sh && \
     chmod +x /app/start.sh && \
     chown django:django /app/start.sh
