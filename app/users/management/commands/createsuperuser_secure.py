@@ -61,9 +61,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # Check if superuser already exists
-        if User.objects.filter(is_superuser=True).exists():
-            self.stdout.write(self.style.WARNING("Superuser already exists. Skipping creation."))
-            return
+        try:
+            user = User.objects.get(username=options.get("username") or os.getenv("DJANGO_SUPERUSER_USERNAME"))
+            self.stdout.write(self.style.WARNING(f"Superuser {user.username} already exists. Updating password..."))
+        except User.DoesNotExist:
+            user = None
 
         # Get credentials from environment variables or prompts
         if options["no_input"]:
@@ -105,19 +107,26 @@ class Command(BaseCommand):
         if len(password) < 8:
             raise CommandError("Password must be at least 8 characters long")
 
-        # Create superuser atomically
+        # Create or update superuser atomically
         try:
             with transaction.atomic():
-                User.objects.create_superuser(
-                    username=username,
-                    email=email,
-                    password=password,
-                )
-
-                self.stdout.write(self.style.SUCCESS(f"Superuser created successfully: {username} ({email})"))
+                if user:
+                    # Update existing superuser
+                    user.email = email
+                    user.set_password(password)
+                    user.save()
+                    self.stdout.write(self.style.SUCCESS(f"Superuser password updated successfully: {username} ({email})"))
+                else:
+                    # Create new superuser
+                    User.objects.create_superuser(
+                        username=username,
+                        email=email,
+                        password=password,
+                    )
+                    self.stdout.write(self.style.SUCCESS(f"Superuser created successfully: {username} ({email})"))
 
                 # Security reminder
                 self.stdout.write(self.style.WARNING("⚠️  SECURITY REMINDER: Change password immediately and enable 2FA!"))
 
         except Exception as e:
-            raise CommandError(f"Failed to create superuser: {e!r}") from e
+            raise CommandError(f"Failed to create/update superuser: {e!r}") from e
