@@ -34,10 +34,13 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+
 from bus_kiosk_backend.health import (
     detailed_health_check,
     health_check,
+    liveness_check,
     prometheus_metrics,
+    readiness_check,
 )
 from buses.views import bus_locations_api
 
@@ -142,6 +145,8 @@ urlpatterns += [
     path("auth-status/", auth_status, name="auth_status"),  # type: ignore[list-item]
     # Health checks (no auth required)
     path("health/", health_check, name="health_check"),  # type: ignore[list-item]
+    path("health/live/", liveness_check, name="liveness_check"),  # type: ignore[list-item]
+    path("health/ready/", readiness_check, name="readiness_check"),  # type: ignore[list-item]
     path(
         "health/detailed/",
         detailed_health_check,

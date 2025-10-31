@@ -45,16 +45,20 @@ if os.getenv("ALLOWED_HOSTS"):
 # Production CORS - Extend base config with production backend URLs
 CORS_ALLOWED_ORIGINS = [
     *CORS_ALLOWED_ORIGINS,  # noqa: F405
-    "https://backendeasy-683213759629.asia-south1.run.app",
-    "https://backendeasy-lela6xnh4q-el.a.run.app",
+    # Current Cloud Run URLs (hash-based format)
+    "https://easypool-backend-vvifoskiaa-el.a.run.app",
+    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
+    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
 ]
 
 # Production CSRF - Extend base config with production backend URLs
 # Hardcoded only - no injection for security
 CSRF_TRUSTED_ORIGINS = [
     *CSRF_TRUSTED_ORIGINS,  # noqa: F405
-    "https://backendeasy-683213759629.asia-south1.run.app",
-    "https://backendeasy-lela6xnh4q-el.a.run.app",
+    # Current Cloud Run URLs (hash-based format)
+    "https://easypool-backend-vvifoskiaa-el.a.run.app",
+    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
+    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
 ]
 
 # Production security
