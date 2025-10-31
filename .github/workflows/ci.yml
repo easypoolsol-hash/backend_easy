@@ -269,38 +269,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image (cached)
-        uses: docker/build-push-action@v5
+      - uses: ./.github/actions/load-from-cache
         with:
-          context: .
-          push: false
-          load: true
-          tags: backend_easy:staging
-          cache-from: type=gha
+          image_tag: staging
+          fail_if_missing: 'false'
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/push-image
         with:
+          image_tag: staging
+          sha_tag_prefix: staging
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Push to Artifact Registry
-        run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
-          IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
-
-          # Tag with both 'staging' and 'staging-SHA' for promotion tracking
-          docker tag backend_easy:staging $IMAGE_URL:staging
-          docker tag backend_easy:staging $IMAGE_URL:staging-${{ github.sha }}
-
-          docker push $IMAGE_URL:staging
-          docker push $IMAGE_URL:staging-${{ github.sha }}
-
-          echo "✅ Staging image pushed: $IMAGE_URL:staging" >> $GITHUB_STEP_SUMMARY
-          echo "📌 SHA-tagged: $IMAGE_URL:staging-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
   deploy-staging-cloudrun:
     name: Deploy Staging to Cloud Run
@@ -324,52 +303,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Load from GitHub cache (CANONICAL - Git is truth)
-        uses: docker/build-push-action@v5
+      - uses: ./.github/actions/load-from-cache
         with:
-          context: .
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:candidate
-          cache-from: type=gha
-          # NO cache-to - only consuming develop's cache
+          image_tag: candidate
+          fail_if_missing: 'true'
 
-      - name: Verify cache loaded (FAIL if not found)
-        run: |
-          if ! docker image inspect ${{ env.IMAGE_NAME }}:candidate >/dev/null 2>&1; then
-            echo "ERROR - CACHE MISS: No image found in GitHub cache for commit ${{ github.sha }}"
-            echo "ERROR - This means develop branch did not build/test this commit."
-            echo "ERROR - Deploy to develop first, then merge to master."
-            exit 1
-          fi
-          echo "SUCCESS - Cache hit - loaded image from develop build" >> $GITHUB_STEP_SUMMARY
-          echo "Image: EXACT same as develop tested" >> $GITHUB_STEP_SUMMARY
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/push-image
         with:
+          image_tag: candidate
+          sha_tag_prefix: candidate
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Push to GCR (candidate)
-        run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
-
-          # Tag image
-          docker tag ${{ env.IMAGE_NAME }}:candidate ${{ env.GCR_IMAGE }}:candidate
-          docker tag ${{ env.IMAGE_NAME }}:candidate ${{ env.GCR_IMAGE }}:candidate-${{ github.sha }}
-
-          # Push to GCR (only ~2KB - layers already exist from staging push)
-          docker push ${{ env.GCR_IMAGE }}:candidate
-          docker push ${{ env.GCR_IMAGE }}:candidate-${{ github.sha }}
-
-          echo "SUCCESS - Candidate image pushed to GCR" >> $GITHUB_STEP_SUMMARY
-          echo "Tags: candidate, candidate-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "Push size: ~2KB metadata (layers already in GCR)" >> $GITHUB_STEP_SUMMARY
-          echo "Source: Git cache (canonical)" >> $GITHUB_STEP_SUMMARY
 
   deploy-candidate-cloudrun:
     name: Deploy Candidate to Cloud Run
@@ -400,47 +344,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Load from GitHub cache (Git-Canonical)
-        uses: docker/build-push-action@v5
+      - uses: ./.github/actions/load-from-cache
         with:
-          context: .
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:production
-          cache-from: type=gha
+          image_tag: latest
+          fail_if_missing: 'true'
 
-      - name: Verify cache loaded
-        run: |
-          if ! docker image inspect ${{ env.IMAGE_NAME }}:production >/dev/null 2>&1; then
-            echo "ERROR: No image found in GitHub cache for commit ${{ github.sha }}"
-            echo "ERROR: Deploy through develop -> master -> tag workflow first"
-            exit 1
-          fi
-          echo "Cache hit: loaded pre-tested image" >> $GITHUB_STEP_SUMMARY
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/push-image
         with:
+          image_tag: latest
+          sha_tag_prefix: production
+          version_tag: ${{ github.ref_name }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Push to Artifact Registry
-        run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
-
-          docker tag ${{ env.IMAGE_NAME }}:production ${{ env.GCR_IMAGE }}:latest
-          docker tag ${{ env.IMAGE_NAME }}:production ${{ env.GCR_IMAGE }}:${{ github.ref_name }}
-          docker tag ${{ env.IMAGE_NAME }}:production ${{ env.GCR_IMAGE }}:production-${{ github.sha }}
-
-          docker push ${{ env.GCR_IMAGE }}:latest
-          docker push ${{ env.GCR_IMAGE }}:${{ github.ref_name }}
-          docker push ${{ env.GCR_IMAGE }}:production-${{ github.sha }}
-
-          echo "Production image pushed: ${{ env.GCR_IMAGE }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo "Version: ${{ env.GCR_IMAGE }}:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
   deploy-production-cloudrun:
     name: Deploy Production to Cloud Run

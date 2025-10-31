@@ -1,23 +1,17 @@
 name: Push Image to Artifact Registry
-description: Download CI artifact, retag, and push to GCP Artifact Registry
+description: Push Docker image to GCP Artifact Registry with SHA tagging
 
 inputs:
   image_tag:
     description: 'Target image tag (staging, candidate, latest)'
     required: true
-  source_branch:
-    description: 'Source branch name from CI artifact (develop, master, etc.)'
+  sha_tag_prefix:
+    description: 'Prefix for SHA tag (staging, candidate, production)'
+    required: true
+  version_tag:
+    description: 'Optional version tag for production (e.g., v1.0.0)'
     required: false
-  workflow_run_id:
-    description: 'Workflow run ID to download artifact from'
-    required: false
-  workflow_run_sha:
-    description: 'Workflow run SHA for artifact name'
-    required: false
-  skip_artifact_download:
-    description: 'Skip artifact download (for production that pulls from registry)'
-    required: false
-    default: 'false'
+    default: ''
   workload_identity_provider:
     description: 'GCP Workload Identity Provider'
     required: true
@@ -25,30 +19,9 @@ inputs:
     description: 'GCP Service Account email'
     required: true
 
-env:
-  IMAGE_NAME: backend_easy
-  GCP_REGION: asia-south1
-  GCP_PROJECT: backend-easypool
-  GAR_REPO: backend-repo
-
 runs:
   using: composite
   steps:
-    - name: Download CI artifact
-      if: inputs.skip_artifact_download != 'true'
-      uses: actions/download-artifact@v4
-      with:
-        name: docker-image-${{ inputs.source_branch }}-${{ inputs.workflow_run_sha }}
-        github-token: ${{ github.token }}
-        run-id: ${{ inputs.workflow_run_id }}
-
-    - name: Load and retag from artifact
-      if: inputs.skip_artifact_download != 'true'
-      shell: bash
-      run: |
-        gunzip -c image.tar.gz | docker load
-        docker tag backend_easy:${{ inputs.source_branch }} backend_easy:${{ inputs.image_tag }}
-
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
       with:
@@ -58,13 +31,23 @@ runs:
     - name: Push to Artifact Registry
       shell: bash
       run: |
+        IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
         gcloud auth configure-docker asia-south1-docker.pkg.dev
 
-        IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
+        # Tag and push main image
         docker tag backend_easy:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.image_tag }}
         docker push $IMAGE_URL:${{ inputs.image_tag }}
 
-        echo "✅ Image pushed!" >> $GITHUB_STEP_SUMMARY
-        echo "**Tag:** \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Image:** \`$IMAGE_URL:${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "🚀 Cloud Run will auto-deploy" >> $GITHUB_STEP_SUMMARY
+        # Tag and push SHA-tagged version
+        docker tag backend_easy:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.sha_tag_prefix }}-${{ github.sha }}
+        docker push $IMAGE_URL:${{ inputs.sha_tag_prefix }}-${{ github.sha }}
+
+        echo "Image pushed: $IMAGE_URL:${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "SHA-tagged: $IMAGE_URL:${{ inputs.sha_tag_prefix }}-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+        # Push version tag if provided (for production)
+        if [ -n "${{ inputs.version_tag }}" ]; then
+          docker tag backend_easy:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.version_tag }}
+          docker push $IMAGE_URL:${{ inputs.version_tag }}
+          echo "Version tagged: $IMAGE_URL:${{ inputs.version_tag }}" >> $GITHUB_STEP_SUMMARY
+        fi
