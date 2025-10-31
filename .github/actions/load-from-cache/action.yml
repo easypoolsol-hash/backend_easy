@@ -1,0 +1,37 @@
+name: Load Image from Cache
+description: Load Docker image from GitHub Actions cache
+
+inputs:
+  image_tag:
+    description: 'Image tag to load (staging, candidate, latest)'
+    required: true
+  fail_if_missing:
+    description: 'Fail if cache not found'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Load from GitHub cache
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        load: true
+        tags: backend_easy:${{ inputs.image_tag }}
+        cache-from: type=gha
+
+    - name: Verify cache loaded
+      if: inputs.fail_if_missing == 'true'
+      shell: bash
+      run: |
+        if ! docker image inspect backend_easy:${{ inputs.image_tag }} >/dev/null 2>&1; then
+          echo "ERROR: No image found in GitHub cache"
+          echo "ERROR: Build and test on develop first"
+          exit 1
+        fi
+        echo "Cache hit: loaded image" >> $GITHUB_STEP_SUMMARY

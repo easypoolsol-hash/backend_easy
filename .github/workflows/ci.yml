@@ -28,6 +28,7 @@ permissions:
 env:
   IMAGE_NAME: backend_easy
   REGISTRY: ghcr.io
+  GCR_IMAGE: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy
 
 jobs:
   quality:
@@ -189,7 +190,7 @@ jobs:
   test-image:
     name: test image (smoke)
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build]
     if: always() && needs.build.result == 'success'
     steps:
       - uses: actions/checkout@v4
@@ -268,38 +269,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image (cached)
-        uses: docker/build-push-action@v5
+      - uses: ./.github/actions/load-from-cache
         with:
-          context: .
-          push: false
-          load: true
-          tags: backend_easy:staging
-          cache-from: type=gha
+          image_tag: staging
+          fail_if_missing: 'false'
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/push-image
         with:
+          image_tag: staging
+          sha_tag_prefix: staging
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Push to Artifact Registry
-        run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
-          IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
-
-          # Tag with both 'staging' and 'staging-SHA' for promotion tracking
-          docker tag backend_easy:staging $IMAGE_URL:staging
-          docker tag backend_easy:staging $IMAGE_URL:staging-${{ github.sha }}
-
-          docker push $IMAGE_URL:staging
-          docker push $IMAGE_URL:staging-${{ github.sha }}
-
-          echo "✅ Staging image pushed: $IMAGE_URL:staging" >> $GITHUB_STEP_SUMMARY
-          echo "📌 SHA-tagged: $IMAGE_URL:staging-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
 
   deploy-staging-cloudrun:
     name: Deploy Staging to Cloud Run
@@ -316,37 +296,24 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
   deploy-candidate:
-    name: Deploy Candidate (Promote from Staging)
+    name: Deploy Candidate (Git-Canonical - Load from Cache)
     runs-on: ubuntu-latest
-    # No test dependencies - promotes already-tested staging image
+    # No test dependencies - uses pre-tested image from develop's GitHub cache
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/load-from-cache
         with:
+          image_tag: candidate
+          fail_if_missing: 'true'
+
+      - uses: ./.github/actions/push-image
+        with:
+          image_tag: candidate
+          sha_tag_prefix: candidate
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Promote staging image to candidate
-        run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
-          IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
-
-          # Check if staging image exists for this commit
-          if gcloud artifacts docker images describe $IMAGE_URL:staging-${{ github.sha }} 2>/dev/null; then
-            echo "📦 Promoting tested staging image"
-            gcloud artifacts docker tags add $IMAGE_URL:staging-${{ github.sha }} $IMAGE_URL:candidate
-          else
-            echo "⚠️ No staging image found, building fresh (develop wasn't pushed first)"
-            # Fallback: build if staging doesn't exist
-            docker buildx build --load --cache-from type=gha -t backend_easy:candidate .
-            docker tag backend_easy:candidate $IMAGE_URL:candidate
-            docker push $IMAGE_URL:candidate
-          fi
-
-          echo "✅ Candidate deployed: $IMAGE_URL:candidate" >> $GITHUB_STEP_SUMMARY
 
   deploy-candidate-cloudrun:
     name: Deploy Candidate to Cloud Run
@@ -365,10 +332,10 @@ jobs:
       - name: Production promotion message
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🎯 **Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "**Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "git tag v1.0.0 && git push --tags" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
   deploy-production:
     name: Deploy Production (Promote from Candidate)
@@ -377,29 +344,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/load-from-cache
         with:
+          image_tag: latest
+          fail_if_missing: 'true'
+
+      - uses: ./.github/actions/push-image
+        with:
+          image_tag: latest
+          sha_tag_prefix: production
+          version_tag: ${{ github.ref_name }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Promote candidate to production
-        run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev
-          IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
-
-          # Promote candidate image (already tested) to production
-          if gcloud artifacts docker images describe $IMAGE_URL:candidate 2>/dev/null; then
-            echo "🚀 Promoting candidate to production"
-            gcloud artifacts docker tags add $IMAGE_URL:candidate $IMAGE_URL:latest
-            gcloud artifacts docker tags add $IMAGE_URL:candidate $IMAGE_URL:${{ github.ref_name }}
-          else
-            echo "❌ No candidate image found. Deploy to staging first."
-            exit 1
-          fi
-
-          echo "✅ Production deployed: $IMAGE_URL:latest" >> $GITHUB_STEP_SUMMARY
-          echo "📌 Version: $IMAGE_URL:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
   deploy-production-cloudrun:
     name: Deploy Production to Cloud Run
@@ -418,7 +374,7 @@ jobs:
       - name: Production deployment success
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🚀 **Production Deployed!** Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Production Deployed! Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Service:** easypool-backend" >> $GITHUB_STEP_SUMMARY
-          echo "**Region:** asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
+          echo "Service: easypool-backend" >> $GITHUB_STEP_SUMMARY
+          echo "Region: asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
