@@ -47,7 +47,7 @@ runs:
       shell: bash
       run: |
         gunzip -c image.tar.gz | docker load
-        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.source_branch }} ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }}
+        docker tag backend_easy:${{ inputs.source_branch }} backend_easy:${{ inputs.image_tag }}
 
     - name: Authenticate to GCP
       uses: google-github-actions/auth@v2
@@ -58,10 +58,10 @@ runs:
     - name: Push to Artifact Registry
       shell: bash
       run: |
-        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+        gcloud auth configure-docker asia-south1-docker.pkg.dev
 
-        IMAGE_URL="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.GAR_REPO }}/${{ env.IMAGE_NAME }}"
-        docker tag ${{ env.IMAGE_NAME }}:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.image_tag }}
+        IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
+        docker tag backend_easy:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.image_tag }}
         docker push $IMAGE_URL:${{ inputs.image_tag }}
 
         echo "✅ Image pushed!" >> $GITHUB_STEP_SUMMARY
