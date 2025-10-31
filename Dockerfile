@@ -158,7 +158,9 @@ sleep 2\n\
 # Ensure admin exists (retry every 10s for 2 min in background)\n\
 (\n\
     for i in {1..12}; do\n\
-        if python manage.py ensure_bootstrap_admin 2>&1 | grep -q SUCCESS; then\n\
+        output=$(python manage.py ensure_bootstrap_admin 2>&1)\n\
+        echo \"$output\"\n\
+        if echo \"$output\" | grep -q SUCCESS; then\n\
             break\n\
         fi\n\
         sleep 10\n\
