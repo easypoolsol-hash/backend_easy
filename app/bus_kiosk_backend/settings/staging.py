@@ -35,28 +35,29 @@ if os.getenv("ALLOWED_HOSTS"):
     additional_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
     ALLOWED_HOSTS = additional_hosts
 
-# Staging CORS - Add staging + candidate backend URLs to base
-CORS_ALLOWED_ORIGINS = [
-    *CORS_ALLOWED_ORIGINS,  # noqa: F405
-    # Current Cloud Run URLs (hash-based format)
-    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
-    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
-    # Also allow localhost for testing
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Staging CORS - from environment or base only
+_cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if _cors_origins_env:
+    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS, *_cors_origins_env.split(",")]  # noqa: F405
+else:
+    # Default CORS origins for staging (localhost for testing)
+    CORS_ALLOWED_ORIGINS = [
+        *CORS_ALLOWED_ORIGINS,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
-# Staging CSRF - Add staging + candidate backend URLs to base
-# Hardcoded only - no injection for security
-CSRF_TRUSTED_ORIGINS = [
-    *CSRF_TRUSTED_ORIGINS,  # noqa: F405
-    # Current Cloud Run URLs (hash-based format)
-    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
-    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
-    # Also allow localhost for testing
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Staging CSRF - from environment or base only
+_csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if _csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, *_csrf_origins_env.split(",")]  # noqa: F405
+else:
+    # Default CSRF origins for staging (localhost for testing)
+    CSRF_TRUSTED_ORIGINS = [
+        *CSRF_TRUSTED_ORIGINS,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
 # Staging: Basic HTTPS security
 SECURE_HSTS_SECONDS = 3600  # 1 hour
