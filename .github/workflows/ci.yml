@@ -1,38 +1,10 @@
-name: CI/CD Pipeline (Git-Canonical Architecture)
-
-# ARCHITECTURE PHILOSOPHY:
-# ========================
-# Git + GitHub Actions Cache = CANONICAL SOURCE OF TRUTH
-# GCR (Artifact Registry) = DEPLOYMENT CACHE ONLY (untrusted, expendable)
-#
-# FLOW:
-# ─────
-# develop → BUILD ONCE → TEST → CACHE → PUSH STAGING → DEPLOY STAGING
-#                         ↓
-#                    (mark as safe)
-#                         ↓
-#                   GitHub Cache (canonical)
-#
-# master  → LOAD FROM CACHE → RE-PUSH CANDIDATE → DEPLOY CANDIDATE
-#           ↑                  ↑
-#           │                  └─ Only ~2KB (layers already in GCR)
-#           └─ SAME image develop built (cache hit)
-#
-# v*.*.* → LOAD FROM CACHE → RE-PUSH PRODUCTION → DEPLOY PRODUCTION
-#
-# GUARANTEES:
-# ───────────
-# ✅ Git commit SHA determines EVERYTHING
-# ✅ Zero trust in GCR (self-healing if tampered)
-# ✅ master/production use EXACT image develop tested
-# ✅ Cache miss = FAIL (no fallback builds)
-# ✅ Clear, unambiguous responsibilities
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ master, main, develop ]
     tags:
-      - 'v*'  # v1.0.0, v1.2.3, etc.
+      - 'v*'  # Trigger on version tags (v1.0.0, v1.2.3, etc.)
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -55,86 +27,40 @@ permissions:
 
 env:
   IMAGE_NAME: backend_easy
-  GCR_REGISTRY: asia-south1-docker.pkg.dev
-  GCR_PROJECT: backend-easypool
-  GCR_REPO: backend-repo
+  REGISTRY: ghcr.io
   GCR_IMAGE: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy
 
 jobs:
-  # ============================================================================
-  # QUALITY GATE: Code quality checks (all branches)
-  # ============================================================================
   quality:
-    name: Quality (lint + mypy)
+    name: quality (lint + mypy)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: 'setup.py'
-
-      - name: Export Django environment
+      - name: Export DJANGO env for mypy
         run: |
           echo "DJANGO_ENV=ci" >> $GITHUB_ENV
           echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
           echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
-
-      - name: Install dev dependencies
+      - name: Install dev deps
         run: |
           python -m pip install --upgrade pip
           pip install -e .[dev,testing]
-
-      - name: Run linters and type checking
+      - name: Run linters and mypy
         run: |
           ruff check --fix .
           mypy . --no-incremental
 
-  # ============================================================================
-  # BUILD: Build Docker image ONCE and save to GitHub cache (develop only)
-  # ============================================================================
-  build:
-    name: Build & Cache (develop only)
-    runs-on: ubuntu-latest
-    needs: [quality]
-    # ONLY develop builds - master/tags load from cache
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and cache image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          load: true
-          tags: ${{ env.IMAGE_NAME }}:staging
-          cache-from: type=gha
-          cache-to: type=gha,mode=max  # Save cache for master to use
-
-      - name: Verify image built
-        run: |
-          docker image inspect ${{ env.IMAGE_NAME }}:staging
-          echo "✅ Image built and cached" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Cache key: git-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================================
-  # TESTS: Run all tests in parallel (develop only)
-  # ============================================================================
+  # Parallel test execution - Fortune 500 pattern
   tests:
-    name: Tests (${{ matrix.test-type }})
+    name: ${{ matrix.test-type }}
     runs-on: ubuntu-latest
-    needs: [build]
-    # ONLY develop tests - master/tags deploy pre-tested images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-
+    needs: [quality, build]
     strategy:
       fail-fast: false
       matrix:
@@ -153,7 +79,7 @@ jobs:
           cache: 'pip'
           cache-dependency-path: 'setup.py'
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip setuptools wheel
           echo "DJANGO_ENV=ci" >> $GITHUB_ENV
@@ -171,7 +97,7 @@ jobs:
         if: matrix.test-type != 'unit'
         uses: docker/setup-buildx-action@v3
 
-      - name: Load cached image
+      - name: Build image (cached)
         if: matrix.test-type != 'unit'
         uses: docker/build-push-action@v5
         with:
@@ -180,6 +106,7 @@ jobs:
           load: true
           tags: ${{ env.IMAGE_NAME }}:test
           cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Start services
         if: matrix.test-type != 'unit'
@@ -232,22 +159,46 @@ jobs:
         if: always() && matrix.test-type != 'unit'
         run: docker compose -f docker-compose.test.yml down --volumes
 
-  # ============================================================================
-  # SMOKE TEST: Test built image (runs in parallel with tests)
-  # ============================================================================
+  # Build image once and save as artifact (Fortune 500 pattern - no registry push)
+  build:
+    name: Build image (artifact)
+    runs-on: ubuntu-latest
+    needs: [quality]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sanitize branch name to create valid Docker tag
+      # Replace slashes with dashes, PR merge refs become "pr-N-merge"
+      - name: Generate Docker tag
+        id: tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          # Replace slashes with dashes (e.g., "1/merge" -> "1-merge")
+          TAG=$(echo "$TAG" | sed 's/\//-/g')
+          # For PR merge refs like "1/merge", prefix with "pr-"
+          if [[ "$TAG" =~ ^[0-9]+-merge$ ]]; then
+            TAG="pr-$TAG"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Generated Docker tag: $TAG"
+
+      - uses: ./.github/actions/build-image
+        with:
+          image_tag: ${{ steps.tag.outputs.tag }}
+
   test-image:
-    name: Smoke Test (image health check)
+    name: test image (smoke)
     runs-on: ubuntu-latest
     needs: [build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-
+    if: always() && needs.build.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Load cached image
+      - name: Build image (cached)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -255,8 +206,7 @@ jobs:
           load: true
           tags: ${{ env.IMAGE_NAME }}:test
           cache-from: type=gha
-
-      - name: Run smoke test (MUST SUCCEED)
+      - name: Run image (smoke test - MUST SUCCEED)
         run: |
           # Start container (FAIL if this errors - no || true)
           docker run -d --name smoke-test -p 8000:8000 \
@@ -286,24 +236,17 @@ jobs:
           docker logs smoke-test
           docker stop smoke-test
 
-          echo "✅ Smoke test passed - image is healthy" >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================================
-  # SECURITY: Security scanning (develop only)
-  # ============================================================================
   security:
-    name: Security (Trivy scan)
+    name: security scan (trivy)
     runs-on: ubuntu-latest
-    needs: [test-image]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-
+    needs: test-image
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Load cached image
+      - name: Build image (cached)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -312,35 +255,31 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:security-scan
           cache-from: type=gha
 
-      - name: Run Trivy security scan
+      - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}:security-scan
 
-  # ============================================================================
-  # DEPLOY STAGING: Push tested image to GCR and deploy (develop only)
-  # ============================================================================
+  # DEPLOY: Push to GCP Artifact Registry after all tests pass
   deploy-staging:
-    name: Deploy Staging (develop only)
+    name: Deploy Staging
     runs-on: ubuntu-latest
     needs: [security, tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Load cached image (CANONICAL - from Git)
+      - name: Build image (cached)
         uses: docker/build-push-action@v5
         with:
           context: .
           push: false
           load: true
-          tags: ${{ env.IMAGE_NAME }}:staging
+          tags: backend_easy:staging
           cache-from: type=gha
-          # NO cache-to here - already saved in build job
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -348,39 +287,40 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker ${{ env.GCR_REGISTRY }}
-
-      - name: Push to GCR (staging)
+      - name: Push to Artifact Registry
         run: |
-          # Tag image
-          docker tag ${{ env.IMAGE_NAME }}:staging ${{ env.GCR_IMAGE }}:staging
-          docker tag ${{ env.IMAGE_NAME }}:staging ${{ env.GCR_IMAGE }}:staging-${{ github.sha }}
+          gcloud auth configure-docker asia-south1-docker.pkg.dev
+          IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
 
-          # Push to GCR
-          docker push ${{ env.GCR_IMAGE }}:staging
-          docker push ${{ env.GCR_IMAGE }}:staging-${{ github.sha }}
+          # Tag with both 'staging' and 'staging-SHA' for promotion tracking
+          docker tag backend_easy:staging $IMAGE_URL:staging
+          docker tag backend_easy:staging $IMAGE_URL:staging-${{ github.sha }}
 
-          echo "✅ Staging image pushed to GCR" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Tags: staging, staging-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          docker push $IMAGE_URL:staging
+          docker push $IMAGE_URL:staging-${{ github.sha }}
 
-      - name: Deploy to Cloud Run (staging)
-        uses: ./.github/actions/deploy-cloudrun
+          echo "✅ Staging image pushed: $IMAGE_URL:staging" >> $GITHUB_STEP_SUMMARY
+          echo "📌 SHA-tagged: $IMAGE_URL:staging-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+
+  deploy-staging-cloudrun:
+    name: Deploy Staging to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/deploy-cloudrun
         with:
           environment: staging
           image_tag: staging
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-  # ============================================================================
-  # DEPLOY CANDIDATE: Load from cache, push to GCR, deploy (master only)
-  # ============================================================================
   deploy-candidate:
-    name: Deploy Candidate (master only - promotes from cache)
+    name: Deploy Candidate (Git-Canonical - Load from Cache)
     runs-on: ubuntu-latest
-    # NO test dependencies - uses pre-tested image from develop
+    # No test dependencies - uses pre-tested image from develop's GitHub cache
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-
     steps:
       - uses: actions/checkout@v4
 
@@ -400,13 +340,13 @@ jobs:
       - name: Verify cache loaded (FAIL if not found)
         run: |
           if ! docker image inspect ${{ env.IMAGE_NAME }}:candidate >/dev/null 2>&1; then
-            echo "❌ CACHE MISS: No image found in GitHub cache for commit ${{ github.sha }}"
-            echo "❌ This means develop branch didn't build/test this commit."
-            echo "❌ Deploy to develop first, then merge to master."
+            echo "ERROR - CACHE MISS: No image found in GitHub cache for commit ${{ github.sha }}"
+            echo "ERROR - This means develop branch did not build/test this commit."
+            echo "ERROR - Deploy to develop first, then merge to master."
             exit 1
           fi
-          echo "✅ Cache hit - loaded image from develop build" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Image: EXACT same as develop tested" >> $GITHUB_STEP_SUMMARY
+          echo "SUCCESS - Cache hit - loaded image from develop build" >> $GITHUB_STEP_SUMMARY
+          echo "Image: EXACT same as develop tested" >> $GITHUB_STEP_SUMMARY
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -414,11 +354,10 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker ${{ env.GCR_REGISTRY }}
-
       - name: Push to GCR (candidate)
         run: |
+          gcloud auth configure-docker asia-south1-docker.pkg.dev
+
           # Tag image
           docker tag ${{ env.IMAGE_NAME }}:candidate ${{ env.GCR_IMAGE }}:candidate
           docker tag ${{ env.IMAGE_NAME }}:candidate ${{ env.GCR_IMAGE }}:candidate-${{ github.sha }}
@@ -427,13 +366,19 @@ jobs:
           docker push ${{ env.GCR_IMAGE }}:candidate
           docker push ${{ env.GCR_IMAGE }}:candidate-${{ github.sha }}
 
-          echo "✅ Candidate image pushed to GCR" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Tags: candidate, candidate-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "⚡ Push size: ~2KB metadata (layers already in GCR)" >> $GITHUB_STEP_SUMMARY
-          echo "🔒 Source: Git cache (canonical)" >> $GITHUB_STEP_SUMMARY
+          echo "SUCCESS - Candidate image pushed to GCR" >> $GITHUB_STEP_SUMMARY
+          echo "Tags: candidate, candidate-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "Push size: ~2KB metadata (layers already in GCR)" >> $GITHUB_STEP_SUMMARY
+          echo "Source: Git cache (canonical)" >> $GITHUB_STEP_SUMMARY
 
-      - name: Deploy to Cloud Run (candidate)
-        uses: ./.github/actions/deploy-cloudrun
+  deploy-candidate-cloudrun:
+    name: Deploy Candidate to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [deploy-candidate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/deploy-cloudrun
         with:
           environment: candidate
           image_tag: candidate
@@ -443,26 +388,22 @@ jobs:
       - name: Production promotion message
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🎯 **Ready for production?** Create a version tag:" >> $GITHUB_STEP_SUMMARY
-          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "**Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
           echo "git tag v1.0.0 && git push --tags" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-  # ============================================================================
-  # DEPLOY PRODUCTION: Load from cache, push to GCR, deploy (version tags only)
-  # ============================================================================
   deploy-production:
-    name: Deploy Production (version tags - promotes from cache)
+    name: Deploy Production (Promote from Candidate)
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Load from GitHub cache (CANONICAL - Git is truth)
+      - name: Load from GitHub cache (Git-Canonical)
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -471,16 +412,14 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:production
           cache-from: type=gha
 
-      - name: Verify cache loaded (FAIL if not found)
+      - name: Verify cache loaded
         run: |
           if ! docker image inspect ${{ env.IMAGE_NAME }}:production >/dev/null 2>&1; then
-            echo "❌ CACHE MISS: No image found in GitHub cache for commit ${{ github.sha }}"
-            echo "❌ This tag was created from a commit that wasn't built/tested."
-            echo "❌ Deploy through develop → master → tag workflow."
+            echo "ERROR: No image found in GitHub cache for commit ${{ github.sha }}"
+            echo "ERROR: Deploy through develop -> master -> tag workflow first"
             exit 1
           fi
-          echo "✅ Cache hit - loaded pre-tested image" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Image: EXACT same as develop tested" >> $GITHUB_STEP_SUMMARY
+          echo "Cache hit: loaded pre-tested image" >> $GITHUB_STEP_SUMMARY
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -488,28 +427,29 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker ${{ env.GCR_REGISTRY }}
-
-      - name: Push to GCR (production)
+      - name: Push to Artifact Registry
         run: |
-          # Tag image
+          gcloud auth configure-docker asia-south1-docker.pkg.dev
+
           docker tag ${{ env.IMAGE_NAME }}:production ${{ env.GCR_IMAGE }}:latest
           docker tag ${{ env.IMAGE_NAME }}:production ${{ env.GCR_IMAGE }}:${{ github.ref_name }}
           docker tag ${{ env.IMAGE_NAME }}:production ${{ env.GCR_IMAGE }}:production-${{ github.sha }}
 
-          # Push to GCR (only ~2KB - layers already exist)
           docker push ${{ env.GCR_IMAGE }}:latest
           docker push ${{ env.GCR_IMAGE }}:${{ github.ref_name }}
           docker push ${{ env.GCR_IMAGE }}:production-${{ github.sha }}
 
-          echo "✅ Production image pushed to GCR" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Tags: latest, ${{ github.ref_name }}, production-${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "⚡ Push size: ~2KB metadata (layers already in GCR)" >> $GITHUB_STEP_SUMMARY
-          echo "🔒 Source: Git cache (canonical)" >> $GITHUB_STEP_SUMMARY
+          echo "Production image pushed: ${{ env.GCR_IMAGE }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "Version: ${{ env.GCR_IMAGE }}:${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
 
-      - name: Deploy to Cloud Run (production)
-        uses: ./.github/actions/deploy-cloudrun
+  deploy-production-cloudrun:
+    name: Deploy Production to Cloud Run
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/deploy-cloudrun
         with:
           environment: production
           image_tag: latest
@@ -519,8 +459,7 @@ jobs:
       - name: Production deployment success
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🚀 **Production Deployed!** Version: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Production Deployed! Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Service:** easypool-backend" >> $GITHUB_STEP_SUMMARY
-          echo "**Region:** asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** EXACT same as develop tested ✅" >> $GITHUB_STEP_SUMMARY
+          echo "Service: easypool-backend" >> $GITHUB_STEP_SUMMARY
+          echo "Region: asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
