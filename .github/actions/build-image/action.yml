@@ -18,6 +18,7 @@ runs:
       uses: docker/setup-buildx-action@v3
 
     - name: Build Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -29,21 +30,14 @@ runs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Save image as tar
+    - name: Get image digest
+      id: digest
       shell: bash
       run: |
-        echo "Saving Docker image to tar archive..."
-        docker save backend_easy:${{ inputs.image_tag }} | gzip > image.tar.gz
-        echo "Image size:"
-        ls -lh image.tar.gz
-
-    - name: Upload image artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: docker-image-${{ inputs.image_tag }}-${{ github.sha }}
-        path: image.tar.gz
-        retention-days: 7
-        compression-level: 0
+        DIGEST=$(docker inspect backend_easy:${{ inputs.image_tag }} --format='{{.Id}}')
+        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+        echo "Image digest: $DIGEST"
+        echo "**Image Digest:** \`$DIGEST\`" >> $GITHUB_STEP_SUMMARY
 
     - name: Build summary
       shell: bash
@@ -51,5 +45,4 @@ runs:
         echo "## Docker Image Built ✅" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Tag:** \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Artifact:** \`docker-image-${{ inputs.image_tag }}-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Storage:** GitHub Artifacts (7 days)" >> $GITHUB_STEP_SUMMARY
+        echo "**Cache:** GHA layer cache (fast rebuilds)" >> $GITHUB_STEP_SUMMARY

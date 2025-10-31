@@ -1,0 +1,39 @@
+"""
+Create hardcoded superuser - runs on every container startup (idempotent)
+Fortune 500 pattern: Bootstrap admin for initial access
+After first login, create proper SSO admin and delete this account
+"""
+
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
+
+User = get_user_model()
+
+# HARDCODED CREDENTIALS - Change after first login
+ADMIN_USERNAME = "admin123"
+ADMIN_EMAIL = "admin@easypool.internal"
+ADMIN_PASSWORD = "EasyPool2025Admin"  # Change immediately after first login
+
+
+class Command(BaseCommand):
+    help = "Create/update hardcoded superuser (idempotent)"
+
+    def handle(self, *args, **options):
+        try:
+            user, created = User.objects.update_or_create(
+                username=ADMIN_USERNAME,
+                defaults={
+                    "email": ADMIN_EMAIL,
+                    "is_staff": True,
+                    "is_superuser": True,
+                    "is_active": True,
+                },
+            )
+            user.set_password(ADMIN_PASSWORD)
+            user.save()
+
+            action = "Created" if created else "Updated"
+            self.stdout.write(self.style.SUCCESS(f"✅ {action} hardcoded admin: {ADMIN_USERNAME}"))
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Failed to create admin: {e}"))

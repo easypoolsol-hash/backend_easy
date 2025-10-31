@@ -142,14 +142,12 @@ run_db_init() {\n\
         return 1\n\
     fi\n\
     \n\
-    # Create superuser if credentials are provided\n\
-    if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_EMAIL" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then\n\
-        echo "👤 [DB-INIT] Checking superuser..."\n\
-        if python manage.py createsuperuser_secure --no-input 2>/dev/null; then\n\
-            echo "✅ [DB-INIT] Superuser created"\n\
-        else\n\
-            echo "ℹ️  [DB-INIT] Superuser already exists or creation skipped"\n\
-        fi\n\
+    # Create superuser with hardcoded credentials (DEVELOPMENT ONLY)\n\
+    echo "👤 [DB-INIT] Creating/updating hardcoded admin superuser..."\n\
+    if python manage.py create_hardcoded_admin 2>/dev/null; then\n\
+        echo "✅ [DB-INIT] Admin superuser created/updated"\n\
+    else\n\
+        echo "⚠️  [DB-INIT] Failed to create/update admin superuser"\n\
     fi\n\
     \n\
     echo "✅ [DB-INIT] Database initialization complete"\n\

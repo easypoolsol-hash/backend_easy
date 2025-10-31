@@ -5,8 +5,20 @@ on:
     branches: [ master, main, develop ]
     tags:
       - 'v*'  # Trigger on version tags (v1.0.0, v1.2.3, etc.)
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.editorconfig'
   pull_request:
     branches: [ master, main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.editorconfig'
 
 permissions:
   contents: read
@@ -43,181 +55,107 @@ jobs:
           ruff check --fix .
           mypy . --no-incremental
 
-  unit-tests:
-    name: unit tests (fast)
+  # Parallel test execution - Fortune 500 pattern
+  tests:
+    name: ${{ matrix.test-type }}
     runs-on: ubuntu-latest
-    needs: [quality]
+    needs: [quality, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type:
+          - unit
+          - integration
+          - contract
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: 'setup.py'
-      - name: Export DJANGO env for unit tests
-        run: |
-          echo "DJANGO_ENV=ci" >> $GITHUB_ENV
-          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
-          echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
+
       - name: Install deps
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
+          echo "DJANGO_ENV=ci" >> $GITHUB_ENV
+          echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
+          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
           pip install -e .[dev,testing]
+
+      # Unit tests - no Docker needed
       - name: Run unit tests
-        run: |
-          python -m pytest tests/unit/ -v --tb=short --maxfail=3
+        if: matrix.test-type == 'unit'
+        run: python -m pytest tests/unit/ -v --tb=short --maxfail=3
 
-  integration-tests:
-    name: integration tests (compose)
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python with cache
-        uses: actions/setup-python@v4
+      # Integration/Contract tests - need Docker
+      - name: Set up Docker Buildx
+        if: matrix.test-type != 'unit'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (cached)
+        if: matrix.test-type != 'unit'
+        uses: docker/build-push-action@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: 'setup.py'
-      - name: Install deps on runner
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          # Make the app package importable on the runner so pytest can import
-          # bus_kiosk_backend.settings during collection.
-          echo "DJANGO_ENV=ci" >> $GITHUB_ENV
-          echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
-          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
-          pip install -e .[dev,testing]
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
-
-      - name: Load image from artifact
-        run: |
-          echo "Loading Docker image from artifact..."
-          gunzip -c image.tar.gz | docker load
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.ref_name }} ${{ env.IMAGE_NAME }}:test
-      - name: Start services (use prebuilt image)
+      - name: Start services
+        if: matrix.test-type != 'unit'
         run: docker compose -f docker-compose.test.yml up -d --no-build
-      - name: Wait for Postgres to be ready
+
+      - name: Wait for services
+        if: matrix.test-type != 'unit'
         run: |
           for i in {1..30}; do
-            docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo "postgres ready" && break || echo "waiting for postgres...";
+            docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo "postgres ready" && break || echo "waiting...";
             sleep 2;
           done
-      - name: Wait for Redis to be ready
-        run: |
           for i in {1..30}; do
-            docker compose -f docker-compose.test.yml exec -T redis redis-cli ping >/dev/null 2>&1 && echo "redis ready" && break || echo "waiting for redis...";
+            docker compose -f docker-compose.test.yml exec -T redis redis-cli ping >/dev/null 2>&1 && echo "redis ready" && break;
             sleep 1;
           done
-      - name: Run migrations inside web (lightweight run)
+
+      - name: Run migrations
+        if: matrix.test-type != 'unit'
         run: docker compose -f docker-compose.test.yml run --rm --user root web sh -lc 'python manage.py migrate --noinput'
+
       - name: Wait for web healthy
+        if: matrix.test-type != 'unit'
         run: |
-          seconds=0
-          while [ $seconds -lt 120 ]; do
+          for i in {1..60}; do
             status=$(docker inspect --format='{{.State.Health.Status}}' test_web 2>/dev/null || echo none)
-            echo "test_web status: $status"
-            [ "$status" = "healthy" ] && break
+            [ "$status" = "healthy" ] && echo "✅ healthy" && break
             sleep 2
-            seconds=$((seconds+2))
           done
-          if [ "$status" != "healthy" ]; then
-            docker compose -f docker-compose.test.yml ps -a || true
-            docker compose -f docker-compose.test.yml logs web --tail=200 || true
-            docker inspect test_web || true
-            exit 1
-          fi
-      - name: Run integration tests from runner against container
-        run: |
-          # Wait for container-health / HTTP readiness
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then echo 'up' && break; fi
+            if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then echo '✅ up' && break; fi
             sleep 3
           done
-          pytest tests/integration/ -v --tb=short --maxfail=3
-      - name: Collect debug logs on failure
-        if: failure()
+
+      - name: Run integration tests
+        if: matrix.test-type == 'integration'
+        run: pytest tests/integration/ -v --tb=short --maxfail=3
+
+      - name: Run contract tests
+        if: matrix.test-type == 'contract'
+        run: pytest -k "schemathesis or contract or e2e" -v --tb=short --maxfail=3
+
+      - name: Collect logs on failure
+        if: failure() && matrix.test-type != 'unit'
         run: |
-          echo "=== docker compose ps -a ==="
-          docker compose -f docker-compose.test.yml ps -a || true
-          echo "=== logs: web ==="
           docker compose -f docker-compose.test.yml logs web --tail=500 || true
-          echo "=== logs: postgres ==="
-          docker compose -f docker-compose.test.yml logs postgres --tail=200 || true
-          echo "=== logs: redis ==="
-          docker compose -f docker-compose.test.yml logs redis --tail=200 || true
-          echo "=== docker inspect test_web ==="
-          docker inspect test_web || true
-      - name: Copy coverage
-        if: always()
-        run: |
-          mkdir -p build || true
-          docker cp test_web:/app/build/coverage.xml ./build/coverage.xml || true
+          docker compose -f docker-compose.test.yml ps -a || true
+
       - name: Stop services
-        if: always()
-        run: docker compose -f docker-compose.test.yml down --volumes
-
-  contract-tests:
-    name: contract/e2e tests (compose)
-    runs-on: ubuntu-latest
-    needs: [build]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python with cache
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: 'setup.py'
-      - name: Install deps on runner
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          # Ensure the runner can import the project package during pytest collection
-          echo "DJANGO_ENV=ci" >> $GITHUB_ENV
-          echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
-          echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
-          pip install -e .[dev,testing]
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
-
-      - name: Load image from artifact
-        run: |
-          echo "Loading Docker image from artifact..."
-          gunzip -c image.tar.gz | docker load
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.ref_name }} ${{ env.IMAGE_NAME }}:test
-      - name: Start services (use prebuilt image)
-        run: docker compose -f docker-compose.test.yml up -d --no-build
-      - name: Wait for Postgres to be ready
-        run: |
-          for i in {1..30}; do
-            docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo "postgres ready" && break || echo "waiting for postgres...";
-            sleep 2;
-          done
-      - name: Wait for Redis to be ready
-        run: |
-          for i in {1..30}; do
-            docker compose -f docker-compose.test.yml exec -T redis redis-cli ping >/dev/null 2>&1 && echo "redis ready" && break || echo "waiting for redis...";
-            sleep 1;
-          done
-      - name: Run migrations inside web (lightweight run)
-        run: docker compose -f docker-compose.test.yml run --rm --user root web sh -lc 'python manage.py migrate --noinput'
-      - name: Run contract/e2e tests from runner
-        run: |
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then echo 'up' && break; fi
-            sleep 3
-          done
-          pytest -k "schemathesis or contract or e2e" -v --tb=short --maxfail=3
-      - name: Stop services
-        if: always()
+        if: always() && matrix.test-type != 'unit'
         run: docker compose -f docker-compose.test.yml down --volumes
 
   # Build image once and save as artifact (Fortune 500 pattern - no registry push)
@@ -256,16 +194,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Load image from artifact
-        run: |
-          echo "Loading Docker image from artifact..."
-          gunzip -c image.tar.gz | docker load
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.ref_name }} ${{ env.IMAGE_NAME }}:test
+      - name: Build image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
       - name: Run image (smoke test - MUST SUCCEED)
         run: |
           # Start container (FAIL if this errors - no || true)
@@ -303,14 +242,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download image artifact for scanning
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Load image for Trivy scan
-        run: |
-          gunzip -c image.tar.gz | docker load
+      - name: Build image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          cache-from: type=gha
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
@@ -321,20 +263,22 @@ jobs:
   deploy-staging:
     name: Deploy Staging
     runs-on: ubuntu-latest
-    needs: [security, integration-tests, contract-tests]
+    needs: [security, tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Load and retag image
-        run: |
-          gunzip -c image.tar.gz | docker load
-          docker tag backend_easy:${{ github.ref_name }} backend_easy:staging
+      - name: Build image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: backend_easy:staging
+          cache-from: type=gha
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -367,20 +311,22 @@ jobs:
   deploy-candidate:
     name: Deploy Candidate
     runs-on: ubuntu-latest
-    needs: [security, integration-tests, contract-tests]
+    needs: [security, tests]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Load and retag image
-        run: |
-          gunzip -c image.tar.gz | docker load
-          docker tag backend_easy:${{ github.ref_name }} backend_easy:candidate
+      - name: Build image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: backend_easy:candidate
+          cache-from: type=gha
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -421,21 +367,24 @@ jobs:
   deploy-production:
     name: Deploy Production
     runs-on: ubuntu-latest
-    needs: [security, integration-tests, contract-tests]
+    needs: [security, tests]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docker-image-${{ github.ref_name }}-${{ github.sha }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Load and retag image
-        run: |
-          gunzip -c image.tar.gz | docker load
-          docker tag backend_easy:${{ github.ref_name }} backend_easy:latest
-          docker tag backend_easy:${{ github.ref_name }} backend_easy:${{ github.ref_name }}
+      - name: Build image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: |
+            backend_easy:latest
+            backend_easy:${{ github.ref_name }}
+          cache-from: type=gha
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
