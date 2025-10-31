@@ -233,12 +233,68 @@ jobs:
         run: docker compose -f docker-compose.test.yml down --volumes
 
   # ============================================================================
+  # SMOKE TEST: Test built image (runs in parallel with tests)
+  # ============================================================================
+  test-image:
+    name: Smoke Test (image health check)
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Load cached image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
+
+      - name: Run smoke test (MUST SUCCEED)
+        run: |
+          # Start container (FAIL if this errors - no || true)
+          docker run -d --name smoke-test -p 8000:8000 \
+            -e DATABASE_URL=sqlite:////tmp/test.db \
+            -e DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings \
+            -e USE_FILE_LOGGING=false \
+            -e ALLOWED_HOSTS=localhost,127.0.0.1,testserver \
+            ${{ env.IMAGE_NAME }}:test
+
+          # Wait for health endpoint
+          echo "Waiting for health endpoint..."
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then
+              echo "✓ Health check passed"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "✗ Health check failed after 60s"
+              docker logs smoke-test
+              docker stop smoke-test
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Cleanup
+          docker logs smoke-test
+          docker stop smoke-test
+
+          echo "✅ Smoke test passed - image is healthy" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
   # SECURITY: Security scanning (develop only)
   # ============================================================================
   security:
     name: Security (Trivy scan)
     runs-on: ubuntu-latest
-    needs: [tests]
+    needs: [test-image]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
     steps:
