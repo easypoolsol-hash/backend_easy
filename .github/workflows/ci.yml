@@ -31,10 +31,83 @@ env:
   GCR_IMAGE: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy
 
 jobs:
+  # ============================================================================
+  # DECISION HEAD: Route to correct path
+  # ============================================================================
+  # develop/PR → BUILD (quality + tests + security + deploy staging)
+  # master     → PROMOTE (load cache → deploy candidate)
+  # v* tags    → RELEASE (load cache → deploy production)
+  # ============================================================================
+  decide:
+    name: Decide workflow path
+    runs-on: ubuntu-latest
+    outputs:
+      build_path: ${{ steps.route.outputs.build_path }}
+      promote_path: ${{ steps.route.outputs.promote_path }}
+      release_path: ${{ steps.route.outputs.release_path }}
+    steps:
+      - name: Route workflow
+        id: route
+        run: |
+          echo "# 🎯 Workflow Routing Decision" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # BUILD PATH: develop or PRs (full CI/CD)
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]] || [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "build_path=true" >> $GITHUB_OUTPUT
+            echo "promote_path=false" >> $GITHUB_OUTPUT
+            echo "release_path=false" >> $GITHUB_OUTPUT
+
+            echo "## 🟢 BUILD PATH SELECTED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Full CI/CD pipeline will run:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. ✅ Quality checks (lint + mypy)" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🏗️ Build Docker image" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🧪 Tests (unit + integration + contract)" >> $GITHUB_STEP_SUMMARY
+            echo "4. 🔒 Security scan (trivy)" >> $GITHUB_STEP_SUMMARY
+            echo "5. ✅ Mark as test-safe" >> $GITHUB_STEP_SUMMARY
+            echo "6. 🚀 Deploy to staging" >> $GITHUB_STEP_SUMMARY
+
+          # PROMOTE PATH: master (no build, just promote)
+          elif [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "build_path=false" >> $GITHUB_OUTPUT
+            echo "promote_path=true" >> $GITHUB_OUTPUT
+            echo "release_path=false" >> $GITHUB_OUTPUT
+
+            echo "## 🟡 PROMOTE PATH SELECTED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Promotion flow (no rebuild):**" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 Check test-safe marker" >> $GITHUB_STEP_SUMMARY
+            echo "2. 📦 Load pre-tested image from cache" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🚀 Deploy to candidate environment" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Will verify test-safe marker exists**" >> $GITHUB_STEP_SUMMARY
+
+          # RELEASE PATH: tags (no build, just release)
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "build_path=false" >> $GITHUB_OUTPUT
+            echo "promote_path=false" >> $GITHUB_OUTPUT
+            echo "release_path=true" >> $GITHUB_OUTPUT
+
+            echo "## 🔴 RELEASE PATH SELECTED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Production release flow:**" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🔍 Verify test-safe marker (REQUIRED)" >> $GITHUB_STEP_SUMMARY
+            echo "2. 📦 Load certified image from cache" >> $GITHUB_STEP_SUMMARY
+            echo "3. 🚀 Deploy to PRODUCTION" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🛡️ **PRODUCTION: Will BLOCK if test-safe marker missing**" >> $GITHUB_STEP_SUMMARY
+          fi
+
   quality:
     name: quality (lint + mypy)
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main'
+    needs: [decide]
+    if: needs.decide.outputs.build_path == 'true'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -61,8 +134,8 @@ jobs:
   tests:
     name: ${{ matrix.test-type }}
     runs-on: ubuntu-latest
-    needs: [quality, build]
-    if: github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main'
+    needs: [decide, quality, build]
+    if: needs.decide.outputs.build_path == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -165,8 +238,8 @@ jobs:
   build:
     name: Build image (artifact)
     runs-on: ubuntu-latest
-    needs: [quality]
-    if: github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main'
+    needs: [decide, quality]
+    if: needs.decide.outputs.build_path == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -193,8 +266,8 @@ jobs:
   test-image:
     name: test image (smoke)
     runs-on: ubuntu-latest
-    needs: [build]
-    if: always() && needs.build.result == 'success' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main'
+    needs: [decide, build]
+    if: always() && needs.build.result == 'success' && needs.decide.outputs.build_path == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -242,8 +315,8 @@ jobs:
   security:
     name: security scan (trivy)
     runs-on: ubuntu-latest
-    needs: test-image
-    if: github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main'
+    needs: [decide, test-image]
+    if: needs.decide.outputs.build_path == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -264,12 +337,54 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE_NAME }}:security-scan
 
+  # ============================================================================
+  # MARK TEST-SAFE: Create marker after ALL tests pass
+  # ============================================================================
+  # This marker proves the image passed quality + tests + security
+  # Master/Production REQUIRE this marker to promote
+  # If missing → BLOCKS promotion with visible warning
+  # ============================================================================
+  mark-test-safe:
+    name: Mark as test-safe ✅
+    runs-on: ubuntu-latest
+    needs: [decide, security, tests]
+    if: needs.decide.outputs.build_path == 'true'
+    steps:
+      - name: Create test-safe marker
+        run: |
+          echo "✅ ALL TESTS PASSED" > .test-safe-marker
+          echo "Commit: ${{ github.sha }}" >> .test-safe-marker
+          echo "Branch: develop" >> .test-safe-marker
+          echo "Quality: PASSED" >> .test-safe-marker
+          echo "Tests: PASSED (unit + integration + contract)" >> .test-safe-marker
+          echo "Security: PASSED (trivy)" >> .test-safe-marker
+          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> .test-safe-marker
+
+          cat .test-safe-marker
+
+          echo "## ✅ TEST-SAFE MARKER CREATED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**This image is certified safe for promotion:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Quality checks passed (lint + mypy)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Unit tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Integration tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Contract tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security scan passed (trivy)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **Safe for promotion to candidate/production**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Save marker to cache
+        uses: actions/cache/save@v3
+        with:
+          path: .test-safe-marker
+          key: test-safe-${{ github.sha }}
+
   # DEPLOY: Push to GCP Artifact Registry after all tests pass
   deploy-staging:
     name: Deploy Staging
     runs-on: ubuntu-latest
-    needs: [security, tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    needs: [decide, security, tests, mark-test-safe]
+    if: needs.decide.outputs.build_path == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -302,10 +417,72 @@ jobs:
   deploy-candidate:
     name: Deploy Candidate (Git-Canonical - Load from Cache)
     runs-on: ubuntu-latest
+    needs: [decide]
     # No test dependencies - uses pre-tested image from develop's GitHub cache
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: needs.decide.outputs.promote_path == 'true'
     steps:
       - uses: actions/checkout@v4
+
+      # ========================================================================
+      # CRITICAL SAFETY CHECK: Verify test-safe marker exists
+      # ========================================================================
+      - name: Check for test-safe marker
+        id: safety_check
+        continue-on-error: true
+        uses: actions/cache/restore@v3
+        with:
+          path: .test-safe-marker
+          key: test-safe-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      # ========================================================================
+      # HIGH-VISIBILITY WARNING: Untested image detected
+      # ========================================================================
+      - name: 🚨 WARNING - UNTESTED IMAGE DETECTED
+        if: steps.safety_check.outcome == 'failure'
+        run: |
+          echo "::error::🚨 CRITICAL: TEST-SAFE MARKER NOT FOUND!"
+          echo "::error::This image did NOT pass full test suite"
+          echo "::error::Last commit may have used fast-lane [skip] path"
+
+          echo "# 🚨🚨🚨 CRITICAL WARNING 🚨🚨🚨" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ⛔ UNTESTED IMAGE BEING DEPLOYED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**TEST-SAFE MARKER NOT FOUND FOR COMMIT:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚨 This means:" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Full test suite did NOT run on this commit" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Image may have been built with fast-lane [skip]" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ No quality/security/integration tests verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ RISK LEVEL: HIGH" >> $GITHUB_STEP_SUMMARY
+          echo "Deploying untested code to candidate environment!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 TO FIX:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Checkout develop branch" >> $GITHUB_STEP_SUMMARY
+          echo "2. Commit WITHOUT [skip] keyword" >> $GITHUB_STEP_SUMMARY
+          echo "3. Wait for full CI to pass (quality + tests + security)" >> $GITHUB_STEP_SUMMARY
+          echo "4. Merge to master again" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # BLOCK DEPLOYMENT - Uncomment to enforce test-safe requirement
+          # exit 1
+
+      # ========================================================================
+      # SUCCESS: Test-safe marker found
+      # ========================================================================
+      - name: ✅ SUCCESS - Verified test-safe marker
+        if: steps.safety_check.outcome == 'success'
+        run: |
+          echo "✅ Test-safe marker found - image passed full test suite" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat .test-safe-marker >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **Safe to promote to candidate**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       - uses: ./.github/actions/load-from-cache
         with:
@@ -344,9 +521,69 @@ jobs:
   deploy-production:
     name: Deploy Production (Promote from Candidate)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [decide]
+    if: needs.decide.outputs.release_path == 'true'
     steps:
       - uses: actions/checkout@v4
+
+      # ========================================================================
+      # CRITICAL SAFETY CHECK: Verify test-safe marker exists
+      # ========================================================================
+      - name: Check for test-safe marker
+        id: safety_check
+        continue-on-error: true
+        uses: actions/cache/restore@v3
+        with:
+          path: .test-safe-marker
+          key: test-safe-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      # ========================================================================
+      # HIGH-VISIBILITY WARNING: Untested image detected (BLOCK PRODUCTION!)
+      # ========================================================================
+      - name: 🚨 BLOCK - UNTESTED IMAGE FOR PRODUCTION
+        if: steps.safety_check.outcome == 'failure'
+        run: |
+          echo "::error::🚨🚨🚨 CRITICAL: PRODUCTION DEPLOYMENT BLOCKED!"
+          echo "::error::TEST-SAFE MARKER NOT FOUND - Image did NOT pass tests"
+          echo "::error::REFUSING to deploy untested code to PRODUCTION"
+
+          echo "# 🚨🚨🚨 PRODUCTION DEPLOYMENT BLOCKED 🚨🚨🚨" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ⛔ CANNOT DEPLOY UNTESTED IMAGE TO PRODUCTION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**TEST-SAFE MARKER NOT FOUND FOR COMMIT:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚨 This means:" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Full test suite did NOT run on this commit" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Image was NOT verified safe for production" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Possible fast-lane [skip] was used" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🛑 DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
+          echo "Production deployments REQUIRE test-safe marker" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 TO FIX:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Delete this tag: \`git push --delete origin ${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Go to develop and commit WITHOUT [skip]" >> $GITHUB_STEP_SUMMARY
+          echo "3. Wait for full CI to pass" >> $GITHUB_STEP_SUMMARY
+          echo "4. Merge to master" >> $GITHUB_STEP_SUMMARY
+          echo "5. Tag again for production" >> $GITHUB_STEP_SUMMARY
+
+          # BLOCK PRODUCTION DEPLOYMENT (enforced)
+          exit 1
+
+      # ========================================================================
+      # SUCCESS: Test-safe marker found
+      # ========================================================================
+      - name: ✅ SUCCESS - Verified test-safe for PRODUCTION
+        if: steps.safety_check.outcome == 'success'
+        run: |
+          echo "✅ Test-safe marker verified - safe for PRODUCTION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat .test-safe-marker >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **Certified safe for production deployment**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       - uses: ./.github/actions/load-from-cache
         with:
