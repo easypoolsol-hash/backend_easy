@@ -38,18 +38,24 @@ if os.getenv("ALLOWED_HOSTS"):
 # Staging CORS - Add staging + candidate backend URLs to base
 CORS_ALLOWED_ORIGINS = [
     *CORS_ALLOWED_ORIGINS,  # noqa: F405
-    "https://backendeasy-staging-683213759629.asia-south1.run.app",
-    "https://backendeasy-staging-lela6xnh4q-el.a.run.app",
-    "https://backendeasy-candidate-683213759629.asia-south1.run.app",
+    # Current Cloud Run URLs (hash-based format)
+    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
+    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
+    # Also allow localhost for testing
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 # Staging CSRF - Add staging + candidate backend URLs to base
 # Hardcoded only - no injection for security
 CSRF_TRUSTED_ORIGINS = [
     *CSRF_TRUSTED_ORIGINS,  # noqa: F405
-    "https://backendeasy-staging-683213759629.asia-south1.run.app",
-    "https://backendeasy-staging-lela6xnh4q-el.a.run.app",
-    "https://backendeasy-candidate-683213759629.asia-south1.run.app",
+    # Current Cloud Run URLs (hash-based format)
+    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
+    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
+    # Also allow localhost for testing
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 # Staging: Basic HTTPS security
