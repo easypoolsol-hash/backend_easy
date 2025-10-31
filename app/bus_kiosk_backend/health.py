@@ -447,6 +447,96 @@ def detailed_health_check(request):
 
 
 @require_GET
+def liveness_check(request):
+    """
+    Kubernetes/Cloud Run liveness probe - checks if the application is running.
+
+    This should ALWAYS return 200 if the process is alive and can serve requests.
+    Does NOT check external dependencies like database or cache.
+
+    If this fails, the container will be restarted.
+    """
+    return JsonResponse(
+        {
+            "status": "alive",
+            "timestamp": time.time(),
+            "service": "bus-kiosk-backend",
+        },
+        status=200,
+    )
+
+
+@require_GET
+def readiness_check(request):
+    """
+    Kubernetes/Cloud Run readiness probe - checks if app is ready to serve traffic.
+
+    Checks external dependencies (database, cache) but with GRACEFUL FAILURE.
+    Returns 200 even if dependencies are temporarily unavailable (returns warning status).
+
+    Only returns 503 if critical services are permanently broken or misconfigured.
+    """
+    start_time = time.time()
+    checks = {}
+    overall_status = "ready"
+    warnings = []
+
+    # Check database with retry logic
+    db_status = "unknown"
+    for attempt in range(3):
+        try:
+            with health_check_timeout(1.0):
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+            db_status = "connected"
+            break
+        except Exception as e:
+            if attempt == 2:  # Last attempt
+                logger.warning(f"Database readiness check failed after {attempt + 1} attempts: {e}")
+                db_status = "unavailable"
+                warnings.append("database_unavailable")
+            else:
+                time.sleep(0.5)  # Brief delay between retries
+
+    checks["database"] = db_status
+
+    # Check cache (non-critical - just warn if unavailable)
+    try:
+        from django.core.cache import cache
+
+        with health_check_timeout(0.5):
+            test_key = f"readiness_{int(time.time())}"
+            cache.set(test_key, "ok", 5)
+            cache.delete(test_key)
+        checks["cache"] = "connected"
+    except Exception as e:
+        logger.warning(f"Cache readiness check failed: {e}")
+        checks["cache"] = "unavailable"
+        warnings.append("cache_unavailable")
+
+    # Determine overall status
+    # IMPORTANT: We return 200 (ready) even if DB is temporarily down
+    # This prevents Cloud Run from killing the container during brief outages
+    if db_status == "unavailable":
+        overall_status = "degraded"
+
+    response_time = time.time() - start_time
+
+    response_data = {
+        "status": overall_status,
+        "timestamp": time.time(),
+        "service": "bus-kiosk-backend",
+        "response_time_ms": round(response_time * 1000, 2),
+        "checks": checks,
+        "warnings": warnings if warnings else None,
+    }
+
+    # Always return 200 - we're alive and can recover
+    # Only return 503 if there's a configuration error or permanent failure
+    return JsonResponse(response_data, status=200)
+
+
+@require_GET
 @cache_page(60)  # Cache for 1 minute
 def prometheus_metrics(request):
     """

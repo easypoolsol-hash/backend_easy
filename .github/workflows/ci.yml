@@ -340,21 +340,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/deploy-cloudrun
         with:
+          environment: staging
+          image_tag: staging
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Deploy to Cloud Run Staging
-        run: |
-          gcloud run deploy easypool-backend-staging \
-            --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:staging \
-            --region=asia-south1 \
-            --platform=managed
-
-          SERVICE_URL=$(gcloud run services describe easypool-backend-staging --region=asia-south1 --format='value(status.url)')
-          echo "🚀 Staging deployed: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
 
   deploy-candidate:
     name: Deploy Candidate
@@ -395,21 +386,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: ./.github/actions/deploy-cloudrun
         with:
+          environment: candidate
+          image_tag: candidate
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Deploy to Cloud Run Candidate
+      - name: Production promotion message
         run: |
-          gcloud run deploy easypool-backend-candidate \
-            --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:candidate \
-            --region=asia-south1 \
-            --platform=managed
-
-          SERVICE_URL=$(gcloud run services describe easypool-backend-candidate --region=asia-south1 --format='value(status.url)')
-          echo "🚀 Candidate deployed: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🎯 **Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
