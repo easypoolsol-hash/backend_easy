@@ -44,12 +44,12 @@ jobs:
           COMMIT_MSG="${{ github.event.head_commit.message }}"
           if echo "$COMMIT_MSG" | grep -qiE '\[skip tests\]|\[tests skip\]'; then
             echo "skip_tests=true" >> $GITHUB_OUTPUT
-            echo "⚠️  WARNING: Tests will be skipped" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️  Image will NOT be built or deployed" >> $GITHUB_STEP_SUMMARY
-            echo "🔒 Safety: Untested images cannot reach production" >> $GITHUB_STEP_SUMMARY
+            echo "WARNING: Tests will be skipped" >> $GITHUB_STEP_SUMMARY
+            echo "Image will NOT be built or deployed" >> $GITHUB_STEP_SUMMARY
+            echo "Safety: Untested images cannot reach production" >> $GITHUB_STEP_SUMMARY
           else
             echo "skip_tests=false" >> $GITHUB_OUTPUT
-            echo "✅ Running full test suite" >> $GITHUB_STEP_SUMMARY
+            echo "Running full test suite" >> $GITHUB_STEP_SUMMARY
           fi
 
   quality:
