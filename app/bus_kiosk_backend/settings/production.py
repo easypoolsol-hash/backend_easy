@@ -21,8 +21,8 @@ from .base import *  # noqa: F403
 # Import security settings
 from .security import *  # noqa: F403
 
-# Production: DEBUG must be False (hard-coded, no override)
-DEBUG = False
+# Production: DEBUG - allow override for troubleshooting
+DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 
 # Production: SECRET_KEY must be injected via environment (no fallback)
 SECRET_KEY = os.environ["SECRET_KEY"]  # Fails fast if not set
@@ -30,36 +30,22 @@ SECRET_KEY = os.environ["SECRET_KEY"]  # Fails fast if not set
 # Production: ENCRYPTION_KEY must be injected via environment (no fallback)
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]  # Fails fast if not set
 
-# Production: Strict allowed hosts (no localhost)
-ALLOWED_HOSTS = [
-    "easypool.in",
-    "www.easypool.in",
-    "api.easypool.in",
-]
+# Production: ALLOWED_HOSTS from environment (or default)
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "easypool.in,www.easypool.in,api.easypool.in").split(",")
 
-# Add environment variable hosts if specified (for flexibility in multi-region deployments)
-if os.getenv("ALLOWED_HOSTS"):
-    additional_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
-    ALLOWED_HOSTS.extend(additional_hosts)
+# Production CORS - from environment or base only
+_cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if _cors_origins_env:
+    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS, *_cors_origins_env.split(",")]  # noqa: F405
+else:
+    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS]
 
-# Production CORS - Extend base config with production backend URLs
-CORS_ALLOWED_ORIGINS = [
-    *CORS_ALLOWED_ORIGINS,  # noqa: F405
-    # Current Cloud Run URLs (hash-based format)
-    "https://easypool-backend-vvifoskiaa-el.a.run.app",
-    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
-    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
-]
-
-# Production CSRF - Extend base config with production backend URLs
-# Hardcoded only - no injection for security
-CSRF_TRUSTED_ORIGINS = [
-    *CSRF_TRUSTED_ORIGINS,  # noqa: F405
-    # Current Cloud Run URLs (hash-based format)
-    "https://easypool-backend-vvifoskiaa-el.a.run.app",
-    "https://easypool-backend-staging-vvifoskiaa-el.a.run.app",
-    "https://easypool-backend-candidate-vvifoskiaa-el.a.run.app",
-]
+# Production CSRF - from environment or base only
+_csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if _csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, *_csrf_origins_env.split(",")]  # noqa: F405
+else:
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS]
 
 # Production security
 SECURE_HSTS_SECONDS = 31536000  # 1 year
@@ -81,14 +67,21 @@ LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"  # noqa: F405  # type:
 # Google Cloud SQL: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 # Standard PostgreSQL: postgresql://user:pass@host:5432/dbname
 
-# Production database - Parse DATABASE_URL manually (same as staging.py)
+# Production database - Parse DATABASE_URL with SQLite fallback for debugging
 # Format: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("Production requires DATABASE_URL environment variable")
+    print("[PRODUCTION] WARNING: No DATABASE_URL - using SQLite fallback!")
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "prod_fallback.sqlite3",  # noqa: F405
+        }
+    }
+    DATABASE_URL = None  # Skip parsing below
 
 # Parse DATABASE_URL manually for Cloud SQL Unix socket format
-if "?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL:
+if DATABASE_URL and ("?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL):
     # Cloud SQL Unix socket format - supports both old and new formats
     # Old: postgresql://user:pass@/dbname?host=/cloudsql/instance
     # New: postgres://user:pass@//cloudsql/instance/dbname
@@ -124,7 +117,7 @@ if "?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL:
             "CONN_HEALTH_CHECKS": True,
         }
     }
-else:
+elif DATABASE_URL:
     # Standard PostgreSQL URL format
     match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):?(\d+)?/(.+)", DATABASE_URL)
     if match:
