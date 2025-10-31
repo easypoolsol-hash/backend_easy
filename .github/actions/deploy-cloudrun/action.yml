@@ -1,0 +1,70 @@
+name: Deploy to Cloud Run
+description: Deploy a specific image tag to Cloud Run (Terraform manages all configuration)
+
+inputs:
+  environment:
+    description: 'Environment to deploy (staging, candidate, production)'
+    required: true
+  image_tag:
+    description: 'Image tag to deploy'
+    required: true
+  workload_identity_provider:
+    description: 'GCP Workload Identity Provider'
+    required: true
+  service_account:
+    description: 'GCP Service Account'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Deploy to Cloud Run
+      shell: bash
+      run: |
+        # Map environment to service name (matches Terraform config)
+        case "${{ inputs.environment }}" in
+          staging)
+            SERVICE_NAME="easypool-backend-staging"
+            ;;
+          candidate)
+            SERVICE_NAME="easypool-backend-candidate"
+            ;;
+          production)
+            SERVICE_NAME="easypool-backend"
+            ;;
+          *)
+            echo "❌ Invalid environment: ${{ inputs.environment }}"
+            exit 1
+            ;;
+        esac
+
+        echo "🚀 Deploying to ${{ inputs.environment }}..."
+        echo "📦 Image: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:${{ inputs.image_tag }}"
+        echo "🎯 Service: $SERVICE_NAME"
+
+        # Deploy (Terraform controls all configuration - env vars, secrets, resources, etc.)
+        gcloud run deploy $SERVICE_NAME \
+          --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:${{ inputs.image_tag }} \
+          --region=asia-south1 \
+          --platform=managed \
+          --quiet
+
+        # Get service URL
+        SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=asia-south1 --format='value(status.url)')
+
+        echo "## ✅ Deployment Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** \`${{ inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+        echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎉 All configuration managed by Terraform!" >> $GITHUB_STEP_SUMMARY
+
+        echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_OUTPUT
