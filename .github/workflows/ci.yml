@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -333,6 +333,16 @@ jobs:
           docker push $IMAGE_URL:staging
           echo "✅ Staging image pushed: $IMAGE_URL:staging" >> $GITHUB_STEP_SUMMARY
 
+      - name: Deploy to Cloud Run Staging
+        run: |
+          gcloud run deploy easypool-backend-staging \
+            --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:staging \
+            --region=asia-south1 \
+            --platform=managed
+
+          SERVICE_URL=$(gcloud run services describe easypool-backend-staging --region=asia-south1 --format='value(status.url)')
+          echo "🚀 Staging deployed: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+
   deploy-candidate:
     name: Deploy Candidate
     runs-on: ubuntu-latest
@@ -364,6 +374,16 @@ jobs:
           docker tag backend_easy:candidate $IMAGE_URL:candidate
           docker push $IMAGE_URL:candidate
           echo "✅ Candidate image pushed: $IMAGE_URL:candidate" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deploy to Cloud Run Candidate
+        run: |
+          gcloud run deploy easypool-backend-candidate \
+            --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:candidate \
+            --region=asia-south1 \
+            --platform=managed
+
+          SERVICE_URL=$(gcloud run services describe easypool-backend-candidate --region=asia-south1 --format='value(status.url)')
+          echo "🚀 Candidate deployed: $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🎯 **Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
