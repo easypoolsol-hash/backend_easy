@@ -34,75 +34,56 @@ services:
     networks:
       - test_network
 
-  # Web service used to run manage.py / tests inside the same network and env
+  # Web service - Tests pre-built Docker image (no volumes in CI)
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
     image: backend_easy:test
     container_name: test_web
-    working_dir: /app
     command: daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application
-    volumes:
-      # Mount only the `app/` directory into /app so the container sees
-      # `manage.py` at `/app/manage.py`. Mounting the repo root here would
-      # place the `app/` directory at `/app/app/` which breaks `python manage.py`.
-      - ./app:/app:cached
-      # Ensure the ml_models package from the repo root is available inside
-      # the container at /app/ml_models. Without this bind-mount the image's
-      # copied /app/ml_models can be hidden by the ./app:/app volume.
-      - ./ml_models:/app/ml_models:cached
     environment:
-      # Application / test configuration (kept here so CI YAML stays clean)
       DEBUG: 'true'
       SECRET_KEY: test-secret-key-for-testing-only
-  # ENCRYPTION_KEY should be provided by the runner environment or tests.
-  # Do NOT hardcode production keys in source.
-      DB_ENGINE: django.db.backends.postgresql
-      DB_NAME: test_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
-      DB_PORT: 5432
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-test-encryption-key-32-bytes-long!}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/test_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      USE_FILE_LOGGING: 'false'  # Console-only logging for CI/tests
+      USE_FILE_LOGGING: 'false'
+      ALLOWED_HOSTS: '*'
     ports:
-      # Publish web port so tests running on the CI runner can access the container
       - "8000:8000"
-    # Ensure web starts after postgres and redis are started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - test_network
 
-  # Celery worker (SAME image as web, different command)
+  # Celery worker - Same image, different command
   celery_worker:
     image: backend_easy:test
     container_name: test_celery_worker
-    working_dir: /app
     command: celery -A bus_kiosk_backend worker --loglevel=info
-    volumes:
-      - ./app:/app:cached
-      - ./ml_models:/app/ml_models:cached
     environment:
       DEBUG: 'true'
       SECRET_KEY: test-secret-key-for-testing-only
-      DB_ENGINE: django.db.backends.postgresql
-      DB_NAME: test_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_HOST: postgres
-      DB_PORT: 5432
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-test-encryption-key-32-bytes-long!}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/test_db
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      USE_FILE_LOGGING: 'false'  # Console-only logging for CI/tests
+      USE_FILE_LOGGING: 'false'
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - test_network
 
