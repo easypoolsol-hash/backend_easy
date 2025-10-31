@@ -1,31 +1,21 @@
-name: Manual Deploy & Fast-Lane
+name: Fast-Stage Deploy
 
 # ARCHITECTURE:
 # =============
-# 1. Manual Deploy: Deploy existing image from GCR (workflow_dispatch)
-# 2. Fast-Lane Staging: Build & deploy to staging, skip tests (commit with "skip")
+# Fast-Lane Staging ONLY: Build & deploy to staging, skip tests (commit with "skip")
 #
 # CRITICAL: Fast-lane uses SEPARATE cache (gha-fastlane)
 # - Main CI uses: type=gha (default)
 # - Fast-lane uses: type=gha,scope=fastlane
 # - This prevents master from loading untested fast-lane images
+#
+# SECURITY:
+# - ONLY works for staging environment
+# - NEVER works for candidate or production
+# - Requires explicit "skip" keyword in commit message
+# - Uses isolated cache to prevent contamination
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        type: choice
-        options:
-          - staging
-          - candidate
-          - production
-      image_tag:
-        description: 'Image tag to deploy (staging, candidate, latest, or specific version)'
-        required: true
-        default: 'candidate'
-
   push:
     branches: [ develop ]
     paths-ignore:
@@ -46,61 +36,12 @@ env:
 
 jobs:
   # ============================================================================
-  # MANUAL DEPLOY: Deploy existing image from GCR
-  # ============================================================================
-  deploy-manual:
-    name: Deploy ${{ inputs.environment }}
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Deploy to Cloud Run
-        run: |
-          # Map environment to service name
-          case "${{ inputs.environment }}" in
-            staging)
-              SERVICE_NAME="easypool-backend-staging"
-              ;;
-            candidate)
-              SERVICE_NAME="easypool-backend-candidate"
-              ;;
-            production)
-              SERVICE_NAME="easypool-backend"
-              ;;
-          esac
-
-          # Deploy with image tag
-          gcloud run deploy $SERVICE_NAME \
-            --image=${{ env.GCR_IMAGE }}:${{ inputs.image_tag }} \
-            --region=asia-south1 \
-            --platform=managed
-
-          # Get service URL
-          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=asia-south1 --format='value(status.url)')
-
-          echo "## Deployment Complete ✅" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Image Tag:** ${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🎉 Deployed using Terraform-managed configuration!" >> $GITHUB_STEP_SUMMARY
-
-  # ============================================================================
   # FAST-LANE STAGING: Build & deploy quickly, skip tests (for small fixes)
   # ============================================================================
   # TRIGGERS: Commit message contains "skip" (e.g., "fix typo [skip]")
   # CACHE: Uses SEPARATE cache (scope=fastlane) so master NEVER loads it
   # WARNING: Skips tests - use only for trivial fixes
+  # RESTRICTION: STAGING ONLY - never candidate/production
   # ============================================================================
   deploy-fast-staging:
     name: Fast-Lane Staging (skip tests)
@@ -123,6 +64,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "⚠️ **Tests skipped** - use only for trivial fixes" >> $GITHUB_STEP_SUMMARY
           echo "🔒 **Isolated cache** - won't affect main CI" >> $GITHUB_STEP_SUMMARY
+          echo "🚫 **Staging only** - cannot deploy to candidate/production" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
       - name: Set up Docker Buildx
@@ -181,7 +123,7 @@ jobs:
           echo "**What happened:**" >> $GITHUB_STEP_SUMMARY
           echo "- ⚠️ Built image **without running tests** (fast)" >> $GITHUB_STEP_SUMMARY
           echo "- Pushed to GCR with \`staging-fastlane-untested\` tag" >> $GITHUB_STEP_SUMMARY
-          echo "- Deployed to staging environment" >> $GITHUB_STEP_SUMMARY
+          echo "- Deployed to staging environment ONLY" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Safety guarantees:**" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Separate cache (scope=fastlane - won't pollute main CI)" >> $GITHUB_STEP_SUMMARY
@@ -189,6 +131,7 @@ jobs:
           echo "- ✅ Only affects staging environment" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Master/production will NEVER use this untested image" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Main CI cache remains clean and tested" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚫 **CANNOT be deployed to candidate or production**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**⚠️ WARNING: Image is UNTESTED**" >> $GITHUB_STEP_SUMMARY
           echo "- No unit tests ran" >> $GITHUB_STEP_SUMMARY
