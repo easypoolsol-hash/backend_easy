@@ -89,12 +89,27 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port
 EXPOSE 8000
 
-# Create production-grade startup script
+# Create production-grade startup script with Cloud SQL proxy wait
 USER root
 RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
 echo "🚀 Starting application initialization..."\n\
+\n\
+# Wait for Cloud SQL proxy to be ready (retry for up to 30 seconds)\n\
+echo "⏳ Waiting for database connection..."\n\
+for i in {1..15}; do\n\
+    if python manage.py check --database default 2>/dev/null; then\n\
+        echo "✅ Database connection established"\n\
+        break\n\
+    fi\n\
+    if [ $i -eq 15 ]; then\n\
+        echo "❌ Database connection timeout"\n\
+        exit 1\n\
+    fi\n\
+    echo "⏳ Waiting for database... ($i/15)"\n\
+    sleep 2\n\
+done\n\
 \n\
 # Run migrations (idempotent - safe to run multiple times)\n\
 echo "📦 Running database migrations..."\n\
