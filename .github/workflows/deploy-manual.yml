@@ -1,0 +1,71 @@
+name: Manual Deploy
+
+# Trigger deployment manually without running CI
+# Useful when image already exists in Artifact Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - staging
+          - candidate
+          - production
+      image_tag:
+        description: 'Image tag to deploy (staging, candidate, latest, or specific version)'
+        required: true
+        default: 'candidate'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          # Map environment to service name
+          case "${{ inputs.environment }}" in
+            staging)
+              SERVICE_NAME="easypool-backend-staging"
+              ;;
+            candidate)
+              SERVICE_NAME="easypool-backend-candidate"
+              ;;
+            production)
+              SERVICE_NAME="easypool-backend"
+              ;;
+          esac
+
+          # Deploy with image tag
+          gcloud run deploy $SERVICE_NAME \
+            --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:${{ inputs.image_tag }} \
+            --region=asia-south1 \
+            --platform=managed
+
+          # Get service URL
+          SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=asia-south1 --format='value(status.url)')
+
+          echo "## Deployment Complete ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** ${{ inputs.image_tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 Deployed using Terraform-managed configuration!" >> $GITHUB_STEP_SUMMARY
