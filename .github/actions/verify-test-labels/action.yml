@@ -1,0 +1,115 @@
+name: Verify Test Labels in Image
+description: Verify Docker image has passed tests by checking embedded labels
+
+inputs:
+  image_url:
+    description: 'Full image URL to verify (e.g., asia-south1-docker.pkg.dev/project/repo/image:tag)'
+    required: true
+  workload_identity_provider:
+    description: 'GCP Workload Identity Provider'
+    required: true
+  service_account:
+    description: 'GCP Service Account email'
+    required: true
+  block_on_failure:
+    description: 'Whether to block (exit 1) if test labels not found'
+    required: false
+    default: 'true'
+
+outputs:
+  test_status:
+    description: 'Test status from image labels'
+    value: ${{ steps.verify.outputs.test_status }}
+  verified:
+    description: 'Whether image passed verification'
+    value: ${{ steps.verify.outputs.verified }}
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Configure Docker for GCR
+      shell: bash
+      run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+    - name: Pull and inspect image
+      id: verify
+      shell: bash
+      run: |
+        IMAGE_URL="${{ inputs.image_url }}"
+        echo "🔍 Pulling image: $IMAGE_URL"
+
+        # Pull the image
+        if ! docker pull $IMAGE_URL; then
+          echo "::error::Failed to pull image: $IMAGE_URL"
+          exit 1
+        fi
+
+        # Extract test labels
+        LABELS=$(docker inspect $IMAGE_URL --format='{{json .Config.Labels}}')
+
+        TEST_STATUS=$(echo "$LABELS" | jq -r '.["test.status"] // "not-found"')
+        TEST_COMMIT=$(echo "$LABELS" | jq -r '.["test.commit"] // "unknown"')
+        TEST_TIMESTAMP=$(echo "$LABELS" | jq -r '.["test.timestamp_human"] // "unknown"')
+        TEST_QUALITY=$(echo "$LABELS" | jq -r '.["test.quality"] // "unknown"')
+        TEST_SECURITY=$(echo "$LABELS" | jq -r '.["test.security"] // "unknown"')
+        TEST_TESTS=$(echo "$LABELS" | jq -r '.["test.tests"] // "unknown"')
+
+        echo "test_status=$TEST_STATUS" >> $GITHUB_OUTPUT
+
+        # Check if image passed tests
+        if [ "$TEST_STATUS" = "passed" ]; then
+          echo "verified=true" >> $GITHUB_OUTPUT
+
+          echo "## ✅ IMAGE VERIFIED - SAFE FOR PROMOTION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`$IMAGE_URL\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏷️ Test Metadata (from image labels):" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** ✅ $TEST_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** \`$TEST_COMMIT\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tested:** $TEST_TIMESTAMP" >> $GITHUB_STEP_SUMMARY
+          echo "- **Quality:** $TEST_QUALITY" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security:** $TEST_SECURITY" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tests:** $TEST_TESTS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **Certified safe for promotion**" >> $GITHUB_STEP_SUMMARY
+
+        elif [ "$TEST_STATUS" = "not-found" ]; then
+          echo "verified=false" >> $GITHUB_OUTPUT
+
+          echo "## 🚨 WARNING - UNTESTED IMAGE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`$IMAGE_URL\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⛔ No test labels found in image!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**This means:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Image did NOT pass full test suite" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ No quality/security verification" >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ May have been built with fast-lane [skip]" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 To Fix:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Commit to develop WITHOUT [skip]" >> $GITHUB_STEP_SUMMARY
+          echo "2. Wait for full CI to pass" >> $GITHUB_STEP_SUMMARY
+          echo "3. Merge to master again" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.block_on_failure }}" = "true" ]; then
+            echo "::error::Image does not have test.status=passed label - BLOCKING promotion"
+            exit 1
+          else
+            echo "::warning::Image does not have test.status=passed label - Proceeding anyway (block_on_failure=false)"
+          fi
+        else
+          echo "verified=false" >> $GITHUB_OUTPUT
+          echo "::error::Image test status: $TEST_STATUS (expected: passed)"
+
+          if [ "${{ inputs.block_on_failure }}" = "true" ]; then
+            exit 1
+          fi
+        fi
