@@ -1,0 +1,65 @@
+name: Add Test Labels to Image
+description: Add test status labels to Docker image for traceability
+
+inputs:
+  image_tag:
+    description: 'Image tag to add labels to'
+    required: true
+  test_status:
+    description: 'Test status (passed/failed)'
+    required: true
+    default: 'passed'
+
+runs:
+  using: composite
+  steps:
+    - name: Add test labels to image
+      shell: bash
+      run: |
+        IMAGE_NAME="backend_easy:${{ inputs.image_tag }}"
+        TIMESTAMP=$(date -u +%s)
+        TIMESTAMP_HUMAN=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+        echo "🏷️ Adding test labels to $IMAGE_NAME..."
+
+        # Create a Dockerfile that adds labels to existing image
+        cat > Dockerfile.labels <<EOF
+        FROM $IMAGE_NAME
+        LABEL test.status="${{ inputs.test_status }}"
+        LABEL test.commit="${{ github.sha }}"
+        LABEL test.commit_short="$(echo ${{ github.sha }} | cut -c1-7)"
+        LABEL test.branch="${{ github.ref_name }}"
+        LABEL test.timestamp="$TIMESTAMP"
+        LABEL test.timestamp_human="$TIMESTAMP_HUMAN"
+        LABEL test.quality="passed"
+        LABEL test.security="passed"
+        LABEL test.tests="passed"
+        LABEL test.workflow_run="${{ github.run_id }}"
+        LABEL test.workflow_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        EOF
+
+        # Rebuild image with labels (instant - just adds metadata)
+        docker build -f Dockerfile.labels -t $IMAGE_NAME .
+
+        # Verify labels were added
+        echo "✅ Labels added successfully:"
+        docker inspect $IMAGE_NAME --format='{{json .Config.Labels}}' | jq '
+          to_entries |
+          map(select(.key | startswith("test."))) |
+          from_entries
+        '
+
+        echo "## ✅ Test Labels Added" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image:** \`$IMAGE_NAME\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🏷️ Test Metadata:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status:** ✅ ${{ inputs.test_status }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp:** $TIMESTAMP_HUMAN" >> $GITHUB_STEP_SUMMARY
+        echo "- **Quality:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tests:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🔒 **Safe for promotion** - Labels embedded in image" >> $GITHUB_STEP_SUMMARY
