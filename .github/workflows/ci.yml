@@ -338,52 +338,37 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}:security-scan
 
   # ============================================================================
-  # MARK TEST-SAFE: Create marker after ALL tests pass
+  # ADD TEST LABELS: Embed test status into Docker image
   # ============================================================================
-  # This marker proves the image passed quality + tests + security
-  # Master/Production REQUIRE this marker to promote
-  # If missing → BLOCKS promotion with visible warning
+  # Labels travel WITH the image (no cache dependency)
+  # Master/Production verify these labels before promoting
   # ============================================================================
-  mark-test-safe:
-    name: Mark as test-safe ✅
+  add-test-labels:
+    name: Add Test Labels ✅
     runs-on: ubuntu-latest
     needs: [decide, security, tests]
     if: needs.decide.outputs.build_path == 'true'
     steps:
-      - name: Create test-safe marker
-        run: |
-          echo "✅ ALL TESTS PASSED" > .test-safe-marker
-          echo "Commit: ${{ github.sha }}" >> .test-safe-marker
-          echo "Branch: develop" >> .test-safe-marker
-          echo "Quality: PASSED" >> .test-safe-marker
-          echo "Tests: PASSED (unit + integration + contract)" >> .test-safe-marker
-          echo "Security: PASSED (trivy)" >> .test-safe-marker
-          echo "Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> .test-safe-marker
+      - uses: actions/checkout@v4
 
-          cat .test-safe-marker
-
-          echo "## ✅ TEST-SAFE MARKER CREATED" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**This image is certified safe for promotion:**" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Quality checks passed (lint + mypy)" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Unit tests passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Integration tests passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Contract tests passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Security scan passed (trivy)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔒 **Safe for promotion to candidate/production**" >> $GITHUB_STEP_SUMMARY
-
-      - name: Save marker to cache
-        uses: actions/cache/save@v3
+      - name: Load image from cache
+        uses: ./.github/actions/load-from-cache
         with:
-          path: .test-safe-marker
-          key: test-safe-${{ github.sha }}
+          image_tag: develop
+          fail_if_missing: 'true'
+
+      - uses: ./.github/actions/add-test-labels
+        with:
+          image_tag: develop
+          test_status: passed
+
+      # Image now has test labels embedded - will persist when pushed to GCR
 
   # DEPLOY: Push to GCP Artifact Registry after all tests pass
   deploy-dev:
     name: Deploy Dev
     runs-on: ubuntu-latest
-    needs: [decide, security, tests, mark-test-safe]
+    needs: [decide, security, tests, add-test-labels]
     if: needs.decide.outputs.build_path == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -424,65 +409,14 @@ jobs:
       - uses: actions/checkout@v4
 
       # ========================================================================
-      # CRITICAL SAFETY CHECK: Verify test-safe marker exists
+      # CRITICAL SAFETY CHECK: Verify image has test labels
       # ========================================================================
-      - name: Check for test-safe marker
-        id: safety_check
-        continue-on-error: true
-        uses: actions/cache/restore@v3
+      - uses: ./.github/actions/verify-test-labels
         with:
-          path: .test-safe-marker
-          key: test-safe-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      # ========================================================================
-      # HIGH-VISIBILITY WARNING: Untested image detected
-      # ========================================================================
-      - name: 🚨 WARNING - UNTESTED IMAGE DETECTED
-        if: steps.safety_check.outcome == 'failure'
-        run: |
-          echo "::error::🚨 CRITICAL: TEST-SAFE MARKER NOT FOUND!"
-          echo "::error::This image did NOT pass full test suite"
-          echo "::error::Last commit may have used fast-lane [skip] path"
-
-          echo "# 🚨🚨🚨 CRITICAL WARNING 🚨🚨🚨" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ⛔ UNTESTED IMAGE BEING DEPLOYED" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**TEST-SAFE MARKER NOT FOUND FOR COMMIT:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚨 This means:" >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ Full test suite did NOT run on this commit" >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ Image may have been built with fast-lane [skip]" >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ No quality/security/integration tests verification" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚠️ RISK LEVEL: HIGH" >> $GITHUB_STEP_SUMMARY
-          echo "Deploying untested code to staging environment!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 TO FIX:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Checkout develop branch" >> $GITHUB_STEP_SUMMARY
-          echo "2. Commit WITHOUT [skip] keyword" >> $GITHUB_STEP_SUMMARY
-          echo "3. Wait for full CI to pass (quality + tests + security)" >> $GITHUB_STEP_SUMMARY
-          echo "4. Merge to master again" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # BLOCK DEPLOYMENT - Uncomment to enforce test-safe requirement
-          # exit 1
-
-      # ========================================================================
-      # SUCCESS: Test-safe marker found
-      # ========================================================================
-      - name: ✅ SUCCESS - Verified test-safe marker
-        if: steps.safety_check.outcome == 'success'
-        run: |
-          echo "✅ Test-safe marker found - image passed full test suite" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat .test-safe-marker >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔒 **Safe to promote to staging**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          image_url: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:develop
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          block_on_failure: 'false'  # Warning only for staging
 
       - uses: ./.github/actions/load-from-cache
         with:
@@ -527,63 +461,14 @@ jobs:
       - uses: actions/checkout@v4
 
       # ========================================================================
-      # CRITICAL SAFETY CHECK: Verify test-safe marker exists
+      # CRITICAL SAFETY CHECK: Verify image has test labels (BLOCKS if missing)
       # ========================================================================
-      - name: Check for test-safe marker
-        id: safety_check
-        continue-on-error: true
-        uses: actions/cache/restore@v3
+      - uses: ./.github/actions/verify-test-labels
         with:
-          path: .test-safe-marker
-          key: test-safe-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      # ========================================================================
-      # HIGH-VISIBILITY WARNING: Untested image detected (BLOCK PRODUCTION!)
-      # ========================================================================
-      - name: 🚨 BLOCK - UNTESTED IMAGE FOR PRODUCTION
-        if: steps.safety_check.outcome == 'failure'
-        run: |
-          echo "::error::🚨🚨🚨 CRITICAL: PRODUCTION DEPLOYMENT BLOCKED!"
-          echo "::error::TEST-SAFE MARKER NOT FOUND - Image did NOT pass tests"
-          echo "::error::REFUSING to deploy untested code to PRODUCTION"
-
-          echo "# 🚨🚨🚨 PRODUCTION DEPLOYMENT BLOCKED 🚨🚨🚨" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ⛔ CANNOT DEPLOY UNTESTED IMAGE TO PRODUCTION" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**TEST-SAFE MARKER NOT FOUND FOR COMMIT:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🚨 This means:" >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ Full test suite did NOT run on this commit" >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ Image was NOT verified safe for production" >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ Possible fast-lane [skip] was used" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🛑 DEPLOYMENT BLOCKED" >> $GITHUB_STEP_SUMMARY
-          echo "Production deployments REQUIRE test-safe marker" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔧 TO FIX:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Delete this tag: \`git push --delete origin ${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Go to develop and commit WITHOUT [skip]" >> $GITHUB_STEP_SUMMARY
-          echo "3. Wait for full CI to pass" >> $GITHUB_STEP_SUMMARY
-          echo "4. Merge to master" >> $GITHUB_STEP_SUMMARY
-          echo "5. Tag again for production" >> $GITHUB_STEP_SUMMARY
-
-          # BLOCK PRODUCTION DEPLOYMENT (enforced)
-          exit 1
-
-      # ========================================================================
-      # SUCCESS: Test-safe marker found
-      # ========================================================================
-      - name: ✅ SUCCESS - Verified test-safe for PRODUCTION
-        if: steps.safety_check.outcome == 'success'
-        run: |
-          echo "✅ Test-safe marker verified - safe for PRODUCTION" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat .test-safe-marker >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔒 **Certified safe for production deployment**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          image_url: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:staging
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          block_on_failure: 'true'  # BLOCK production if not tested
 
       - uses: ./.github/actions/load-from-cache
         with:
