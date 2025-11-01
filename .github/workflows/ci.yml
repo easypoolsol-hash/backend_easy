@@ -380,8 +380,8 @@ jobs:
           key: test-safe-${{ github.sha }}
 
   # DEPLOY: Push to GCP Artifact Registry after all tests pass
-  deploy-staging:
-    name: Deploy Staging
+  deploy-dev:
+    name: Deploy Dev
     runs-on: ubuntu-latest
     needs: [decide, security, tests, mark-test-safe]
     if: needs.decide.outputs.build_path == 'true'
@@ -390,32 +390,32 @@ jobs:
 
       - uses: ./.github/actions/load-from-cache
         with:
-          image_tag: staging
+          image_tag: develop
           fail_if_missing: 'false'
 
       - uses: ./.github/actions/push-image
         with:
-          image_tag: staging
-          sha_tag_prefix: staging
+          image_tag: develop
+          sha_tag_prefix: develop
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-  deploy-staging-cloudrun:
-    name: Deploy Staging to Cloud Run
+  deploy-dev-cloudrun:
+    name: Deploy Dev to Cloud Run
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
+    needs: [deploy-dev]
     steps:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/deploy-cloudrun
         with:
-          environment: staging
-          image_tag: staging
+          environment: dev
+          image_tag: develop
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-  deploy-candidate:
-    name: Deploy Candidate (Git-Canonical - Load from Cache)
+  deploy-staging:
+    name: Deploy Staging (Git-Canonical - Load from Cache)
     runs-on: ubuntu-latest
     needs: [decide]
     # No test dependencies - uses pre-tested image from develop's GitHub cache
@@ -457,7 +457,7 @@ jobs:
           echo "- ❌ No quality/security/integration tests verification" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### ⚠️ RISK LEVEL: HIGH" >> $GITHUB_STEP_SUMMARY
-          echo "Deploying untested code to candidate environment!" >> $GITHUB_STEP_SUMMARY
+          echo "Deploying untested code to staging environment!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔧 TO FIX:" >> $GITHUB_STEP_SUMMARY
           echo "1. Checkout develop branch" >> $GITHUB_STEP_SUMMARY
@@ -481,32 +481,32 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           cat .test-safe-marker >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔒 **Safe to promote to candidate**" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **Safe to promote to staging**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
       - uses: ./.github/actions/load-from-cache
         with:
-          image_tag: candidate
+          image_tag: staging
           fail_if_missing: 'true'
 
       - uses: ./.github/actions/push-image
         with:
-          image_tag: candidate
-          sha_tag_prefix: candidate
+          image_tag: staging
+          sha_tag_prefix: staging
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-  deploy-candidate-cloudrun:
-    name: Deploy Candidate to Cloud Run
+  deploy-staging-cloudrun:
+    name: Deploy Staging to Cloud Run
     runs-on: ubuntu-latest
-    needs: [deploy-candidate]
+    needs: [deploy-staging]
     steps:
       - uses: actions/checkout@v4
 
       - uses: ./.github/actions/deploy-cloudrun
         with:
-          environment: candidate
-          image_tag: candidate
+          environment: staging
+          image_tag: staging
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
