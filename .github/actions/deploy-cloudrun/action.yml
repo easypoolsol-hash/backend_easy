@@ -29,11 +29,11 @@ runs:
       run: |
         # Map environment to service name (matches Terraform config)
         case "${{ inputs.environment }}" in
+          dev)
+            SERVICE_NAME="easypool-backend-dev"
+            ;;
           staging)
             SERVICE_NAME="easypool-backend-staging"
-            ;;
-          candidate)
-            SERVICE_NAME="easypool-backend-candidate"
             ;;
           production)
             SERVICE_NAME="easypool-backend"
@@ -47,12 +47,20 @@ runs:
         echo "🚀 Deploying to ${{ inputs.environment }}..."
         echo "📦 Image: asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:${{ inputs.image_tag }}"
         echo "🎯 Service: $SERVICE_NAME"
+        echo "📝 Git SHA: ${{ github.sha }}"
 
-        # Deploy (Terraform controls all configuration - env vars, secrets, resources, etc.)
+        # Prepare traceability metadata
+        SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+        DEPLOYED_AT=$(date +%s)
+
+        # Deploy with full traceability metadata (Fortune 500 pattern)
+        # Terraform controls infrastructure, CI/CD adds deployment metadata
         gcloud run deploy $SERVICE_NAME \
           --image=asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy:${{ inputs.image_tag }} \
           --region=asia-south1 \
           --platform=managed \
+          --update-labels=git-sha=${SHORT_SHA},deployed-at=${DEPLOYED_AT},env=${{ inputs.environment }} \
+          --update-annotations=git-commit=${{ github.sha }},git-branch=${{ github.ref_name }},deployed-by=github-actions \
           --quiet
 
         # Get service URL
@@ -65,6 +73,12 @@ runs:
         echo "**Service:** $SERVICE_NAME" >> $GITHUB_STEP_SUMMARY
         echo "**URL:** $SERVICE_URL" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🎉 All configuration managed by Terraform!" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 Traceability" >> $GITHUB_STEP_SUMMARY
+        echo "**Git Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Git Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Short SHA:** \`${SHORT_SHA}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployed At:** ${DEPLOYED_AT} (Unix timestamp)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "🎉 Infrastructure managed by Terraform, deployment metadata by CI/CD!" >> $GITHUB_STEP_SUMMARY
 
         echo "SERVICE_URL=$SERVICE_URL" >> $GITHUB_OUTPUT
