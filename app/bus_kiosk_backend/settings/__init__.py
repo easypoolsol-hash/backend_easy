@@ -12,16 +12,18 @@ Environment Detection Priority:
 2. GITHUB_ACTIONS=true → ci
 3. GAE_APPLICATION exists → production (Google App Engine)
 4. K_SERVICE exists → production (Google Cloud Run)
-5. Default → local (development)
+5. Default → local (laptop development)
 
 Usage:
     # In manage.py, wsgi.py, asgi.py:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bus_kiosk_backend.settings")
 
     # To override environment:
-    export DJANGO_ENV=production  # Force production settings
-    export DJANGO_ENV=local       # Force local settings
-    export DJANGO_ENV=ci          # Force CI settings
+    export DJANGO_ENV=local        # Force local settings (laptop)
+    export DJANGO_ENV=ci           # Force CI settings (GitHub Actions)
+    export DJANGO_ENV=development  # Force development settings (dev.easypool.in)
+    export DJANGO_ENV=staging      # Force staging settings (stage.easypool.in)
+    export DJANGO_ENV=production   # Force production settings (easypool.in)
 """
 
 import os
@@ -38,7 +40,7 @@ def get_environment() -> str:
     """
     # 1. Explicit override via DJANGO_ENV
     django_env = os.getenv("DJANGO_ENV", "").lower()
-    if django_env in ("local", "ci", "staging", "production"):
+    if django_env in ("local", "ci", "development", "staging", "production"):
         return django_env
 
     # 2. CI/CD detection
@@ -77,6 +79,10 @@ elif environment == "staging":
     from .staging import *  # noqa: F403
 
     print("[SETTINGS] Loaded STAGING settings")
+elif environment == "development":
+    from .development import *  # noqa: F403
+
+    print("[SETTINGS] Loaded DEVELOPMENT settings")
 elif environment == "ci":
     from .ci import *  # noqa: F403
 
