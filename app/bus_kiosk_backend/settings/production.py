@@ -67,18 +67,16 @@ LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "INFO"  # noqa: F405  # type:
 # Google Cloud SQL: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 # Standard PostgreSQL: postgresql://user:pass@host:5432/dbname
 
-# Production database - Parse DATABASE_URL with SQLite fallback for debugging
+# Production database - DATABASE_URL REQUIRED (NO fallback)
 # Format: postgresql://user:pass@/dbname?host=/cloudsql/PROJECT:REGION:INSTANCE
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    print("[PRODUCTION] WARNING: No DATABASE_URL - using SQLite fallback!")
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "prod_fallback.sqlite3",  # noqa: F405
-        }
-    }
-    DATABASE_URL = None  # Skip parsing below
+    raise RuntimeError(
+        "CRITICAL ERROR: DATABASE_URL not set in production!\n"
+        "Production requires Cloud SQL connection.\n"
+        "SQLite is NOT allowed (ephemeral storage, data loss on restart).\n"
+        "Check that DATABASE_URL secret is configured in Terraform/GCP Secret Manager."
+    )
 
 # Parse DATABASE_URL manually for Cloud SQL Unix socket format
 if DATABASE_URL and ("?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL):

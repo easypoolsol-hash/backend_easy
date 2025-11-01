@@ -1,0 +1,188 @@
+"""
+Development settings.
+For dev.easypool.in - production-like environment with debugging enabled.
+
+Fortune 500 Pattern:
+- Uses real PostgreSQL (Cloud SQL) - NO SQLite fallback
+- Secrets from GCP Secret Manager
+- DEBUG = True for troubleshooting
+- Relaxed security for development
+- In-memory cache/channels for simplicity
+"""
+
+import os
+import re
+
+# Import all base settings
+from .base import *  # noqa: F403
+
+# Import security settings
+from .security import *  # noqa: F403
+
+# Development: DEBUG enabled
+DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+
+# Development: SECRET_KEY from environment (required)
+SECRET_KEY = os.environ["SECRET_KEY"]  # Fails fast if not set
+
+# Development: ENCRYPTION_KEY from environment (required)
+ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]  # Fails fast if not set
+
+# Development: Flexible allowed hosts
+ALLOWED_HOSTS = ["*"]
+
+# Allow environment variable hosts override
+if os.getenv("ALLOWED_HOSTS"):
+    additional_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
+    ALLOWED_HOSTS = additional_hosts
+
+# Development CORS - from environment
+_cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if _cors_origins_env:
+    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS, *_cors_origins_env.split(",")]  # noqa: F405
+else:
+    # Default CORS origins for development
+    CORS_ALLOWED_ORIGINS = [
+        *CORS_ALLOWED_ORIGINS,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+# Development CSRF - from environment
+_csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if _csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, *_csrf_origins_env.split(",")]  # noqa: F405
+else:
+    # Default CSRF origins for development
+    CSRF_TRUSTED_ORIGINS = [
+        *CSRF_TRUSTED_ORIGINS,
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+
+# Development: Minimal HTTPS security
+SECURE_HSTS_SECONDS = 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+SECURE_HSTS_PRELOAD = False
+SECURE_SSL_REDIRECT = False  # Cloud Run handles HTTPS
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+# Development logging (verbose)
+LOGGING["root"]["level"] = "INFO"  # noqa: F405  # type: ignore[index]
+LOGGING["loggers"]["django"]["level"] = "DEBUG"  # noqa: F405  # type: ignore[index]
+LOGGING["loggers"]["bus_kiosk_backend"]["level"] = "DEBUG"  # noqa: F405  # type: ignore[index]
+
+# Development database - DATABASE_URL REQUIRED (NO SQLite fallback)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "CRITICAL ERROR: DATABASE_URL not set!\n"
+        "Development environment requires Cloud SQL connection.\n"
+        "SQLite is NOT allowed in Cloud Run (ephemeral storage).\n"
+        "Check that DATABASE_URL secret is configured in Terraform."
+    )
+
+# Parse DATABASE_URL for Cloud SQL Unix socket format
+if "?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL:
+    # Cloud SQL Unix socket format
+    if "?host=/cloudsql/" in DATABASE_URL:
+        # Query parameter format
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@/([^?]+)\?host=(.+)", DATABASE_URL)
+        if match:
+            user, password, dbname, host = match.groups()
+        else:
+            raise ValueError(f"Invalid Cloud SQL DATABASE_URL format: {DATABASE_URL}")
+    else:
+        # Path format
+        match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@//cloudsql/([^/]+)/(.+)", DATABASE_URL)
+        if match:
+            user, password, instance, dbname = match.groups()
+            host = f"/cloudsql/{instance}"
+        else:
+            raise ValueError(f"Invalid Cloud SQL DATABASE_URL format: {DATABASE_URL}")
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": dbname,
+            "USER": user,
+            "PASSWORD": password,
+            "HOST": host,  # /cloudsql/PROJECT:REGION:INSTANCE
+            "OPTIONS": {
+                "connect_timeout": 10,
+                "options": "-c timezone=UTC",
+            },
+            "CONN_MAX_AGE": 600,
+            "CONN_HEALTH_CHECKS": True,
+        }
+    }
+else:
+    # Standard PostgreSQL URL format
+    match = re.match(r"postgres(?:ql)?://([^:]+):([^@]+)@([^:]+):?(\d+)?/(.+)", DATABASE_URL)
+    if match:
+        user, password, host, port, dbname = match.groups()
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": dbname,
+                "USER": user,
+                "PASSWORD": password,
+                "HOST": host,
+                "PORT": port or "5432",
+                "OPTIONS": {
+                    "connect_timeout": 10,
+                    "options": "-c timezone=UTC",
+                },
+                "CONN_MAX_AGE": 600,
+                "CONN_HEALTH_CHECKS": True,
+            }
+        }
+    else:
+        raise ValueError(f"Invalid DATABASE_URL format: {DATABASE_URL}")
+
+# Development cache - In-memory (simple, no Redis needed)
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "dev-cache",
+    },
+    "api_cache": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "dev-api-cache",
+    },
+}
+
+# Development channel layers - In-memory (single-instance)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
+
+# Development Celery - Run tasks synchronously (no broker needed)
+CELERY_BROKER_URL = "memory://"
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Development: Google Maps API Key - Optional
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "test-api-key-dev")
+
+# Development: Keep DRF Browsable API for testing
+REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [  # noqa: F405
+    "rest_framework.renderers.JSONRenderer",
+    "rest_framework.renderers.BrowsableAPIRenderer",  # Keep for development
+]
+
+# Development: API docs show dev server
+SPECTACULAR_SETTINGS["SERVERS"] = [  # noqa: F405
+    {"url": os.getenv("DEV_URL", "https://easypool-backend-dev.run.app"), "description": "Development API"},
+]
+
+print("[DEVELOPMENT] Development settings loaded successfully")
+print(f"[DEVELOPMENT] DEBUG = {DEBUG}")
+print("[DEVELOPMENT] Database: PostgreSQL (Cloud SQL)")
+print("[DEVELOPMENT] Cache: In-memory")
+print("[DEVELOPMENT] Channel Layers: In-memory")
+print("[DEVELOPMENT] Celery: Synchronous (no broker)")
+print("[DEVELOPMENT] HTTPS: Not enforced (Cloud Run handles it)")
