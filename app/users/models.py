@@ -21,10 +21,7 @@ class UserManager(BaseUserManager):
 
         email = self.normalize_email(email)
 
-        # Generate user_id if not provided (for development/test users)
-        if "user_id" not in extra_fields:
-            extra_fields["user_id"] = f"dev-{username}-{uuid.uuid4().hex[:8]}"
-
+        # user_id (UUID) auto-generates via default=uuid.uuid4
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)  # type: ignore[attr-defined]
         user.save(using=self._db)
@@ -44,10 +41,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
 
-        # Generate user_id if not provided (for development/test users)
-        if "user_id" not in extra_fields:
-            extra_fields["user_id"] = f"super-{username}-{uuid.uuid4().hex[:8]}"
-
+        # user_id (UUID) auto-generates via default=uuid.uuid4
         user = self.create_user(username, email, password, **extra_fields)
 
         # Assign super admin group
@@ -76,10 +70,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     - New User: No permissions (default for Firebase-authenticated users)
     """
 
-    # Changed to CharField to store Firebase UIDs (strings)
-    user_id = models.CharField(max_length=128, unique=True, editable=False)
-    # Optional internal UUID for future use
-    internal_uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    # UUID primary key - auto-generates for all users (Firebase, manual, any source)
+    user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=150, blank=True, default="")
