@@ -28,37 +28,25 @@ SECRET_KEY = os.environ["SECRET_KEY"]  # Fails fast if not set
 # Development: ENCRYPTION_KEY from environment (required)
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]  # Fails fast if not set
 
-# Development: Flexible allowed hosts
-ALLOWED_HOSTS = ["*"]
+# Development: ALLOWED_HOSTS from environment ONLY (no hardcoded defaults)
+# Terraform/Cloud Run injects the correct Cloud Run URL
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get("ALLOWED_HOSTS", "").split(",") if host.strip()]
+if not ALLOWED_HOSTS:
+    raise RuntimeError(
+        "CRITICAL ERROR: ALLOWED_HOSTS not set in environment!\n"
+        "Development requires explicit allowed hosts for security.\n"
+        "Check that ALLOWED_HOSTS is configured in Terraform."
+    )
 
-# Allow environment variable hosts override
-if os.getenv("ALLOWED_HOSTS"):
-    additional_hosts = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",")]
-    ALLOWED_HOSTS = additional_hosts
-
-# Development CORS - from environment
+# Development CORS - from environment ONLY (no hardcoded defaults)
+# Terraform/Cloud Run injects frontend URLs
 _cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
-if _cors_origins_env:
-    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS, *_cors_origins_env.split(",")]  # noqa: F405
-else:
-    # Default CORS origins for development
-    CORS_ALLOWED_ORIGINS = [
-        *CORS_ALLOWED_ORIGINS,
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
 
-# Development CSRF - from environment
+# Development CSRF - from environment ONLY (no hardcoded defaults)
+# Terraform/Cloud Run injects trusted origins
 _csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
-if _csrf_origins_env:
-    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, *_csrf_origins_env.split(",")]  # noqa: F405
-else:
-    # Default CSRF origins for development
-    CSRF_TRUSTED_ORIGINS = [
-        *CSRF_TRUSTED_ORIGINS,
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins_env.split(",") if origin.strip()]
 
 # Development: Minimal HTTPS security
 SECURE_HSTS_SECONDS = 0
