@@ -30,22 +30,25 @@ SECRET_KEY = os.environ["SECRET_KEY"]  # Fails fast if not set
 # Production: ENCRYPTION_KEY must be injected via environment (no fallback)
 ENCRYPTION_KEY = os.environ["ENCRYPTION_KEY"]  # Fails fast if not set
 
-# Production: ALLOWED_HOSTS from environment (or default)
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "easypool.in,www.easypool.in,api.easypool.in").split(",")
+# Production: ALLOWED_HOSTS from environment ONLY (no hardcoded defaults)
+# Terraform/Cloud Run injects the correct Cloud Run URL
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get("ALLOWED_HOSTS", "").split(",") if host.strip()]
+if not ALLOWED_HOSTS:
+    raise RuntimeError(
+        "CRITICAL ERROR: ALLOWED_HOSTS not set in production environment!\n"
+        "Production requires explicit allowed hosts for security.\n"
+        "Check that ALLOWED_HOSTS is configured in Terraform/GCP Secret Manager."
+    )
 
-# Production CORS - from environment or base only
+# Production CORS - from environment ONLY (no hardcoded defaults)
+# Terraform/Cloud Run injects frontend URLs
 _cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
-if _cors_origins_env:
-    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS, *_cors_origins_env.split(",")]  # noqa: F405
-else:
-    CORS_ALLOWED_ORIGINS = [*CORS_ALLOWED_ORIGINS]
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
 
-# Production CSRF - from environment or base only
+# Production CSRF - from environment ONLY (no hardcoded defaults)
+# Terraform/Cloud Run injects trusted origins
 _csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
-if _csrf_origins_env:
-    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, *_csrf_origins_env.split(",")]  # noqa: F405
-else:
-    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS]
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins_env.split(",") if origin.strip()]
 
 # Production security
 SECURE_HSTS_SECONDS = 31536000  # 1 year

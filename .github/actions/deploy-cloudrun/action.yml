@@ -32,11 +32,11 @@ runs:
         git clone --depth 1 https://github.com/${{ github.repository_owner }}/backend_easy_infra /tmp/infra || true
 
         cd /tmp/infra/terragrunt || {
-          echo "⚠️ Infrastructure repo not available, using fallback config"
-          # Fallback: Use GitHub Variables (read-only cache from Terraform)
-          echo "PROJECT_ID=${{ vars.GCP_PROJECT_ID || 'easypool-backend' }}" >> $GITHUB_ENV
-          echo "REGION=${{ vars.GCP_REGION || 'asia-south1' }}" >> $GITHUB_ENV
-          echo "REGISTRY_URL=${{ vars.GCP_REGION || 'asia-south1' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID || 'easypool-backend' }}/backend-repo/backend_easy" >> $GITHUB_ENV
+          echo "⚠️ Infrastructure repo not available, using hardcoded fallback config"
+          # Fallback: Use hardcoded values (should match Terraform configuration)
+          echo "PROJECT_ID=easypool-backend" >> $GITHUB_ENV
+          echo "REGION=asia-south1" >> $GITHUB_ENV
+          echo "REGISTRY_URL=asia-south1-docker.pkg.dev/easypool-backend/backend-repo/backend_easy" >> $GITHUB_ENV
 
           # Service names (canonical from Terraform)
           case "${{ inputs.environment }}" in
