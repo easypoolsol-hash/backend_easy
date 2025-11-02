@@ -5,9 +5,9 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from students.models import Student
 
 from .models import Bus, Route
@@ -19,7 +19,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 
     queryset = Route.objects.prefetch_related("buses").order_by("name")
     serializer_class = RouteSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["is_active"]
 
@@ -58,7 +58,7 @@ class BusViewSet(viewsets.ModelViewSet):
 
     queryset = Bus.objects.select_related("route").prefetch_related("assigned_students").order_by("license_plate")
     serializer_class = BusSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["route", "status", "device_id"]
 
@@ -151,13 +151,13 @@ class BusViewSet(viewsets.ModelViewSet):
 
 
 @api_view(["GET"])
-@permission_classes([IsSchoolAdmin])
+@permission_classes([IsAuthenticated])
 def bus_locations_api(request):
     """
-    Bus locations API for school dashboard (admin only).
+    Bus locations API for school dashboard (any authenticated user).
 
     Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
-    Only accessible by school_admin and super_admin users.
+    Accessible by any authenticated user.
     """
     # Get latest GPS location for each bus
     from kiosks.models import BusLocation

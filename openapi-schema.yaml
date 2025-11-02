@@ -1372,10 +1372,10 @@ paths:
     get:
       operationId: api_v1_locations_retrieve
       description: |-
-        Bus locations API for school dashboard (admin only).
+        Bus locations API for school dashboard (any authenticated user).
 
         Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
-        Only accessible by school_admin and super_admin users.
+        Accessible by any authenticated user.
       tags:
       - api
       security:
@@ -1387,7 +1387,7 @@ paths:
   /api/v1/logs/:
     get:
       operationId: api_v1_logs_list
-      description: Read-only ViewSet for device logs (admin only)
+      description: Read-only ViewSet for device logs (any authenticated user)
       parameters:
       - in: query
         name: kiosk
@@ -1439,7 +1439,7 @@ paths:
   /api/v1/logs/{log_id}/:
     get:
       operationId: api_v1_logs_retrieve
-      description: Read-only ViewSet for device logs (admin only)
+      description: Read-only ViewSet for device logs (any authenticated user)
       parameters:
       - in: path
         name: log_id
@@ -1911,10 +1911,10 @@ paths:
     get:
       operationId: api_v1_school_api_bus_locations_retrieve
       description: |-
-        Bus locations API for school dashboard (admin only).
+        Bus locations API for school dashboard (any authenticated user).
 
         Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
-        Only accessible by school_admin and super_admin users.
+        Accessible by any authenticated user.
       tags:
       - api
       security:

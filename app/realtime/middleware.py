@@ -79,6 +79,12 @@ class JWTAuthMiddleware(BaseMiddleware):
                 },
             )
 
+            # Emit signal for last_login tracking and audit logging
+            # Note: request=None for WebSocket (no HTTP request object)
+            from users.signals import user_authenticated
+
+            user_authenticated.send(sender=self.__class__, user=user, request=None, auth_method="websocket")
+
             return user
         except Exception as e:
             # Log error but don't expose details to client

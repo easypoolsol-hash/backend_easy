@@ -17,11 +17,11 @@ from rest_framework.decorators import (
     authentication_classes,
     permission_classes,
 )
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from bus_kiosk_backend.core.authentication import FirebaseAuthentication
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 
 from .models import DeviceLog, Kiosk, KioskStatus
 from .permissions import IsKiosk
@@ -104,11 +104,11 @@ def kiosk_log(request: Request) -> Response:
 
 
 class DeviceLogViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only ViewSet for device logs (admin only)"""
+    """Read-only ViewSet for device logs (any authenticated user)"""
 
     queryset = DeviceLog.objects.select_related("kiosk").order_by("-timestamp")
     serializer_class = DeviceLogSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk", "log_level", "timestamp"]
 

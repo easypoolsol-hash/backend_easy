@@ -79,6 +79,11 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             else:
                 logger.debug(f"Authenticated existing user from Firebase: {firebase_uid}")
 
+            # Emit signal for last_login tracking and audit logging
+            from users.signals import user_authenticated
+
+            user_authenticated.send(sender=self.__class__, user=user, request=request, auth_method="firebase")
+
             return (user, None)
 
         except auth.ExpiredIdTokenError as e:

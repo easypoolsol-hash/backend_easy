@@ -6,10 +6,10 @@ from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from buses.models import Bus
 from students.models import Student
 
@@ -26,10 +26,10 @@ class DashboardStatsAPIView(APIView):
     dashboard.
     Cached for 10 seconds in Redis for performance.
 
-    PERMISSION: IsSchoolAdmin (school administrators only)
+    PERMISSION: IsAuthenticated (any authenticated user)
     """
 
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     serializer_class = DashboardStatsSerializer
 
     @extend_schema(
@@ -78,10 +78,10 @@ class DashboardStudentsAPIView(APIView):
     Dashboard students activity API - Returns list of students who
     boarded on a specific date with all their boarding events.
 
-    PERMISSION: IsSchoolAdmin (school administrators only)
+    PERMISSION: IsAuthenticated (any authenticated user)
     """
 
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     serializer_class = DashboardStudentsResponseSerializer
 
     @extend_schema(

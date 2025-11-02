@@ -103,6 +103,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return f"{self.username} ({self.email})"
 
+    def get_full_name(self):
+        """Return the full name of the user"""
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return full_name or self.username
+
+    def get_short_name(self):
+        """Return the short name (first name) of the user"""
+        return self.first_name or self.username
+
     # Helper properties for role checking (backwards compatible)
     @property
     def is_super_admin(self):
