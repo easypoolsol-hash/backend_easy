@@ -1,5 +1,5 @@
 name: Push Image to Artifact Registry
-description: Push Docker image to GCP Artifact Registry with SHA tagging
+description: Push Docker image to GCP Artifact Registry with SHA tagging (using Workload Identity)
 
 inputs:
   image_tag:
