@@ -1,0 +1,97 @@
+name: Execute Cloud Run Job
+description: Execute a Cloud Run Job and wait for completion
+
+inputs:
+  job_name:
+    description: 'Cloud Run Job name (e.g., easypool-migrate-dev)'
+    required: true
+  region:
+    description: 'GCP region'
+    required: false
+    default: 'asia-south1'
+  workload_identity_provider:
+    description: 'GCP Workload Identity Provider'
+    required: true
+  service_account:
+    description: 'GCP Service Account'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Authenticate to GCP
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ inputs.workload_identity_provider }}
+        service_account: ${{ inputs.service_account }}
+
+    - name: Execute Cloud Run Job
+      shell: bash
+      run: |
+        JOB_NAME="${{ inputs.job_name }}"
+        REGION="${{ inputs.region }}"
+
+        echo "🚀 Executing Cloud Run Job: $JOB_NAME"
+        echo "📍 Region: $REGION"
+        echo ""
+
+        # Execute the job and wait for completion
+        if gcloud run jobs execute $JOB_NAME \
+          --region=$REGION \
+          --wait; then
+
+          echo "## ✅ Job Completed Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job:** \`$JOB_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** $REGION" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get execution name for logs
+          EXECUTION_NAME=$(gcloud run jobs executions list \
+            --job=$JOB_NAME \
+            --region=$REGION \
+            --limit=1 \
+            --format="value(name)" 2>/dev/null || echo "")
+
+          if [ -n "$EXECUTION_NAME" ]; then
+            LOG_URL="https://console.cloud.google.com/run/jobs/executions/details/$REGION/$EXECUTION_NAME"
+            echo "**View Logs:** [$EXECUTION_NAME]($LOG_URL)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+        else
+          EXIT_CODE=$?
+          echo "## ❌ Job Execution Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job:** \`$JOB_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** $REGION" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ❌ Failed (exit code: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get execution name and show logs
+          EXECUTION_NAME=$(gcloud run jobs executions list \
+            --job=$JOB_NAME \
+            --region=$REGION \
+            --limit=1 \
+            --format="value(name)" 2>/dev/null || echo "")
+
+          if [ -n "$EXECUTION_NAME" ]; then
+            echo "### 📋 Recent Logs:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+
+            gcloud logging read \
+              "resource.type=cloud_run_job AND resource.labels.job_name=$JOB_NAME AND labels.\"run.googleapis.com/execution_name\"=$EXECUTION_NAME" \
+              --limit=50 \
+              --format="value(textPayload)" \
+              --project=$(gcloud config get-value project) 2>/dev/null | tail -20 >> $GITHUB_STEP_SUMMARY || echo "Could not fetch logs" >> $GITHUB_STEP_SUMMARY
+
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            LOG_URL="https://console.cloud.google.com/run/jobs/executions/details/$REGION/$EXECUTION_NAME"
+            echo "**Full Logs:** [$EXECUTION_NAME]($LOG_URL)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "::error::Job $JOB_NAME failed with exit code $EXIT_CODE"
+          exit $EXIT_CODE
+        fi
