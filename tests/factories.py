@@ -15,7 +15,6 @@ Example:
 """
 
 from datetime import date
-import uuid
 
 from cryptography.fernet import Fernet
 from django.conf import settings
@@ -219,7 +218,7 @@ class UserFactory(DjangoModelFactory):
     class Meta:
         model = User
 
-    user_id = factory.Sequence(lambda n: f"test-user-{n}-{uuid.uuid4().hex[:8]}")
+    # user_id auto-generates as UUID via model default
     username = factory.Sequence(lambda n: f"testuser{n}")
     email = factory.Sequence(lambda n: f"user{n}@test.com")
     is_active = True

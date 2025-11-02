@@ -21,12 +21,23 @@ class Command(BaseCommand):
     help = "Create/update hardcoded superuser (idempotent)"
 
     def handle(self, *args, **options):
+        # Singleton pattern: Check if ALL migrations are applied (all-or-nothing)
         try:
-            # Check if database table exists
-            with connection.cursor() as cursor:
-                cursor.execute("SELECT 1 FROM auth_user LIMIT 1")
-        except OperationalError:
-            self.stdout.write("[SKIP] Database not ready, migrations not applied yet")
+            # Use Django's migration state - proper way to check if migrations complete
+            from django.db.migrations.executor import MigrationExecutor
+
+            executor = MigrationExecutor(connection)
+
+            # Check if there are any unapplied migrations
+            plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+            if plan:
+                self.stdout.write("[SKIP] Migrations not fully applied. Run migrate first.")
+                return
+
+            # Additional check: Try to query User model (works with custom user models)
+            User.objects.exists()
+        except (OperationalError, Exception) as e:
+            self.stdout.write(f"[SKIP] Database not ready: {e}")
             return
 
         try:
