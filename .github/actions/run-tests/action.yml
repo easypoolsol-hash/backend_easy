@@ -1,0 +1,115 @@
+name: Run Tests
+description: Run unit, integration, or contract tests
+
+inputs:
+  test_type:
+    description: 'Type of tests to run (unit, integration, contract)'
+    required: true
+  python_version:
+    description: 'Python version to use'
+    required: false
+    default: '3.12'
+  image_name:
+    description: 'Docker image name for integration/contract tests'
+    required: false
+    default: 'backend_easy'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python_version }}
+        cache: 'pip'
+        cache-dependency-path: 'setup.py'
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        echo "DJANGO_ENV=ci" >> $GITHUB_ENV
+        echo "PYTHONPATH=${{ github.workspace }}/app" >> $GITHUB_ENV
+        echo "DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings" >> $GITHUB_ENV
+        pip install -e .[dev,testing]
+
+    # Unit tests - no Docker needed
+    - name: Run unit tests
+      if: inputs.test_type == 'unit'
+      shell: bash
+      run: python -m pytest tests/unit/ -v --tb=short --maxfail=3
+
+    # Integration/Contract tests - need Docker
+    - name: Set up Docker Buildx
+      if: inputs.test_type != 'unit'
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build image (cached)
+      if: inputs.test_type != 'unit'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        load: true
+        tags: ${{ inputs.image_name }}:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Start services
+      if: inputs.test_type != 'unit'
+      shell: bash
+      run: docker compose -f docker-compose.test.yml up -d --no-build
+
+    - name: Wait for services
+      if: inputs.test_type != 'unit'
+      shell: bash
+      run: |
+        for i in {1..30}; do
+          docker compose -f docker-compose.test.yml exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo "postgres ready" && break || echo "waiting...";
+          sleep 2;
+        done
+        for i in {1..30}; do
+          docker compose -f docker-compose.test.yml exec -T redis redis-cli ping >/dev/null 2>&1 && echo "redis ready" && break;
+          sleep 1;
+        done
+
+    - name: Run migrations
+      if: inputs.test_type != 'unit'
+      shell: bash
+      run: docker compose -f docker-compose.test.yml run --rm --user root web sh -lc 'python manage.py migrate --noinput'
+
+    - name: Wait for web healthy
+      if: inputs.test_type != 'unit'
+      shell: bash
+      run: |
+        for i in {1..60}; do
+          status=$(docker inspect --format='{{.State.Health.Status}}' test_web 2>/dev/null || echo none)
+          [ "$status" = "healthy" ] && echo "✅ healthy" && break
+          sleep 2
+        done
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then echo '✅ up' && break; fi
+          sleep 3
+        done
+
+    - name: Run integration tests
+      if: inputs.test_type == 'integration'
+      shell: bash
+      run: pytest tests/integration/ -v --tb=short --maxfail=3
+
+    - name: Run contract tests
+      if: inputs.test_type == 'contract'
+      shell: bash
+      run: pytest -k "schemathesis or contract or e2e" -v --tb=short --maxfail=3
+
+    - name: Collect logs on failure
+      if: failure() && inputs.test_type != 'unit'
+      shell: bash
+      run: |
+        docker compose -f docker-compose.test.yml logs web --tail=500 || true
+        docker compose -f docker-compose.test.yml ps -a || true
+
+    - name: Stop services
+      if: always() && inputs.test_type != 'unit'
+      shell: bash
+      run: docker compose -f docker-compose.test.yml down --volumes

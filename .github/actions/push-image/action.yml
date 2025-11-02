@@ -31,7 +31,7 @@ runs:
     - name: Push to Artifact Registry
       shell: bash
       run: |
-        IMAGE_URL="asia-south1-docker.pkg.dev/backend-easypool/backend-repo/backend_easy"
+        IMAGE_URL="asia-south1-docker.pkg.dev/easypool-backend/backend-repo/backend_easy"
         gcloud auth configure-docker asia-south1-docker.pkg.dev
 
         # Tag and push main image

@@ -1,0 +1,53 @@
+name: Run Smoke Test
+description: Run smoke test on Docker image to verify it starts and responds to health checks
+
+inputs:
+  image_name:
+    description: 'Docker image name to test'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build image (cached)
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        load: true
+        tags: ${{ inputs.image_name }}:test
+        cache-from: type=gha
+
+    - name: Run image (smoke test - MUST SUCCEED)
+      shell: bash
+      run: |
+        # Start container (FAIL if this errors - no || true)
+        docker run -d --name smoke-test -p 8000:8000 \
+          -e DATABASE_URL=sqlite:////tmp/test.db \
+          -e DJANGO_SETTINGS_MODULE=bus_kiosk_backend.settings \
+          -e USE_FILE_LOGGING=false \
+          -e ALLOWED_HOSTS=localhost,127.0.0.1,testserver \
+          ${{ inputs.image_name }}:test
+
+        # Wait for health endpoint
+        echo "Waiting for health endpoint..."
+        for i in {1..30}; do
+          if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then
+            echo "✓ Health check passed"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "✗ Health check failed after 60s"
+            docker logs smoke-test
+            docker stop smoke-test
+            exit 1
+          fi
+          sleep 2
+        done
+
+        # Cleanup
+        docker logs smoke-test
+        docker stop smoke-test
