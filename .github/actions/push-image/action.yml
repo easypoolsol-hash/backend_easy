@@ -23,16 +23,22 @@ runs:
   using: composite
   steps:
     - name: Authenticate to GCP
+      id: auth
       uses: google-github-actions/auth@v2
       with:
         workload_identity_provider: ${{ inputs.workload_identity_provider }}
         service_account: ${{ inputs.service_account }}
+        token_format: 'access_token'
+
+    - name: Authenticate Docker to Artifact Registry
+      shell: bash
+      run: |
+        echo '${{ steps.auth.outputs.access_token }}' | docker login -u oauth2accesstoken --password-stdin https://asia-south1-docker.pkg.dev
 
     - name: Push to Artifact Registry
       shell: bash
       run: |
         IMAGE_URL="asia-south1-docker.pkg.dev/easypool-backend/backend-repo/backend_easy"
-        gcloud auth configure-docker asia-south1-docker.pkg.dev
 
         # Tag and push main image
         docker tag backend_easy:${{ inputs.image_tag }} $IMAGE_URL:${{ inputs.image_tag }}
