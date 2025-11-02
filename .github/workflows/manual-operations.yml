@@ -1,0 +1,107 @@
+name: 🎛️ Manual Operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Operation to perform'
+        required: true
+        type: choice
+        options:
+          - drop-tables
+          - migrate
+          - seed-groups
+          - create-superuser
+          - view-logs
+          - seed-test-data
+          - restart-service
+          - backup-database
+          - clear-cache
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      dry_run:
+        description: 'Dry run (preview only, no changes)'
+        required: false
+        type: boolean
+        default: false
+      extra_args:
+        description: 'Extra arguments (optional)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  execute:
+    name: ${{ inputs.operation }} on ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Load operation script
+        id: load-script
+        run: |
+          SCRIPT_PATH=".github/operations/${{ inputs.operation }}.sh"
+
+          if [ ! -f "$SCRIPT_PATH" ]; then
+            echo "❌ Operation script not found: $SCRIPT_PATH"
+            exit 1
+          fi
+
+          chmod +x "$SCRIPT_PATH"
+          echo "script_path=$SCRIPT_PATH" >> $GITHUB_OUTPUT
+
+      - name: Execute operation
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          EXTRA_ARGS: ${{ inputs.extra_args }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          echo "🚀 Executing: ${{ inputs.operation }}"
+          echo "📍 Environment: ${{ inputs.environment }}"
+          echo "🔍 Dry run: ${{ inputs.dry_run }}"
+
+          ${{ steps.load-script.outputs.script_path }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "# 🎛️ Operation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Operation:** \`${{ inputs.operation }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** \`${{ inputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Dry Run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ inputs.extra_args }}" ]; then
+            echo "**Extra Args:** \`${{ inputs.extra_args }}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Operation completed successfully!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Operation failed!" >> $GITHUB_STEP_SUMMARY
+          fi
