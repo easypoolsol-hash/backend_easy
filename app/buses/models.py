@@ -74,6 +74,10 @@ class Route(models.Model):
         default="solid",
         help_text="Line pattern for map visualization",
     )
+    encoded_polyline = models.TextField(
+        blank=True,
+        help_text="Google-encoded polyline for the entire route path",
+    )
     is_active = models.BooleanField(default=True, help_text="Whether this route is currently active")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this route was created")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this route was last updated")
@@ -221,3 +225,81 @@ class Bus(models.Model):
     def is_available(self):
         """Check if bus is available for operation"""
         return self.status == "active" and self.route is not None
+
+
+class Waypoint(models.Model):
+    """
+    Waypoint model for route path definition.
+    Can be a bus stop or a path adjustment point.
+    """
+
+    waypoint_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="UUID primary key",
+    )
+    latitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        help_text="Latitude coordinate",
+    )
+    longitude = models.DecimalField(
+        max_digits=10,
+        decimal_places=7,
+        help_text="Longitude coordinate",
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Flexible metadata: {type: 'bus_stop'/'path_adjustment', name: '...', ...}",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "waypoints"
+        indexes = [
+            models.Index(fields=["latitude", "longitude"], name="idx_waypoints_coords"),
+        ]
+
+    def __str__(self):
+        waypoint_type = self.metadata.get("type", "waypoint")
+        name = self.metadata.get("name", f"Waypoint {str(self.waypoint_id)[:8]}")
+        return f"{name} ({waypoint_type})"
+
+    @property
+    def is_bus_stop(self):
+        """Check if this waypoint is a bus stop"""
+        return self.metadata.get("type") == "bus_stop"
+
+
+class RouteWaypoint(models.Model):
+    """Junction table linking routes to waypoints with sequence"""
+
+    route = models.ForeignKey(
+        Route,
+        on_delete=models.CASCADE,
+        related_name="route_waypoints",
+        help_text="Route this waypoint belongs to",
+    )
+    waypoint = models.ForeignKey(
+        Waypoint,
+        on_delete=models.CASCADE,
+        related_name="routes",
+        help_text="Waypoint on this route",
+    )
+    sequence = models.PositiveIntegerField(help_text="Order of this waypoint in the route (1-based)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "route_waypoints"
+        ordering = ["route", "sequence"]
+        unique_together = [["route", "waypoint"], ["route", "sequence"]]
+        indexes = [
+            models.Index(fields=["route", "sequence"], name="idx_route_waypoints"),
+        ]
+
+    def __str__(self):
+        return f"{self.route.name} - Seq {self.sequence}: {self.waypoint}"

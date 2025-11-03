@@ -1,6 +1,7 @@
+import polyline
 from rest_framework import serializers
 
-from .models import Bus, BusStop, Route, RouteStop
+from .models import Bus, BusStop, Route, RouteStop, RouteWaypoint, Waypoint
 
 
 class BusStopSerializer(serializers.ModelSerializer):
@@ -39,12 +40,49 @@ class RouteStopSerializer(serializers.ModelSerializer):
         ]
 
 
+class WaypointSerializer(serializers.ModelSerializer):
+    """Serializer for waypoints"""
+
+    class Meta:
+        model = Waypoint
+        fields = [
+            "waypoint_id",
+            "latitude",
+            "longitude",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["waypoint_id", "created_at", "updated_at"]
+
+
+class RouteWaypointSerializer(serializers.ModelSerializer):
+    """Serializer for route waypoints with nested waypoint info"""
+
+    latitude = serializers.FloatField(source="waypoint.latitude", read_only=True)
+    longitude = serializers.FloatField(source="waypoint.longitude", read_only=True)
+    metadata = serializers.JSONField(source="waypoint.metadata", read_only=True)
+
+    class Meta:
+        model = RouteWaypoint
+        fields = [
+            "sequence",
+            "latitude",
+            "longitude",
+            "metadata",
+        ]
+
+
 class RouteSerializer(serializers.ModelSerializer):
-    """Serializer for bus routes"""
+    """Serializer for bus routes with polyline support"""
 
     stop_count = serializers.IntegerField(read_only=True)
     total_students = serializers.IntegerField(read_only=True)
     route_stops = RouteStopSerializer(many=True, read_only=True)
+
+    # New waypoint-based fields
+    encoded_polyline = serializers.SerializerMethodField()
+    bus_stops = serializers.SerializerMethodField()
 
     class Meta:
         model = Route
@@ -52,14 +90,70 @@ class RouteSerializer(serializers.ModelSerializer):
             "route_id",
             "name",
             "description",
+            "color_code",
+            "line_pattern",
             "is_active",
             "stop_count",
             "total_students",
             "route_stops",
+            "encoded_polyline",
+            "bus_stops",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["route_id", "created_at", "updated_at"]
+
+    def get_encoded_polyline(self, obj):
+        """Generate encoded polyline from route waypoints"""
+        # Check if we have cached polyline
+        if obj.encoded_polyline:
+            return obj.encoded_polyline
+
+        # Generate from waypoints if available
+        waypoints = obj.route_waypoints.order_by("sequence")
+        if not waypoints.exists():
+            # Fallback to old route_stops
+            route_stops = obj.route_stops.order_by("sequence")
+            if route_stops.exists():
+                coords = [(float(rs.bus_stop.latitude), float(rs.bus_stop.longitude)) for rs in route_stops]
+                return polyline.encode(coords, 5)
+        else:
+            coords = [(float(rw.waypoint.latitude), float(rw.waypoint.longitude)) for rw in waypoints]
+            return polyline.encode(coords, 5)
+
+        return ""
+
+    def get_bus_stops(self, obj):
+        """Get only bus stop waypoints for markers"""
+        bus_stops = []
+
+        # Get from new waypoints
+        waypoints = obj.route_waypoints.select_related("waypoint").order_by("sequence")
+        for rw in waypoints:
+            if rw.waypoint.metadata.get("type") == "bus_stop":
+                bus_stops.append(
+                    {
+                        "latitude": float(rw.waypoint.latitude),
+                        "longitude": float(rw.waypoint.longitude),
+                        "sequence": rw.sequence,
+                        "metadata": rw.waypoint.metadata,
+                    }
+                )
+
+        # Fallback to old route_stops if no waypoints
+        if not bus_stops:
+            route_stops = obj.route_stops.select_related("bus_stop").order_by("sequence")
+            for rs in route_stops:
+                bus_stops.append(
+                    {
+                        "latitude": float(rs.bus_stop.latitude),
+                        "longitude": float(rs.bus_stop.longitude),
+                        "sequence": rs.sequence,
+                        "metadata": {"type": "bus_stop", "name": rs.bus_stop.name},
+                    }
+                )
+
+        return bus_stops
 
 
 class BusSerializer(serializers.ModelSerializer):

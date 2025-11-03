@@ -22,7 +22,7 @@ from django.utils import timezone
 import factory
 from factory.django import DjangoModelFactory
 
-from buses.models import Bus, Route
+from buses.models import Bus, Route, RouteWaypoint, Waypoint
 from kiosks.models import Kiosk
 from students.models import (
     FaceEmbeddingMetadata,
@@ -54,6 +54,35 @@ class RouteFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Test Route {n}")
     description = ""
     is_active = True
+    encoded_polyline = ""
+
+
+class WaypointFactory(DjangoModelFactory):
+    """Factory for creating test waypoints"""
+
+    class Meta:
+        model = Waypoint
+
+    latitude = factory.Faker("latitude")
+    longitude = factory.Faker("longitude")
+    metadata = factory.Dict({"type": "bus_stop", "name": factory.Sequence(lambda n: f"Waypoint {n}")})
+
+
+class PathAdjustmentWaypointFactory(WaypointFactory):
+    """Factory for creating path adjustment waypoints"""
+
+    metadata = factory.Dict({"type": "path_adjustment", "note": "Route adjustment point"})
+
+
+class RouteWaypointFactory(DjangoModelFactory):
+    """Factory for creating route waypoint junctions"""
+
+    class Meta:
+        model = RouteWaypoint
+
+    route = factory.SubFactory(RouteFactory)
+    waypoint = factory.SubFactory(WaypointFactory)
+    sequence = factory.Sequence(lambda n: n + 1)
 
 
 class BusFactory(DjangoModelFactory):

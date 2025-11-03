@@ -955,6 +955,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/DashboardStudentsResponse'
           description: ''
+  /api/v1/geocode/:
+    post:
+      operationId: api_v1_geocode_create
+      description: |-
+        Geocode an address to coordinates.
+
+        POST /api/v1/geocode/
+        Body: {"address": "Imperial College London"}
+
+        Returns: {
+            "latitude": 51.4988,
+            "longitude": -0.1749,
+            "formatted_address": "Imperial College London, Exhibition Rd, London SW7 2AZ, UK"
+        }
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/groups/:
     get:
       operationId: api_v1_groups_list
@@ -4328,7 +4350,7 @@ components:
           readOnly: true
     PatchedRoute:
       type: object
-      description: Serializer for bus routes
+      description: Serializer for bus routes with polyline support
       properties:
         route_id:
           type: string
@@ -4342,6 +4364,21 @@ components:
         description:
           type: string
           description: Detailed description of the route
+        color_code:
+          type: string
+          description: 'Hex color for map display (e.g., #FF5733)'
+          maxLength: 7
+        line_pattern:
+          enum:
+          - solid
+          - dashed
+          type: string
+          x-spec-enum-id: 45d895aa6835744a
+          description: |-
+            Line pattern for map visualization
+
+            * `solid` - Solid Line
+            * `dashed` - Dashed Line
         is_active:
           type: boolean
           description: Whether this route is currently active
@@ -4355,6 +4392,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RouteStop'
+          readOnly: true
+        encoded_polyline:
+          type: string
+          readOnly: true
+        bus_stops:
+          type: string
           readOnly: true
         created_at:
           type: string
@@ -4549,7 +4592,7 @@ components:
           readOnly: true
     Route:
       type: object
-      description: Serializer for bus routes
+      description: Serializer for bus routes with polyline support
       properties:
         route_id:
           type: string
@@ -4563,6 +4606,21 @@ components:
         description:
           type: string
           description: Detailed description of the route
+        color_code:
+          type: string
+          description: 'Hex color for map display (e.g., #FF5733)'
+          maxLength: 7
+        line_pattern:
+          enum:
+          - solid
+          - dashed
+          type: string
+          x-spec-enum-id: 45d895aa6835744a
+          description: |-
+            Line pattern for map visualization
+
+            * `solid` - Solid Line
+            * `dashed` - Dashed Line
         is_active:
           type: boolean
           description: Whether this route is currently active
@@ -4577,6 +4635,12 @@ components:
           items:
             $ref: '#/components/schemas/RouteStop'
           readOnly: true
+        encoded_polyline:
+          type: string
+          readOnly: true
+        bus_stops:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -4588,7 +4652,9 @@ components:
           readOnly: true
           description: When this route was last updated
       required:
+      - bus_stops
       - created_at
+      - encoded_polyline
       - name
       - route_id
       - route_stops

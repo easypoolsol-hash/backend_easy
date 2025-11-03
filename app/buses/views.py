@@ -12,6 +12,7 @@ from students.models import Student
 
 from .models import Bus, Route
 from .serializers import BusAssignmentSerializer, BusSerializer, RouteSerializer
+from .services import LocationService
 
 
 class RouteViewSet(viewsets.ModelViewSet):
@@ -192,3 +193,33 @@ def bus_locations_api(request):
             )
 
     return JsonResponse({"type": "FeatureCollection", "features": bus_locations})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def geocode_address(request):
+    """
+    Geocode an address to coordinates.
+
+    POST /api/v1/geocode/
+    Body: {"address": "Imperial College London"}
+
+    Returns: {
+        "latitude": 51.4988,
+        "longitude": -0.1749,
+        "formatted_address": "Imperial College London, Exhibition Rd, London SW7 2AZ, UK"
+    }
+    """
+    address = request.data.get("address")
+
+    if not address:
+        return Response({"error": "Address field is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        location_service = LocationService()
+        result = location_service.geocode_address(address)
+        return Response(result, status=status.HTTP_200_OK)
+    except ValueError as e:
+        return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": f"Geocoding service error: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
