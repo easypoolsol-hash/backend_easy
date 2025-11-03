@@ -5,10 +5,10 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from bus_kiosk_backend.core.authentication import FirebaseAuthentication
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from kiosks.permissions import IsKiosk
 from students.models import Student
 
@@ -36,7 +36,7 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 
     queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
     authentication_classes = [FirebaseAuthentication]
-    permission_classes = [IsSchoolAdmin]  # Default: school admin only for list/retrieve
+    permission_classes = [IsAuthenticated]  # Changed: Allow any authenticated user
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]
 
@@ -47,14 +47,14 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        AWS-style explicit permissions:
+        Relaxed permissions:
         - Kiosks can CREATE boarding events
-        - School admins can LIST/RETRIEVE/UPDATE/DELETE
+        - Any authenticated user can LIST/RETRIEVE/UPDATE/DELETE
         """
         if self.action in ["create", "bulk_create"]:
             return [IsKiosk()]
         # All other actions (list, retrieve, update, delete, recent)
-        return [IsSchoolAdmin()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         """Filter queryset based on user role"""
@@ -107,7 +107,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = AttendanceRecord.objects.select_related("student").order_by("-date")
     serializer_class = AttendanceRecordSerializer
-    permission_classes = [IsSchoolAdmin]  # School admins only (no kiosks, no parents)
+    permission_classes = [IsAuthenticated]  # Changed: Allow any authenticated user
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["student", "date", "status"]
 

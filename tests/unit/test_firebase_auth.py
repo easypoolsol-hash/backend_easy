@@ -60,7 +60,8 @@ class TestFirebaseAuthentication:
         assert user.email == "newadmin@school.com"
         assert user.is_active is True
         assert user.is_staff is False
-        assert user.groups.count() == 0  # No role assigned yet
+        assert user.groups.count() == 1  # Assigned to "New User" group
+        assert user.groups.first().name == "New User"
 
     @patch("bus_kiosk_backend.core.authentication.auth.verify_id_token")
     def test_valid_token_returns_existing_user(self, mock_verify):
@@ -172,8 +173,9 @@ class TestFirebaseAuthentication:
         auth = FirebaseAuthentication()
         user, _ = auth.authenticate(request)
 
-        # Secure by default
+        # Secure by default - assigned to "New User" group with no permissions
         assert user.is_staff is False
         assert user.is_superuser is False
-        assert user.groups.count() == 0
+        assert user.groups.count() == 1  # Assigned to "New User" group
+        assert user.groups.first().name == "New User"
         assert user.is_active is True  # Can login but has no permissions

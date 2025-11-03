@@ -66,9 +66,23 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
                 user.save(update_fields=["email"])
 
             if created:
-                logger.info(f"Created new user from Firebase: {firebase_uid} ({email})")
+                # Assign "New User" group with no permissions (default for Firebase users)
+                try:
+                    from django.contrib.auth.models import Group
+
+                    new_user_group, _ = Group.objects.get_or_create(name="New User")
+                    user.groups.add(new_user_group)
+                    logger.info(f"Created new user from Firebase: {firebase_uid} ({email}) - assigned 'New User' group")
+                except Exception as group_error:  # nosec B110
+                    logger.warning(f"Could not assign 'New User' group to {firebase_uid}: {group_error}")
+                    logger.info(f"Created new user from Firebase: {firebase_uid} ({email})")
             else:
                 logger.debug(f"Authenticated existing user from Firebase: {firebase_uid}")
+
+            # Emit signal for last_login tracking and audit logging
+            from users.signals import user_authenticated
+
+            user_authenticated.send(sender=self.__class__, user=user, request=request, auth_method="firebase")
 
             return (user, None)
 
