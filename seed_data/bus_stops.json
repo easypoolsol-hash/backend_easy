@@ -1,0 +1,152 @@
+[
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 01 - Bagbazar Area",
+    "fields": {
+      "name": "Bagbazar Bata Store",
+      "latitude": 22.6093,
+      "longitude": 88.3626,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 01 - Bagbazar Area",
+    "fields": {
+      "name": "Bagbazar Bus Stand",
+      "latitude": 22.6105,
+      "longitude": 88.3638,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 01 - Bagbazar Area",
+    "fields": {
+      "name": "Rajballav Para Market",
+      "latitude": 22.6118,
+      "longitude": 88.3652,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 02 - Salt Lake Sector V",
+    "fields": {
+      "name": "Salt Lake Sector V Gate",
+      "latitude": 22.5726,
+      "longitude": 88.4324,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 02 - Salt Lake Sector V",
+    "fields": {
+      "name": "Tech Park Main Entrance",
+      "latitude": 22.5735,
+      "longitude": 88.4340,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 02 - Salt Lake Sector V",
+    "fields": {
+      "name": "Webel IT Park",
+      "latitude": 22.5750,
+      "longitude": 88.4365,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 03 - New Town",
+    "fields": {
+      "name": "New Town Action Area I",
+      "latitude": 22.5877,
+      "longitude": 88.4782,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 03 - New Town",
+    "fields": {
+      "name": "Rajarhat Main Road",
+      "latitude": 22.5912,
+      "longitude": 88.4820,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Ankuran Route 03 - New Town",
+    "fields": {
+      "name": "Eco Park Gate 4",
+      "latitude": 22.5955,
+      "longitude": 88.4875,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Route 04 - Park Street Area",
+    "fields": {
+      "name": "Park Street Metro",
+      "latitude": 22.5540,
+      "longitude": 88.3516,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Route 04 - Park Street Area",
+    "fields": {
+      "name": "Gariahat Market",
+      "latitude": 22.5263,
+      "longitude": 88.3651,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Route 04 - Park Street Area",
+    "fields": {
+      "name": "Ballygunge Station",
+      "latitude": 22.5317,
+      "longitude": 88.3658,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Route 05 - South Kolkata",
+    "fields": {
+      "name": "Jadavpur 8B Bus Stand",
+      "latitude": 22.4986,
+      "longitude": 88.3682,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Route 05 - South Kolkata",
+    "fields": {
+      "name": "Garia Station",
+      "latitude": 22.4614,
+      "longitude": 88.3741,
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.busstop",
+    "route_ref": "Route 05 - South Kolkata",
+    "fields": {
+      "name": "Narendrapur Ramakrishna Mission",
+      "latitude": 22.4233,
+      "longitude": 88.3886,
+      "is_active": true
+    }
+  }
+]

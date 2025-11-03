@@ -1,0 +1,114 @@
+[
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-001",
+      "license_plate": "WB 02 AC 1234",
+      "route_name": "Ankuran Route 01 - Bagbazar Area",
+      "capacity": 45,
+      "device_id": "KIOSK-BUS001",
+      "status": "active",
+      "manufacturer": "Ashok Leyland",
+      "model": "Lynx",
+      "year": 2023
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-002",
+      "license_plate": "WB 02 AC 5678",
+      "route_name": "Ankuran Route 02 - Salt Lake Sector V",
+      "capacity": 50,
+      "device_id": "KIOSK-BUS002",
+      "status": "active",
+      "manufacturer": "Tata Motors",
+      "model": "Starbus",
+      "year": 2023
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-003",
+      "license_plate": "WB 02 AC 9012",
+      "route_name": "Ankuran Route 03 - New Town",
+      "capacity": 48,
+      "device_id": "KIOSK-BUS003",
+      "status": "active",
+      "manufacturer": "Ashok Leyland",
+      "model": "Lynx",
+      "year": 2024
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-004",
+      "license_plate": "WB 02 AC 3456",
+      "route_name": "Route 04 - Park Street Area",
+      "capacity": 42,
+      "device_id": "KIOSK-BUS004",
+      "status": "active",
+      "manufacturer": "Tata Motors",
+      "model": "LP 410",
+      "year": 2022
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-005",
+      "license_plate": "WB 02 AC 7890",
+      "route_name": "Route 05 - South Kolkata",
+      "capacity": 40,
+      "device_id": "KIOSK-BUS005",
+      "status": "active",
+      "manufacturer": "Ashok Leyland",
+      "model": "Viking",
+      "year": 2023
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-006",
+      "license_plate": "WB 02 AC 2345",
+      "route_name": "Route 06 - East Kolkata",
+      "capacity": 45,
+      "device_id": "KIOSK-BUS006",
+      "status": "active",
+      "manufacturer": "Tata Motors",
+      "model": "Starbus",
+      "year": 2024
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-007",
+      "license_plate": "WB 02 AC 6789",
+      "route_name": "Route 07 - North Kolkata",
+      "capacity": 38,
+      "device_id": "KIOSK-BUS007",
+      "status": "maintenance",
+      "manufacturer": "Ashok Leyland",
+      "model": "Lynx",
+      "year": 2021
+    }
+  },
+  {
+    "model": "buses.bus",
+    "fields": {
+      "bus_number": "BUS-008",
+      "license_plate": "WB 02 AC 0123",
+      "route_name": "Route 08 - Howrah Bridge Zone",
+      "capacity": 50,
+      "device_id": "KIOSK-BUS008",
+      "status": "active",
+      "manufacturer": "Tata Motors",
+      "model": "LP 410",
+      "year": 2023
+    }
+  }
+]

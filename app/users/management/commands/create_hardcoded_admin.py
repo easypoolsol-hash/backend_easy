@@ -12,9 +12,9 @@ from django.db.utils import OperationalError
 User = get_user_model()
 
 # HARDCODED CREDENTIALS - Change after first login
-ADMIN_USERNAME = "admin123"
+ADMIN_USERNAME = "admin"
 ADMIN_EMAIL = "admin@easypool.internal"
-ADMIN_PASSWORD = "EasyPool2025Admin"  # Change immediately after first login
+ADMIN_PASSWORD = "admin"  # Change immediately after first login
 
 
 class Command(BaseCommand):

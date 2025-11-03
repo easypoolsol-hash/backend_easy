@@ -1,0 +1,74 @@
+[
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS001",
+      "bus_license_plate": "WB 02 AC 1234",
+      "firmware_version": "v2.3.1",
+      "is_active": true
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS002",
+      "bus_license_plate": "WB 02 AC 5678",
+      "firmware_version": "v2.3.1",
+      "is_active": true
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS003",
+      "bus_license_plate": "WB 02 AC 9012",
+      "firmware_version": "v2.3.1",
+      "is_active": true
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS004",
+      "bus_license_plate": "WB 02 AC 3456",
+      "firmware_version": "v2.3.0",
+      "is_active": true
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS005",
+      "bus_license_plate": "WB 02 AC 7890",
+      "firmware_version": "v2.3.1",
+      "is_active": true
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS006",
+      "bus_license_plate": "WB 02 AC 2345",
+      "firmware_version": "v2.3.1",
+      "is_active": true
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS007",
+      "bus_license_plate": "WB 02 AC 6789",
+      "firmware_version": "v2.2.8",
+      "is_active": false
+    }
+  },
+  {
+    "model": "kiosks.kiosk",
+    "fields": {
+      "kiosk_id": "KIOSK-BUS008",
+      "bus_license_plate": "WB 02 AC 0123",
+      "firmware_version": "v2.3.1",
+      "is_active": true
+    }
+  }
+]

@@ -170,7 +170,7 @@ sleep 2\n\
 # Start the ASGI server IMMEDIATELY\n\
 echo "✅ Application starting on port 8000"\n\
 echo "🌐 Health: /health/live/ /health/ready/ /health/"\n\
-echo "🔐 Admin: /admin/ (admin123 / EasyPool2025Admin)"\n\
+echo "🔐 Admin: /admin/ (admin / admin)"\n\
 echo "🚀 Starting Daphne..."\n\
 exec daphne -b 0.0.0.0 -p 8000 bus_kiosk_backend.asgi:application' > /app/start.sh && \
     chmod +x /app/start.sh && \

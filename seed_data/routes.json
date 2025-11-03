@@ -1,0 +1,82 @@
+[
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Ankuran Route 01 - Bagbazar Area",
+      "description": "Covers Bagbazar, Rajballav Para, and surrounding areas",
+      "color_code": "#FF5733",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Ankuran Route 02 - Salt Lake Sector V",
+      "description": "Salt Lake Sector V, Tech Park, and IT Hub area",
+      "color_code": "#3357FF",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Ankuran Route 03 - New Town",
+      "description": "New Town, Rajarhat, Action Area zones",
+      "color_code": "#33FF57",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Route 04 - Park Street Area",
+      "description": "Park Street, Gariahat, Ballygunge",
+      "color_code": "#FF33A1",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Route 05 - South Kolkata",
+      "description": "Jadavpur, Garia, Narendrapur belt",
+      "color_code": "#FFD700",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Route 06 - East Kolkata",
+      "description": "Baishnabghata, Patuli, Panchpota areas",
+      "color_code": "#00CED1",
+      "line_pattern": "dashed",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Route 07 - North Kolkata",
+      "description": "Ultadanga, Phoolbagan, Tala area",
+      "color_code": "#FF6347",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  },
+  {
+    "model": "buses.route",
+    "fields": {
+      "name": "Route 08 - Howrah Bridge Zone",
+      "description": "Howrah, Shibpur, Botanical Garden belt",
+      "color_code": "#4B0082",
+      "line_pattern": "solid",
+      "is_active": true
+    }
+  }
+]

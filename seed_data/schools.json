@@ -1,0 +1,8 @@
+[
+  {
+    "model": "students.school",
+    "fields": {
+      "name": "The Heritage School"
+    }
+  }
+]

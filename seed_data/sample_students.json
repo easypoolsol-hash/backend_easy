@@ -1,0 +1,132 @@
+[
+  {
+    "model": "students.parent",
+    "ref": "parent_001",
+    "fields": {
+      "phone": "+919876543210",
+      "email": "rajesh.sharma@example.com",
+      "name": "Rajesh Sharma"
+    }
+  },
+  {
+    "model": "students.parent",
+    "ref": "parent_002",
+    "fields": {
+      "phone": "+919876543211",
+      "email": "priya.das@example.com",
+      "name": "Priya Das"
+    }
+  },
+  {
+    "model": "students.parent",
+    "ref": "parent_003",
+    "fields": {
+      "phone": "+919876543212",
+      "email": "amit.chatterjee@example.com",
+      "name": "Amit Chatterjee"
+    }
+  },
+  {
+    "model": "students.parent",
+    "ref": "parent_004",
+    "fields": {
+      "phone": "+919876543213",
+      "email": "sneha.ghosh@example.com",
+      "name": "Sneha Ghosh"
+    }
+  },
+  {
+    "model": "students.parent",
+    "ref": "parent_005",
+    "fields": {
+      "phone": "+919876543214",
+      "email": "vikram.roy@example.com",
+      "name": "Vikram Roy"
+    }
+  },
+  {
+    "model": "students.student",
+    "ref": "student_001",
+    "fields": {
+      "school_name": "The Heritage School",
+      "school_student_id": "THS-2024-001",
+      "name": "Aarav Sharma",
+      "grade": "8",
+      "section": "A",
+      "address_latitude": 22.6093,
+      "address_longitude": 88.3626,
+      "assigned_bus_number": "BUS-001",
+      "status": "active",
+      "enrollment_date": "2024-04-01",
+      "parent_ref": "parent_001"
+    }
+  },
+  {
+    "model": "students.student",
+    "ref": "student_002",
+    "fields": {
+      "school_name": "The Heritage School",
+      "school_student_id": "THS-2024-002",
+      "name": "Diya Das",
+      "grade": "7",
+      "section": "B",
+      "address_latitude": 22.5726,
+      "address_longitude": 88.4324,
+      "assigned_bus_number": "BUS-002",
+      "status": "active",
+      "enrollment_date": "2024-04-01",
+      "parent_ref": "parent_002"
+    }
+  },
+  {
+    "model": "students.student",
+    "ref": "student_003",
+    "fields": {
+      "school_name": "The Heritage School",
+      "school_student_id": "THS-2024-003",
+      "name": "Arjun Chatterjee",
+      "grade": "9",
+      "section": "A",
+      "address_latitude": 22.5877,
+      "address_longitude": 88.4782,
+      "assigned_bus_number": "BUS-003",
+      "status": "active",
+      "enrollment_date": "2024-04-01",
+      "parent_ref": "parent_003"
+    }
+  },
+  {
+    "model": "students.student",
+    "ref": "student_004",
+    "fields": {
+      "school_name": "The Heritage School",
+      "school_student_id": "THS-2024-004",
+      "name": "Ananya Ghosh",
+      "grade": "6",
+      "section": "C",
+      "address_latitude": 22.5540,
+      "address_longitude": 88.3516,
+      "assigned_bus_number": "BUS-004",
+      "status": "active",
+      "enrollment_date": "2024-04-01",
+      "parent_ref": "parent_004"
+    }
+  },
+  {
+    "model": "students.student",
+    "ref": "student_005",
+    "fields": {
+      "school_name": "The Heritage School",
+      "school_student_id": "THS-2024-005",
+      "name": "Kabir Roy",
+      "grade": "10",
+      "section": "A",
+      "address_latitude": 22.4986,
+      "address_longitude": 88.3682,
+      "assigned_bus_number": "BUS-005",
+      "status": "active",
+      "enrollment_date": "2024-04-01",
+      "parent_ref": "parent_005"
+    }
+  }
+]
