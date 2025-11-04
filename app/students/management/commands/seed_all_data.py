@@ -22,10 +22,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from buses.models import Bus, BusStop, Route, RouteStop
+from buses.utils.polyline_generator import generate_polyline_from_stops
 from kiosks.models import Kiosk
 from students.models import Parent, School, Student, StudentParent
 
@@ -80,9 +82,14 @@ class Command(BaseCommand):
             self._load_schools(data_dir / "schools.json")
             self._load_routes(data_dir / "routes.json")
             self._load_bus_stops(data_dir / "bus_stops.json")
+            self._generate_polylines()  # Generate polylines after stops are loaded
             self._load_buses(data_dir / "buses.json")
             self._load_kiosks(data_dir / "kiosks.json")
             self._load_students(data_dir / "sample_students.json")
+
+        # Seed boarding events after all other data is loaded
+        self.stdout.write("\n[BOARDING EVENTS] Seeding boarding events...")
+        call_command("seed_boarding_events", count=50, clear=True)
 
         self.stdout.write(self.style.SUCCESS("\n" + "=" * 70))
         self.stdout.write(self.style.SUCCESS("  Seeding Complete!"))
@@ -222,6 +229,29 @@ class Command(BaseCommand):
 
                 status = "created" if created else "exists"
                 self.stdout.write(f"  [OK] {bus_stop.name} -> {route_name} (seq {sequence}) ({status})")
+
+    def _generate_polylines(self) -> None:
+        """Generate polylines for all routes using Google Maps API"""
+        self.stdout.write("\n[POLYLINES] Generating route polylines using Google Maps API...")
+
+        for route in self.route_lookup.values():
+            # Get all stops for this route in sequence order
+            route_stops = RouteStop.objects.filter(route=route).order_by("sequence")
+            stops = [rs.bus_stop for rs in route_stops]
+
+            if len(stops) < 2:
+                self.stdout.write(self.style.WARNING(f"  [SKIP]  {route.name}: need at least 2 stops (has {len(stops)})"))
+                continue
+
+            # Generate polyline
+            polyline = generate_polyline_from_stops(stops)
+
+            if polyline:
+                route.encoded_polyline = polyline
+                route.save(update_fields=["encoded_polyline"])
+                self.stdout.write(self.style.SUCCESS(f"  [OK] {route.name}: polyline generated ({len(stops)} stops, {len(polyline)} chars)"))
+            else:
+                self.stdout.write(self.style.ERROR(f"  [ERROR] {route.name}: failed to generate polyline"))
 
     def _load_buses(self, file_path: Path) -> None:
         """Load buses from JSON"""
@@ -376,12 +406,15 @@ class Command(BaseCommand):
 
     def _print_summary(self) -> None:
         """Print summary of seeded data"""
+        from events.models import BoardingEvent
+
         self.stdout.write("\n[DATA SUMMARY]")
-        self.stdout.write(f"  Schools:       {School.objects.count()}")
-        self.stdout.write(f"  Routes:        {Route.objects.count()}")
-        self.stdout.write(f"  Bus Stops:     {BusStop.objects.count()}")
-        self.stdout.write(f"  Buses:         {Bus.objects.count()}")
-        self.stdout.write(f"  Kiosks:        {Kiosk.objects.count()}")
-        self.stdout.write(f"  Parents:       {Parent.objects.count()}")
-        self.stdout.write(f"  Students:      {Student.objects.count()}")
+        self.stdout.write(f"  Schools:         {School.objects.count()}")
+        self.stdout.write(f"  Routes:          {Route.objects.count()}")
+        self.stdout.write(f"  Bus Stops:       {BusStop.objects.count()}")
+        self.stdout.write(f"  Buses:           {Bus.objects.count()}")
+        self.stdout.write(f"  Kiosks:          {Kiosk.objects.count()}")
+        self.stdout.write(f"  Parents:         {Parent.objects.count()}")
+        self.stdout.write(f"  Students:        {Student.objects.count()}")
+        self.stdout.write(f"  Boarding Events: {BoardingEvent.objects.count()}")
         self.stdout.write("")
