@@ -136,6 +136,9 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
+        # Send initial bus locations to newly connected client
+        await self.send_initial_bus_locations()
+
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection."""
         # Leave bus updates group safely
@@ -198,3 +201,61 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
         if not user:
             return False
         return user.is_authenticated
+
+    @database_sync_to_async
+    def get_initial_bus_locations(self):
+        """Fetch all current bus locations as GeoJSON features."""
+        from django.db.models import Max
+
+        from kiosks.models import BusLocation
+
+        # Get latest location for each kiosk
+        latest_locations = BusLocation.objects.values("kiosk_id").annotate(
+            latest_timestamp=Max("timestamp")
+        )
+
+        features = []
+        for loc_data in latest_locations:
+            location = (
+                BusLocation.objects.filter(
+                    kiosk_id=loc_data["kiosk_id"],
+                    timestamp=loc_data["latest_timestamp"],
+                )
+                .select_related("kiosk__bus__route")
+                .first()
+            )
+
+            if location and location.kiosk and location.kiosk.bus:
+                kiosk = location.kiosk
+                bus = kiosk.bus
+
+                features.append(
+                    {
+                        "type": "Feature",
+                        "geometry": {
+                            "type": "Point",
+                            "coordinates": [
+                                float(location.longitude),
+                                float(location.latitude),
+                            ],
+                        },
+                        "properties": {
+                            "id": str(bus.bus_id),
+                            "name": bus.license_plate,
+                            "status": bus.status,
+                            "last_location_update": location.timestamp.isoformat(),
+                            "speed": float(location.speed) if location.speed else 0,
+                            "heading": float(location.heading) if location.heading else 0,
+                        },
+                    }
+                )
+
+        return features
+
+    async def send_initial_bus_locations(self):
+        """Send current bus locations to newly connected client."""
+        features = await self.get_initial_bus_locations()
+
+        await self.send(
+            text_data=json.dumps({"type": "bus_location_update", "features": features})
+        )
