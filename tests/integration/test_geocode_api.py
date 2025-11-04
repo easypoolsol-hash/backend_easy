@@ -85,11 +85,13 @@ class TestGeocodeAPI:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "not found" in str(response.data).lower()
 
-    @patch("buses.services.LocationService.geocode_address")
-    def test_geocode_api_error(self, mock_geocode, api_client, authenticated_user):
+    @patch("buses.views.LocationService")
+    def test_geocode_api_error(self, mock_location_service_class, api_client, authenticated_user):
         """Test geocode when Google API returns error"""
-        # Mock the geocode_address method to raise an exception
-        mock_geocode.side_effect = Exception("API quota exceeded")
+        # Mock the LocationService class and its geocode_address method
+        mock_service_instance = Mock()
+        mock_service_instance.geocode_address.side_effect = Exception("API quota exceeded")
+        mock_location_service_class.return_value = mock_service_instance
 
         api_client.force_authenticate(user=authenticated_user)
 
