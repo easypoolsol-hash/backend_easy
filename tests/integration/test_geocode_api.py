@@ -85,12 +85,11 @@ class TestGeocodeAPI:
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "not found" in str(response.data).lower()
 
-    @patch("buses.services.googlemaps.Client")
-    def test_geocode_api_error(self, mock_client, api_client, authenticated_user):
+    @patch("buses.services.LocationService.geocode_address")
+    def test_geocode_api_error(self, mock_geocode, api_client, authenticated_user):
         """Test geocode when Google API returns error"""
-        mock_gmaps = Mock()
-        mock_gmaps.geocode.side_effect = Exception("API quota exceeded")
-        mock_client.return_value = mock_gmaps
+        # Mock the geocode_address method to raise an exception
+        mock_geocode.side_effect = Exception("API quota exceeded")
 
         api_client.force_authenticate(user=authenticated_user)
 
@@ -159,7 +158,7 @@ class TestRoutesAPIWithPolylines:
 
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.get("/api/v1/buses/routes/")
+        response = api_client.get("/api/v1/routes/")
 
         assert response.status_code == status.HTTP_200_OK
         assert "results" in response.data
@@ -185,7 +184,7 @@ class TestRoutesAPIWithPolylines:
 
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.get("/api/v1/buses/routes/")
+        response = api_client.get("/api/v1/routes/")
 
         assert response.status_code == status.HTTP_200_OK
 
