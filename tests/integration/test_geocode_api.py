@@ -49,7 +49,7 @@ class TestGeocodeAPI:
 
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.post("/api/v1/buses/geocode/", {"address": "Imperial College London"}, format="json")
+        response = api_client.post("/api/v1/geocode/", {"address": "Imperial College London"}, format="json")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["latitude"] == 51.4988
@@ -58,7 +58,7 @@ class TestGeocodeAPI:
 
     def test_geocode_unauthenticated(self, api_client):
         """Test that geocode requires authentication"""
-        response = api_client.post("/api/v1/buses/geocode/", {"address": "Imperial College London"}, format="json")
+        response = api_client.post("/api/v1/geocode/", {"address": "Imperial College London"}, format="json")
 
         assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
@@ -66,7 +66,7 @@ class TestGeocodeAPI:
         """Test geocode with missing address field"""
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.post("/api/v1/buses/geocode/", {}, format="json")
+        response = api_client.post("/api/v1/geocode/", {}, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "address" in str(response.data).lower()
@@ -80,7 +80,7 @@ class TestGeocodeAPI:
 
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.post("/api/v1/buses/geocode/", {"address": "NonexistentPlace12345"}, format="json")
+        response = api_client.post("/api/v1/geocode/", {"address": "NonexistentPlace12345"}, format="json")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert "not found" in str(response.data).lower()
@@ -94,7 +94,7 @@ class TestGeocodeAPI:
 
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.post("/api/v1/buses/geocode/", {"address": "Imperial College London"}, format="json")
+        response = api_client.post("/api/v1/geocode/", {"address": "Imperial College London"}, format="json")
 
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "error" in str(response.data).lower()
@@ -110,7 +110,7 @@ class TestGeocodeAPI:
 
         api_client.force_authenticate(user=authenticated_user)
 
-        response = api_client.post("/api/v1/buses/geocode/", {"address": "Champs-Élysées, Paris"}, format="json")
+        response = api_client.post("/api/v1/geocode/", {"address": "Champs-Élysées, Paris"}, format="json")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["latitude"] == 48.8584
@@ -128,10 +128,10 @@ class TestGeocodeAPI:
         api_client.force_authenticate(user=authenticated_user)
 
         # First request
-        response1 = api_client.post("/api/v1/buses/geocode/", {"address": "Imperial College London"}, format="json")
+        response1 = api_client.post("/api/v1/geocode/", {"address": "Imperial College London"}, format="json")
 
         # Second request
-        response2 = api_client.post("/api/v1/buses/geocode/", {"address": "Westminster, London"}, format="json")
+        response2 = api_client.post("/api/v1/geocode/", {"address": "Westminster, London"}, format="json")
 
         assert response1.status_code == status.HTTP_200_OK
         assert response2.status_code == status.HTTP_200_OK
