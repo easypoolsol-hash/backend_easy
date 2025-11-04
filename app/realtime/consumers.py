@@ -241,6 +241,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
                             "id": str(bus.bus_id),
                             "name": bus.license_plate,
                             "bus_number": bus.bus_number,
+                            "route_id": str(bus.route_id) if bus.route else None,
                             "status": bus.status,
                             "last_location_update": location.timestamp.isoformat(),
                             "speed": float(location.speed) if location.speed else 0,
