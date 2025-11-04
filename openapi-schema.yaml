@@ -4397,7 +4397,10 @@ components:
           type: string
           readOnly: true
         bus_stops:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
         created_at:
           type: string
@@ -4639,7 +4642,10 @@ components:
           type: string
           readOnly: true
         bus_stops:
-          type: string
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
           readOnly: true
         created_at:
           type: string

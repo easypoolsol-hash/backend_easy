@@ -27,7 +27,7 @@ class RouteStopInline(admin.TabularInline):
 class RouteAdmin(admin.ModelAdmin):
     """Admin interface for bus routes"""
 
-    list_display = ["name", "is_active", "stop_count", "total_students", "created_at"]
+    list_display = ["name", "is_active", "has_polyline", "stop_count", "total_students", "created_at"]
     list_filter = ["is_active", "created_at"]
     search_fields = ["name", "description"]
     readonly_fields = ["route_id", "created_at", "updated_at"]
@@ -37,10 +37,21 @@ class RouteAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Route Info", {"fields": ("route_id", "name", "description", "is_active")}),
         (
+            "Visual Display",
+            {"fields": ("color_code", "line_pattern", "encoded_polyline")},
+        ),
+        (
             "Metadata",
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
+
+    def has_polyline(self, obj):
+        """Show if route has a polyline"""
+        return bool(obj.encoded_polyline)
+
+    has_polyline.boolean = True  # type: ignore[attr-defined]
+    has_polyline.short_description = "Has Polyline"  # type: ignore[attr-defined]
 
     def get_queryset(self, request):
         """Optimize queryset with annotations"""

@@ -91,6 +91,10 @@ class Command(BaseCommand):
         self.stdout.write("\n[BOARDING EVENTS] Seeding boarding events...")
         call_command("seed_boarding_events", count=50, clear=True)
 
+        # Seed bus locations for real-time tracking
+        self.stdout.write("\n[BUS LOCATIONS] Seeding bus locations for real-time tracking...")
+        call_command("seed_bus_locations", count=6, clear=True)
+
         self.stdout.write(self.style.SUCCESS("\n" + "=" * 70))
         self.stdout.write(self.style.SUCCESS("  Seeding Complete!"))
         self.stdout.write(self.style.SUCCESS("=" * 70))
@@ -407,6 +411,7 @@ class Command(BaseCommand):
     def _print_summary(self) -> None:
         """Print summary of seeded data"""
         from events.models import BoardingEvent
+        from kiosks.models import BusLocation
 
         self.stdout.write("\n[DATA SUMMARY]")
         self.stdout.write(f"  Schools:         {School.objects.count()}")
@@ -417,4 +422,5 @@ class Command(BaseCommand):
         self.stdout.write(f"  Parents:         {Parent.objects.count()}")
         self.stdout.write(f"  Students:        {Student.objects.count()}")
         self.stdout.write(f"  Boarding Events: {BoardingEvent.objects.count()}")
+        self.stdout.write(f"  Bus Locations:   {BusLocation.objects.count()}")
         self.stdout.write("")

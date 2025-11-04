@@ -64,7 +64,7 @@ class Command(BaseCommand):
         now = timezone.now()
         created_events = []
 
-        # Create events for the last 7 days
+        # Create events for the last 7 days, with emphasis on today
         for i in range(count):
             # Random student
             student = random.choice(students)
@@ -72,10 +72,18 @@ class Command(BaseCommand):
             # Random kiosk
             kiosk = random.choice(kiosks)
 
-            # Random time in last 7 days
-            days_ago = random.randint(0, 7)
-            hours_ago = random.randint(0, 23)
-            minutes_ago = random.randint(0, 59)
+            # 70% chance for today, 30% for past days (more recent data)
+            if random.random() < 0.7:
+                # Today's events (within last 12 hours)
+                days_ago = 0
+                hours_ago = random.randint(0, 12)
+                minutes_ago = random.randint(0, 59)
+            else:
+                # Past days (1-7 days ago)
+                days_ago = random.randint(1, 7)
+                hours_ago = random.randint(0, 23)
+                minutes_ago = random.randint(0, 59)
+
             event_time = now - timedelta(days=days_ago, hours=hours_ago, minutes=minutes_ago)
 
             # High confidence score for face recognition
@@ -111,22 +119,23 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Created {i + 1}/{count} events...")
 
         self.stdout.write("")
-        self.stdout.write(self.style.SUCCESS(f"✅ Successfully created {len(created_events)} boarding events"))
+        self.stdout.write(self.style.SUCCESS(f"[OK] Successfully created {len(created_events)} boarding events"))
 
         # Show recent events summary
         self.stdout.write("\nRecent boarding events (last 5):")
         recent_events = BoardingEvent.objects.order_by("-timestamp")[:5]
         for event in recent_events:
             # Note: student name is encrypted, backend will decrypt for API response
+            student_id_str = str(event.student.student_id)
             self.stdout.write(
                 f"  {event.timestamp.strftime('%Y-%m-%d %H:%M')} - "
-                f"Student {event.student.student_id[:8]}... - "
+                f"Student {student_id_str[:8]}... - "
                 f"Confidence: {event.confidence_score:.2f} - "
                 f"Kiosk: {event.kiosk_id}"
             )
 
         self.stdout.write("")
-        self.stdout.write(self.style.SUCCESS("✅ Boarding events seeded successfully!"))
-        self.stdout.write("\n📊 Frontend can now fetch real data using OpenAPI client")
+        self.stdout.write(self.style.SUCCESS("[OK] Boarding events seeded successfully!"))
+        self.stdout.write("\n[INFO] Frontend can now fetch real data using OpenAPI client")
         self.stdout.write("   Operation ID: apiV1BoardingEventsList")
         self.stdout.write("   PII data is encrypted in DB, decrypted in serializer")

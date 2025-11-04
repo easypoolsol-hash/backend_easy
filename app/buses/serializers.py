@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 import polyline
 from rest_framework import serializers
 
@@ -103,7 +104,8 @@ class RouteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["route_id", "created_at", "updated_at"]
 
-    def get_encoded_polyline(self, obj):
+    @extend_schema_field(serializers.CharField(allow_blank=True))
+    def get_encoded_polyline(self, obj) -> str:
         """Generate encoded polyline from route waypoints"""
         # Check if we have cached polyline
         if obj.encoded_polyline:
@@ -123,7 +125,8 @@ class RouteSerializer(serializers.ModelSerializer):
 
         return ""
 
-    def get_bus_stops(self, obj):
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_bus_stops(self, obj) -> list:
         """Get only bus stop waypoints for markers"""
         bus_stops = []
 

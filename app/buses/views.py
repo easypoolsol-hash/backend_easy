@@ -18,7 +18,7 @@ from .services import LocationService
 class RouteViewSet(viewsets.ModelViewSet):
     """ViewSet for bus routes"""
 
-    queryset = Route.objects.prefetch_related("buses").order_by("name")
+    queryset = Route.objects.prefetch_related("buses", "route_stops__bus_stop", "route_waypoints__waypoint").order_by("name")
     serializer_class = RouteSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
