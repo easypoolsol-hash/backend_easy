@@ -210,9 +210,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
         from kiosks.models import BusLocation
 
         # Get latest location for each kiosk
-        latest_locations = BusLocation.objects.values("kiosk_id").annotate(
-            latest_timestamp=Max("timestamp")
-        )
+        latest_locations = BusLocation.objects.values("kiosk_id").annotate(latest_timestamp=Max("timestamp"))
 
         features = []
         for loc_data in latest_locations:
@@ -242,6 +240,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
                         "properties": {
                             "id": str(bus.bus_id),
                             "name": bus.license_plate,
+                            "bus_number": bus.bus_number,
                             "status": bus.status,
                             "last_location_update": location.timestamp.isoformat(),
                             "speed": float(location.speed) if location.speed else 0,
@@ -256,6 +255,4 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
         """Send current bus locations to newly connected client."""
         features = await self.get_initial_bus_locations()
 
-        await self.send(
-            text_data=json.dumps({"type": "bus_location_update", "features": features})
-        )
+        await self.send(text_data=json.dumps({"type": "bus_location_update", "features": features}))
