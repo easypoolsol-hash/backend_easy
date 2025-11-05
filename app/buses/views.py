@@ -3,7 +3,8 @@ from django.db.models import Max
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -151,6 +152,38 @@ class BusViewSet(viewsets.ModelViewSet):
         )
 
 
+@extend_schema(
+    responses={
+        200: inline_serializer(
+            name="BusLocationsResponse",
+            fields={
+                "type": serializers.CharField(default="FeatureCollection"),
+                "features": serializers.ListField(
+                    child=serializers.DictField(),
+                    help_text="Array of GeoJSON Feature objects with bus locations",
+                ),
+            },
+        ),
+    },
+    operation_id="bus_locations_api",
+    description="""
+    Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
+
+    Accessible by any authenticated user (school administrators, staff, etc.).
+
+    **Response Format:**
+    GeoJSON FeatureCollection with Point geometries for each bus location.
+
+    Each feature includes properties:
+    - id: Kiosk ID
+    - name: Bus license plate
+    - status: Bus status
+    - last_update: Timestamp of last location update
+    - speed: Current speed (km/h)
+    - heading: Direction heading (degrees)
+    """,
+    tags=["Buses"],
+)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def bus_locations_api(request):
