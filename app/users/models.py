@@ -90,7 +90,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def id(self):
-        """Alias for user_id to support JWT libraries expecting 'id'"""
+        """Alias for user_id to support libraries expecting 'id' field"""
         return self.user_id
 
     class Meta:

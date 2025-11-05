@@ -121,10 +121,6 @@ def api_root(_request):
                 "openapi_schema": "/docs/schema/",
             },
             "health": "/health/",
-            "auth": {
-                "token_obtain": "/api/v1/auth/token/",
-                "token_refresh": "/api/v1/auth/token/refresh/",
-            },
         }
     )
 

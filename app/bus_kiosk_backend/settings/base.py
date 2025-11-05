@@ -285,8 +285,8 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
         "Bearer": {
             "type": "http",
             "scheme": "bearer",
-            "bearerFormat": "JWT",
-            "description": ("JWT Authorization header using the Bearer scheme. Example: 'Authorization: Bearer {token}'"),
+            "bearerFormat": "Firebase ID Token",
+            "description": ("Firebase ID Token authorization header using the Bearer scheme. Example: 'Authorization: Bearer {firebase_token}'"),
         }
     },
     # Self-hosted Swagger UI (no CDN)
@@ -376,9 +376,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Kolkata"  # IST (UTC+5:30) - All operations in India
 USE_I18N = True
-USE_TZ = True
+USE_TZ = True  # Keep timezone-aware (stores with timezone info)
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "static/"

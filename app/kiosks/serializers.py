@@ -59,7 +59,7 @@ class KioskHeartbeatSerializer(serializers.Serializer):
         authenticated_kiosk = self.context.get("kiosk")
 
         if authenticated_kiosk and value and value != authenticated_kiosk.kiosk_id:
-            # Security violation: JWT token doesn't match kiosk_id in request
+            # Security violation: Firebase token doesn't match kiosk_id in request
             raise serializers.ValidationError("kiosk_id mismatch with authentication")
 
         return value

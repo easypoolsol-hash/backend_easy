@@ -63,11 +63,11 @@ def kiosk_log(request: Request) -> Response:
     Supports bulk logging for efficiency.
 
     Fortune 500 pattern:
-    - Authentication: KioskJWTAuthentication (validates JWT contains kiosk)
+    - Authentication: FirebaseAuthentication (validates Firebase ID token)
     - Permission: IsAuthenticated (standard DRF permission)
     - request.user contains authenticated Kiosk object
     """
-    # Get authenticated kiosk from request.user (set by KioskJWTAuthentication)
+    # Get authenticated kiosk from request.user (set by FirebaseAuthentication)
     kiosk = request.user
 
     # Security check: Ensure request.user is actually a Kiosk (not a User)
