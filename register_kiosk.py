@@ -31,5 +31,5 @@ else:
     print(f"i  Kiosk already exists: {kiosk.kiosk_id} (firebase_uid: {kiosk.firebase_uid})")
 
 print(f"   is_active: {kiosk.is_active}")
-print(f"   current_bus: {kiosk.current_bus}")
+print(f"   bus: {kiosk.bus}")
 print("\n✅ Kiosk is now pre-registered and ready for first login")
