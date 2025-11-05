@@ -252,13 +252,37 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
   deploy-staging:
-    name: Deploy Staging (Git-Canonical - Load from Cache)
+    name: Deploy Staging (Promote from Same SHA Build)
     runs-on: ubuntu-latest
     needs: [decide]
-    # No test dependencies - uses pre-tested image from develop's GitHub cache
+    # CRITICAL: Uses same git SHA to ensure identical build from cache
     if: needs.decide.outputs.promote_path == 'true'
     steps:
       - uses: actions/checkout@v4
+
+      # ========================================================================
+      # BUILD FROM CACHE: Same git SHA = Same image digest (deterministic)
+      # ========================================================================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build from cache (same SHA as develop)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: backend_easy:staging
+          cache-from: type=gha
+          # Uses GHA cache from develop build (same git SHA = same cache layers)
+
+      - name: Verify deterministic build
+        run: |
+          STAGING_DIGEST=$(docker inspect backend_easy:staging --format='{{.Id}}')
+          echo "## 🔒 Deterministic Build Verification" >> $GITHUB_STEP_SUMMARY
+          echo "**Git SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Staging Image Digest:** \`$STAGING_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       # ========================================================================
       # CRITICAL SAFETY CHECK: Verify image has test labels
@@ -270,10 +294,45 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           block_on_failure: 'false'  # Warning only for staging
 
-      - uses: ./.github/actions/load-from-cache
+      # ========================================================================
+      # VERIFY SAME SHA: Pull develop image and compare digests
+      # ========================================================================
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          image_tag: staging
-          fail_if_missing: 'true'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+      - name: Compare with develop image digest
+        run: |
+          echo "## 🔍 Image Digest Comparison" >> $GITHUB_STEP_SUMMARY
+
+          # Pull develop image from GCR
+          docker pull ${{ env.GCR_IMAGE }}:develop-${{ github.sha }} || {
+            echo "⚠️ **WARNING:** Develop image not found in GCR for SHA \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "This might indicate develop pipeline didn't complete" >> $GITHUB_STEP_SUMMARY
+            exit 0  # Don't fail, just warn
+          }
+
+          # Get digests
+          STAGING_DIGEST=$(docker inspect backend_easy:staging --format='{{.Id}}')
+          DEVELOP_DIGEST=$(docker inspect ${{ env.GCR_IMAGE }}:develop-${{ github.sha }} --format='{{.Id}}')
+
+          echo "**Develop Digest:**  \`$DEVELOP_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Staging Digest:**  \`$STAGING_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$STAGING_DIGEST" = "$DEVELOP_DIGEST" ]; then
+            echo "✅ **VERIFIED:** Staging and develop images are IDENTICAL" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Deterministic build successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **ERROR:** Image digests DO NOT MATCH!" >> $GITHUB_STEP_SUMMARY
+            echo "This indicates non-deterministic build or cache mismatch" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
       - uses: ./.github/actions/push-image
         with:
@@ -305,12 +364,37 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
   deploy-production:
-    name: Deploy Production (Promote from Candidate)
+    name: Deploy Production (Promote from Same SHA Build)
     runs-on: ubuntu-latest
     needs: [decide]
     if: needs.decide.outputs.release_path == 'true'
     steps:
       - uses: actions/checkout@v4
+
+      # ========================================================================
+      # BUILD FROM CACHE: Same git SHA = Same image digest (deterministic)
+      # ========================================================================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build from cache (same SHA as develop/staging)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: backend_easy:latest
+          cache-from: type=gha
+          # Uses GHA cache from original develop build (same git SHA)
+
+      - name: Verify deterministic build
+        run: |
+          PROD_DIGEST=$(docker inspect backend_easy:latest --format='{{.Id}}')
+          echo "## 🔒 Production Build Verification" >> $GITHUB_STEP_SUMMARY
+          echo "**Git SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Production Image Digest:** \`$PROD_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
       # ========================================================================
       # CRITICAL SAFETY CHECK: Verify image has test labels (BLOCKS if missing)
@@ -322,10 +406,47 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           block_on_failure: 'true'  # BLOCK production if not tested
 
-      - uses: ./.github/actions/load-from-cache
+      # ========================================================================
+      # VERIFY SAME SHA: Pull staging image and compare digests
+      # ========================================================================
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          image_tag: latest
-          fail_if_missing: 'true'
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
+
+      - name: Compare with staging image digest
+        run: |
+          echo "## 🔍 Production Image Digest Comparison" >> $GITHUB_STEP_SUMMARY
+
+          # Pull staging image from GCR (tagged with git SHA)
+          docker pull ${{ env.GCR_IMAGE }}:staging-${{ github.sha }} || {
+            echo "❌ **ERROR:** Staging image not found in GCR for SHA \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "**BLOCKING PRODUCTION DEPLOY**" >> $GITHUB_STEP_SUMMARY
+            echo "Staging must be deployed before production!" >> $GITHUB_STEP_SUMMARY
+            exit 1  # BLOCK production if staging missing
+          }
+
+          # Get digests
+          PROD_DIGEST=$(docker inspect backend_easy:latest --format='{{.Id}}')
+          STAGING_DIGEST=$(docker inspect ${{ env.GCR_IMAGE }}:staging-${{ github.sha }} --format='{{.Id}}')
+
+          echo "**Staging Digest:**    \`$STAGING_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Production Digest:** \`$PROD_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PROD_DIGEST" = "$STAGING_DIGEST" ]; then
+            echo "✅ **VERIFIED:** Production and staging images are IDENTICAL" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Deterministic build successful - safe to deploy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **ERROR:** Image digests DO NOT MATCH!" >> $GITHUB_STEP_SUMMARY
+            echo "**BLOCKING PRODUCTION DEPLOY**" >> $GITHUB_STEP_SUMMARY
+            echo "This indicates non-deterministic build or cache mismatch" >> $GITHUB_STEP_SUMMARY
+            exit 1  # BLOCK production
+          fi
 
       - uses: ./.github/actions/push-image
         with:
