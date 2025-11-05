@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Bus, BusStop, Route, RouteStop
+from .models import Bus, BusStop, Route, RouteStop, RouteWaypoint, Waypoint
 
 
 @admin.register(BusStop)
@@ -30,7 +30,7 @@ class RouteAdmin(admin.ModelAdmin):
     list_display = ["name", "is_active", "has_polyline", "stop_count", "total_students", "created_at"]
     list_filter = ["is_active", "created_at"]
     search_fields = ["name", "description"]
-    readonly_fields = ["route_id", "created_at", "updated_at"]
+    readonly_fields = ["route_id", "encoded_polyline", "created_at", "updated_at"]  # Make polyline readonly
     ordering = ["name"]
     inlines = [RouteStopInline]
 
@@ -38,7 +38,15 @@ class RouteAdmin(admin.ModelAdmin):
         ("Route Info", {"fields": ("route_id", "name", "description", "is_active")}),
         (
             "Visual Display",
-            {"fields": ("color_code", "line_pattern", "encoded_polyline")},
+            {"fields": ("color_code", "line_pattern")},
+        ),
+        (
+            "Auto-Generated Polyline",
+            {
+                "fields": ("encoded_polyline",),
+                "classes": ("collapse",),
+                "description": "Polyline is auto-generated from waypoints. Add waypoints below to generate.",
+            },
         ),
         (
             "Metadata",
@@ -104,3 +112,34 @@ class BusAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Optimize queryset with annotations"""
         return super().get_queryset(request).select_related("route").prefetch_related("assigned_students")
+
+
+@admin.register(Waypoint)
+class WaypointAdmin(admin.ModelAdmin):
+    """Admin interface for waypoints"""
+
+    list_display = ["__str__", "waypoint_type", "latitude", "longitude", "created_at"]
+    list_filter = ["created_at"]
+    search_fields = ["metadata__name"]
+    readonly_fields = ["waypoint_id", "created_at", "updated_at"]
+    ordering = ["-created_at"]
+
+    def waypoint_type(self, obj):
+        """Show waypoint type from metadata"""
+        return obj.metadata.get("type", "waypoint")
+
+    waypoint_type.short_description = "Type"  # type: ignore[attr-defined]
+
+
+class RouteWaypointInline(admin.TabularInline):
+    """Inline for managing route waypoints"""
+
+    model = RouteWaypoint
+    extra = 1
+    fields = ["waypoint", "sequence"]
+    ordering = ["sequence"]
+    autocomplete_fields = ["waypoint"]
+
+
+# Add the waypoint inline to RouteAdmin
+RouteAdmin.inlines = [RouteWaypointInline]

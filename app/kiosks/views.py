@@ -265,14 +265,11 @@ def heartbeat(request: Request, kiosk_id: str) -> Response:
     Updates KioskStatus model with current state.
     Determines overall status (ok/warning/critical) based on metrics.
     """
-    try:
-        kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
-    except Kiosk.DoesNotExist:
-        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
+    # Use authenticated kiosk from request.user (already verified by FirebaseAuthentication)
+    kiosk = cast(Kiosk, request.user)
 
-    # Verify authenticated kiosk matches requested kiosk_id
-    kiosk_user = cast(Kiosk, request.user)
-    if kiosk_user.kiosk_id != kiosk_id:
+    # Verify authenticated kiosk matches requested kiosk_id (ATOMICITY check)
+    if kiosk.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
             status=status.HTTP_403_FORBIDDEN,
@@ -351,14 +348,11 @@ def update_location(request: Request, kiosk_id: str) -> Response:
     Kiosk decides when to send (distance/time thresholds managed in app).
     Backend simply stores the location for real-time tracking.
     """
-    try:
-        kiosk = Kiosk.objects.get(kiosk_id=kiosk_id)
-    except Kiosk.DoesNotExist:
-        return Response({"detail": "Kiosk not found"}, status=status.HTTP_404_NOT_FOUND)
+    # Use authenticated kiosk from request.user (already verified by FirebaseAuthentication)
+    kiosk = cast(Kiosk, request.user)
 
-    # Verify authenticated kiosk matches requested kiosk_id
-    kiosk_user = cast(Kiosk, request.user)
-    if kiosk_user.kiosk_id != kiosk_id:
+    # Verify authenticated kiosk matches requested kiosk_id (ATOMICITY check)
+    if kiosk.kiosk_id != kiosk_id:
         return Response(
             {"detail": "Not authorized for this kiosk"},
             status=status.HTTP_403_FORBIDDEN,

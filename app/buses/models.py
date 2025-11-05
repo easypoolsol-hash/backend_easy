@@ -92,6 +92,46 @@ class Route(models.Model):
     def __str__(self):
         return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
 
+    def save(self, *args, **kwargs):
+        """Auto-generate encoded polyline from waypoints on save"""
+        # Save first to ensure we have a primary key for relationships
+        super().save(*args, **kwargs)
+
+        # Auto-generate polyline if route has waypoints
+        if not self.encoded_polyline or kwargs.get("force_regenerate_polyline", False):
+            self.regenerate_polyline()
+
+    def regenerate_polyline(self):
+        """Generate encoded polyline from route waypoints"""
+        from buses.utils.polyline_generator import PolylineGenerationError, generate_route_polyline
+
+        # Get all waypoints in sequence order
+        waypoints_qs = self.route_waypoints.select_related("waypoint").order_by("sequence")
+
+        if waypoints_qs.count() < 2:
+            # Need at least 2 points for a route
+            return
+
+        try:
+            # Extract (lat, lng) tuples
+            coords = [(float(rw.waypoint.latitude), float(rw.waypoint.longitude)) for rw in waypoints_qs]
+
+            # Generate polyline using Google Directions API
+            polyline = generate_route_polyline(coords)
+
+            # Update without triggering save recursion
+            Route.objects.filter(pk=self.pk).update(encoded_polyline=polyline)
+
+            # Update instance
+            self.encoded_polyline = polyline
+
+        except PolylineGenerationError as e:
+            # Log but don't fail the save
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to generate polyline for route {self.name}: {e}")
+
     @property
     def stop_count(self):
         """Return the number of stops in this route"""
@@ -303,3 +343,16 @@ class RouteWaypoint(models.Model):
 
     def __str__(self):
         return f"{self.route.name} - Seq {self.sequence}: {self.waypoint}"
+
+    def save(self, *args, **kwargs):
+        """Trigger polyline regeneration when waypoints change"""
+        super().save(*args, **kwargs)
+        # Regenerate route polyline whenever waypoints change
+        self.route.regenerate_polyline()
+
+    def delete(self, *args, **kwargs):
+        """Trigger polyline regeneration when waypoints are deleted"""
+        route = self.route
+        super().delete(*args, **kwargs)
+        # Regenerate route polyline after deletion
+        route.regenerate_polyline()

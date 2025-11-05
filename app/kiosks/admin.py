@@ -30,7 +30,13 @@ class KioskAdmin(admin.ModelAdmin):
     ordering = ["kiosk_id"]
 
     fieldsets = (
-        ("Device Info", {"fields": ("kiosk_id", "bus", "is_active")}),
+        (
+            "Device Info",
+            {
+                "fields": ("kiosk_id", "firebase_uid", "bus", "is_active"),
+                "description": "Pre-register kiosk before deployment. firebase_uid must match Firebase Authentication UID.",
+            },
+        ),
         (
             "Technical Details",
             {

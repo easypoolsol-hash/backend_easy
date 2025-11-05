@@ -57,23 +57,18 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             kiosk_id = decoded_token.get("kiosk_id")
 
             if user_type == "kiosk" and kiosk_id:
-                # This is a kiosk - return Kiosk object instead of User
+                # PRE-REGISTRATION PATTERN: Kiosk must be registered by admin first
+                # This follows Fortune 500 standard (Apple Business Manager, Microsoft Intune)
                 from kiosks.models import Kiosk
 
-                kiosk, created = Kiosk.objects.get_or_create(
-                    firebase_uid=firebase_uid,
-                    defaults={
-                        "kiosk_id": kiosk_id,
-                        "is_active": False,  # Inactive until admin activates
-                    },
-                )
+                try:
+                    kiosk = Kiosk.objects.get(firebase_uid=firebase_uid)
+                    logger.info(f"Authenticated kiosk: {kiosk.kiosk_id} ({firebase_uid})")
+                    return (kiosk, None)
 
-                if created:
-                    logger.info(f"Created new kiosk from Firebase: {kiosk_id} ({firebase_uid})")
-                else:
-                    logger.debug(f"Authenticated existing kiosk: {kiosk_id}")
-
-                return (kiosk, None)
+                except Kiosk.DoesNotExist as e:
+                    logger.error(f"Kiosk not registered: firebase_uid={firebase_uid}, kiosk_id={kiosk_id}. Admin must create kiosk record first.")
+                    raise exceptions.AuthenticationFailed("Kiosk not registered. Contact administrator to register this device.") from e
 
             # Regular user (not a kiosk)
             user, created = User.objects.get_or_create(
