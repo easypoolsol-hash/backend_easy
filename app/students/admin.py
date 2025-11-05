@@ -128,9 +128,7 @@ class StudentParentInline(admin.TabularInline):
     """Inline to link/unlink parents to student (parent details edited in Parent admin only)"""
 
     model = StudentParent
-    extra = 1  # Allow adding at least one parent
-    min_num = 1  # Require at least one parent
-    validate_min = True
+    extra = 1  # Allow adding parents (optional)
     fields = ["parent", "get_parent_phone", "get_parent_email", "relationship", "is_primary"]
     readonly_fields = ["get_parent_phone", "get_parent_email"]  # Can't edit parent info here
     autocomplete_fields = ["parent"]  # Searchable parent dropdown
@@ -269,10 +267,6 @@ class ParentAdmin(admin.ModelAdmin):
     search_fields = ["parent_id", "phone", "email"]  # Enable autocomplete search
     readonly_fields = ["parent_id", "created_at"]
     inlines = [ParentStudentsInline]  # Show linked students
-
-    # Disable add permission - parents should only be created via Student admin inline
-    def has_add_permission(self, request):
-        return False
 
     @display(description="Students")
     def get_students_count(self, obj):
