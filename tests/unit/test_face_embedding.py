@@ -107,16 +107,21 @@ def mock_mobilefacenet():
 class TestEmbeddingGenerationSignal:
     """Test automatic embedding generation via Django signals."""
 
-    @patch("students.tasks.process_student_photo_embedding_task.delay")
-    def test_signal_fires_on_photo_creation(self, mock_delay):
-        """Test that creating a photo triggers signal and queues embedding task."""
+    @patch("students.services.face_recognition_service.FaceRecognitionService")
+    def test_signal_fires_on_photo_creation(self, mock_service_class):
+        """Test that creating a photo triggers signal and processes embedding synchronously."""
         student = StudentFactory()
 
-        # Create photo (signal should fire and queue task)
+        # Mock the service instance and its methods
+        mock_service = mock_service_class.return_value
+        mock_service.process_student_photo.return_value = True
+
+        # Create photo (signal should fire and process embedding)
         photo = StudentPhotoFactory(student=student)
 
-        # Check that task was queued
-        mock_delay.assert_called_once_with(photo.photo_id)
+        # Check that service was instantiated and called
+        mock_service_class.assert_called_once()
+        mock_service.process_student_photo.assert_called_once_with(photo)
 
     def test_signal_does_not_fire_on_update(self):
         """Test that updating a photo does NOT trigger signal."""

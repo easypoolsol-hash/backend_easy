@@ -40,14 +40,20 @@ def process_student_photo_embedding(
         logger.debug(f"No photo file for student photo {instance.photo_id}")
         return
 
-    # Trigger asynchronous processing with error handling
+    # Process embedding synchronously (simple approach for Cloud Run)
     try:
-        from .tasks import process_student_photo_embedding_task
+        from .services.face_recognition_service import FaceRecognitionService
 
-        process_student_photo_embedding_task.delay(instance.photo_id)
-        logger.info(f"Queued embedding for photo {instance.photo_id}")
+        logger.info(f"Processing embedding for photo {instance.photo_id}")
+        service = FaceRecognitionService()
+        success = service.process_student_photo(instance)
+
+        if success:
+            logger.info(f"✅ Successfully generated embeddings for photo {instance.photo_id}")
+        else:
+            logger.warning(f"⚠️ Failed to generate embeddings for photo {instance.photo_id}")
     except Exception as e:
         # Log error but don't crash - photo upload should still succeed
         photo_id = instance.photo_id
-        logger.warning(f"Failed to queue embedding for {photo_id}: {e}")
-        logger.info("Photo uploaded, embedding skipped (Celery unavailable)")
+        logger.error(f"❌ Error processing embedding for {photo_id}: {e}")
+        logger.info("Photo uploaded, embedding generation failed")
