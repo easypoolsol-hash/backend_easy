@@ -336,7 +336,7 @@ class RouteWaypoint(models.Model):
     class Meta:
         db_table = "route_waypoints"
         ordering = ["route", "sequence"]
-        unique_together = [["route", "waypoint"], ["route", "sequence"]]
+        unique_together = [["route", "sequence"]]  # Only sequence must be unique, same waypoint can appear multiple times
         indexes = [
             models.Index(fields=["route", "sequence"], name="idx_route_waypoints"),
         ]

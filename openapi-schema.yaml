@@ -1392,20 +1392,27 @@ paths:
           description: ''
   /api/v1/locations/:
     get:
-      operationId: api_v1_locations_retrieve
-      description: |-
-        Bus locations API for school dashboard (any authenticated user).
-
-        Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
-        Accessible by any authenticated user.
+      operationId: bus_locations_api
+      description: "\n    Returns real-time bus locations for ALL buses in the fleet\
+        \ as GeoJSON.\n\n    Accessible by any authenticated user (school administrators,\
+        \ staff, etc.).\n\n    **Response Format:**\n    GeoJSON FeatureCollection\
+        \ with Point geometries for each bus location.\n\n    Each feature includes\
+        \ properties:\n    - id: Kiosk ID\n    - name: Bus license plate\n    - status:\
+        \ Bus status\n    - last_update: Timestamp of last location update\n    -\
+        \ speed: Current speed (km/h)\n    - heading: Direction heading (degrees)\n\
+        \    "
       tags:
-      - api
+      - Buses
       security:
       - cookieAuth: []
       - Bearer: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocationsResponse'
+          description: ''
   /api/v1/logs/:
     get:
       operationId: api_v1_logs_list
@@ -1931,20 +1938,27 @@ paths:
           description: ''
   /api/v1/school/api/bus-locations/:
     get:
-      operationId: api_v1_school_api_bus_locations_retrieve
-      description: |-
-        Bus locations API for school dashboard (any authenticated user).
-
-        Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
-        Accessible by any authenticated user.
+      operationId: bus_locations_api_2
+      description: "\n    Returns real-time bus locations for ALL buses in the fleet\
+        \ as GeoJSON.\n\n    Accessible by any authenticated user (school administrators,\
+        \ staff, etc.).\n\n    **Response Format:**\n    GeoJSON FeatureCollection\
+        \ with Point geometries for each bus location.\n\n    Each feature includes\
+        \ properties:\n    - id: Kiosk ID\n    - name: Bus license plate\n    - status:\
+        \ Bus status\n    - last_update: Timestamp of last location update\n    -\
+        \ speed: Current speed (km/h)\n    - heading: Direction heading (degrees)\n\
+        \    "
       tags:
-      - api
+      - Buses
       security:
       - cookieAuth: []
       - Bearer: []
       responses:
         '200':
-          description: No response body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocationsResponse'
+          description: ''
   /api/v1/schools/:
     get:
       operationId: api_v1_schools_list
@@ -3419,6 +3433,20 @@ components:
       - location_id
       - longitude
       - timestamp
+    BusLocationsResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          default: FeatureCollection
+        features:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: Array of GeoJSON Feature objects with bus locations
+      required:
+      - features
     CheckUpdatesResponse:
       type: object
       description: Serializer for check updates response

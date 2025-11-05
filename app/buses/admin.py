@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 
 from .models import Bus, BusStop, Route, RouteStop, RouteWaypoint, Waypoint
@@ -7,7 +8,13 @@ from .models import Bus, BusStop, Route, RouteStop, RouteWaypoint, Waypoint
 class BusStopAdmin(admin.ModelAdmin):
     """Admin interface for bus stops"""
 
-    list_display = ["name", "latitude", "longitude", "is_active", "created_at"]
+    list_display = [
+        "name",
+        "latitude",
+        "longitude",
+        "is_active",
+        "created_at",
+    ]
     list_filter = ["is_active", "created_at"]
     search_fields = ["name"]
     readonly_fields = ["stop_id", "created_at", "updated_at"]
@@ -131,14 +138,118 @@ class WaypointAdmin(admin.ModelAdmin):
     waypoint_type.short_description = "Type"  # type: ignore[attr-defined]
 
 
+class RouteWaypointInlineForm(forms.ModelForm):
+    """Custom form for route waypoints with bus stop selection"""
+
+    POINT_TYPE_CHOICES = [
+        ("waypoint", "Waypoint (Path Adjustment)"),
+        ("bus_stop", "Bus Stop"),
+    ]
+
+    point_type = forms.ChoiceField(
+        choices=POINT_TYPE_CHOICES,
+        initial="bus_stop",
+        required=False,
+        help_text="Select whether this is a bus stop or waypoint",
+    )
+
+    bus_stop = forms.ModelChoiceField(
+        queryset=BusStop.objects.filter(is_active=True).order_by("name"),
+        required=False,
+        help_text="Select a bus stop (main stop)",
+    )
+
+    waypoint = forms.ModelChoiceField(
+        queryset=Waypoint.objects.all().order_by("-created_at"),
+        required=False,
+        help_text="Select a waypoint (path adjustment)",
+    )
+
+    sequence = forms.IntegerField(
+        required=True,
+        widget=forms.NumberInput(attrs={"class": "auto-sequence"}),
+        help_text="Auto-filled based on order (editable)",
+    )
+
+    class Meta:
+        model = RouteWaypoint
+        fields = ["point_type", "bus_stop", "waypoint", "sequence"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # If editing existing, set point_type based on waypoint metadata
+        if self.instance and self.instance.pk and self.instance.waypoint:
+            if self.instance.waypoint.is_bus_stop:
+                self.initial["point_type"] = "bus_stop"
+                # Try to find matching bus stop
+                metadata = self.instance.waypoint.metadata
+                if "bus_stop_id" in metadata:
+                    try:
+                        bus_stop = BusStop.objects.get(stop_id=metadata["bus_stop_id"])
+                        self.initial["bus_stop"] = bus_stop
+                    except BusStop.DoesNotExist:
+                        pass
+            else:
+                self.initial["point_type"] = "waypoint"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        point_type = cleaned_data.get("point_type")
+        bus_stop = cleaned_data.get("bus_stop")
+        waypoint = cleaned_data.get("waypoint")
+
+        # Ensure either bus_stop or waypoint is selected based on type
+        if point_type == "bus_stop" and not bus_stop:
+            raise forms.ValidationError("Please select a bus stop when point type is 'Bus Stop'")
+        elif point_type == "waypoint" and not waypoint:
+            raise forms.ValidationError("Please select a waypoint when point type is 'Waypoint'")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        point_type = self.cleaned_data.get("point_type")
+        bus_stop = self.cleaned_data.get("bus_stop")
+        waypoint = self.cleaned_data.get("waypoint")
+
+        if point_type == "bus_stop" and bus_stop:
+            # Convert bus stop to waypoint or find existing
+            waypoint_obj, _created = Waypoint.objects.get_or_create(
+                latitude=bus_stop.latitude,
+                longitude=bus_stop.longitude,
+                metadata__type="bus_stop",
+                metadata__bus_stop_id=str(bus_stop.stop_id),
+                defaults={
+                    "metadata": {
+                        "type": "bus_stop",
+                        "name": bus_stop.name,
+                        "bus_stop_id": str(bus_stop.stop_id),
+                    }
+                },
+            )
+            instance.waypoint = waypoint_obj
+        elif point_type == "waypoint" and waypoint:
+            instance.waypoint = waypoint
+
+        if commit:
+            instance.save()
+
+        return instance
+
+
 class RouteWaypointInline(admin.TabularInline):
     """Inline for managing route waypoints"""
 
     model = RouteWaypoint
+    form = RouteWaypointInlineForm
     extra = 1
-    fields = ["waypoint", "sequence"]
+    fields = ["point_type", "bus_stop", "waypoint", "sequence"]
     ordering = ["sequence"]
-    autocomplete_fields = ["waypoint"]
+    # Use regular dropdowns, not autocomplete
+    raw_id_fields = []
+
+    class Media:
+        js = ("admin/js/route_waypoint_toggle.js",)
 
 
 # Add the waypoint inline to RouteAdmin
