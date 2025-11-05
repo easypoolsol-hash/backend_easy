@@ -22,6 +22,13 @@ class Kiosk(models.Model):
         primary_key=True,
         help_text="Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)",
     )
+    firebase_uid = models.CharField(
+        max_length=128,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Firebase UID for this kiosk user (from Firebase Authentication)",
+    )
     bus = models.OneToOneField(
         Bus,
         on_delete=models.SET_NULL,

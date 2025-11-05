@@ -52,6 +52,30 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             email = decoded_token.get("email")
             name = decoded_token.get("name")
 
+            # Check if this is a kiosk user (from custom claims)
+            user_type = decoded_token.get("type")
+            kiosk_id = decoded_token.get("kiosk_id")
+
+            if user_type == "kiosk" and kiosk_id:
+                # This is a kiosk - return Kiosk object instead of User
+                from kiosks.models import Kiosk
+
+                kiosk, created = Kiosk.objects.get_or_create(
+                    firebase_uid=firebase_uid,
+                    defaults={
+                        "kiosk_id": kiosk_id,
+                        "is_active": False,  # Inactive until admin activates
+                    },
+                )
+
+                if created:
+                    logger.info(f"Created new kiosk from Firebase: {kiosk_id} ({firebase_uid})")
+                else:
+                    logger.debug(f"Authenticated existing kiosk: {kiosk_id}")
+
+                return (kiosk, None)
+
+            # Regular user (not a kiosk)
             user, created = User.objects.get_or_create(
                 username=firebase_uid,
                 defaults={
