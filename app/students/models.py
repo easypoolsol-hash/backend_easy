@@ -81,7 +81,7 @@ class Student(models.Model):
         related_name="assigned_students",
     )
     status: models.CharField = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
-    enrollment_date: models.DateField = models.DateField()
+    enrollment_date: models.DateField = models.DateField(null=True, blank=True, help_text="Date student enrolled in school")
     created_at: models.DateTimeField = models.DateTimeField(default=timezone.now)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
@@ -178,7 +178,7 @@ class Parent(models.Model):
     """
 
     # Validation constants (Fortune 500 standard)
-    PHONE_REGEX = r"^\+91\d{10}$"  # +91 followed by exactly 10 digits
+    PHONE_REGEX = r"^(\+91)?\d{10}$"  # Optional +91 followed by exactly 10 digits
     EMAIL_MAX_LENGTH = 254  # RFC 5321 standard
     NAME_MAX_LENGTH = 100  # Reasonable human name limit
 

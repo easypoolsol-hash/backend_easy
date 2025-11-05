@@ -4496,6 +4496,8 @@ components:
         enrollment_date:
           type: string
           format: date
+          nullable: true
+          description: Date student enrolled in school
         school_details:
           allOf:
           - $ref: '#/components/schemas/School'
@@ -4788,6 +4790,8 @@ components:
         enrollment_date:
           type: string
           format: date
+          nullable: true
+          description: Date student enrolled in school
         school_details:
           allOf:
           - $ref: '#/components/schemas/School'
@@ -4818,7 +4822,6 @@ components:
       - bus_details
       - created_at
       - decrypted_name
-      - enrollment_date
       - grade
       - name
       - parents
