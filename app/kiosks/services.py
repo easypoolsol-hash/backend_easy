@@ -86,11 +86,13 @@ class SnapshotGenerator:
             CREATE TABLE students (
                 student_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
-                status TEXT DEFAULT 'active'
+                status TEXT DEFAULT 'active',
+                bus_id TEXT
             )
             """
         )
         cursor.execute("CREATE INDEX idx_students_status ON students(status)")
+        cursor.execute("CREATE INDEX idx_students_bus ON students(bus_id)")
 
         cursor.execute(
             """
@@ -116,13 +118,18 @@ class SnapshotGenerator:
         )
 
     def _get_data_for_bus(self):
-        """Queries the Django database for all necessary student and embedding data."""
+        """Queries the Django database for all necessary student and embedding data.
+
+        Returns ALL students (not just bus-specific) for fast offline matching.
+        Each kiosk gets full database to identify wrong-bus students instantly.
+        """
         try:
             bus = Bus.objects.get(bus_id=self.bus_id)
         except Bus.DoesNotExist:
             return [], [], []
 
-        students = Student.objects.filter(assigned_bus__route=bus.route, status="active").prefetch_related("photos__face_embeddings")
+        # Get ALL active students across all buses for offline speed
+        students = Student.objects.filter(status="active").prefetch_related("photos__face_embeddings", "assigned_bus")
 
         student_ids = [s.student_id for s in students]
         embedding_ids = [emb.embedding_id for s in students for p in s.photos.all() for emb in p.face_embeddings.all()]
@@ -137,7 +144,8 @@ class SnapshotGenerator:
         for student in students:
             # Contract: names must be decrypted
             decrypted_name = student.encrypted_name
-            student_rows.append((str(student.student_id), decrypted_name, "active"))
+            bus_id = str(student.assigned_bus.bus_id) if student.assigned_bus else None
+            student_rows.append((str(student.student_id), decrypted_name, "active", bus_id))
 
             for photo in student.photos.all():
                 for embedding_meta in photo.face_embeddings.all():
@@ -154,7 +162,7 @@ class SnapshotGenerator:
                         )
                     )
 
-        cursor.executemany("INSERT INTO students (student_id, name, status) VALUES (?, ?, ?)", student_rows)
+        cursor.executemany("INSERT INTO students (student_id, name, status, bus_id) VALUES (?, ?, ?, ?)", student_rows)
         cursor.executemany(
             "INSERT INTO face_embeddings (student_id, embedding_vector, quality_score, model_name) VALUES (?, ?, ?, ?)",
             embedding_rows,
