@@ -4480,18 +4480,31 @@ components:
         school:
           type: string
           format: uuid
+        school_student_id:
+          type: string
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
         decrypted_name:
           type: string
           readOnly: true
-        name:
-          type: string
-          description: Encrypted at application layer
         grade:
           type: string
           maxLength: 10
         section:
           type: string
           maxLength: 10
+        address_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address latitude
+        address_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address longitude
         assigned_bus:
           type: string
           format: uuid
@@ -4774,18 +4787,31 @@ components:
         school:
           type: string
           format: uuid
+        school_student_id:
+          type: string
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
         decrypted_name:
           type: string
           readOnly: true
-        name:
-          type: string
-          description: Encrypted at application layer
         grade:
           type: string
           maxLength: 10
         section:
           type: string
           maxLength: 10
+        address_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address latitude
+        address_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address longitude
         assigned_bus:
           type: string
           format: uuid
@@ -4838,11 +4864,11 @@ components:
       - created_at
       - decrypted_name
       - grade
-      - name
       - parents
       - photos
       - school
       - school_details
+      - school_student_id
       - student_id
       - updated_at
     StudentActivity:

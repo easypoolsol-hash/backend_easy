@@ -216,10 +216,12 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = [
             "student_id",
             "school",
+            "school_student_id",
             "decrypted_name",
-            "name",
             "grade",
             "section",
+            "address_latitude",
+            "address_longitude",
             "assigned_bus",
             "status",
             "enrollment_date",
