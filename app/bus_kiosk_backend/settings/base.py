@@ -132,6 +132,8 @@ REST_FRAMEWORK: dict[str, Any] = {
         "rest_framework.filters.OrderingFilter",
     ],
     "EXCEPTION_HANDLER": "bus_kiosk_backend.exceptions.custom_exception_handler",
+    # Timezone: Return datetimes in Asia/Kolkata (IST) instead of UTC
+    "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%S.%f%z",  # ISO 8601 with timezone
 }
 
 # Celery Configuration
@@ -141,7 +143,7 @@ CELERY_RESULT_BACKEND = "django-db"  # Uses django_celery_results app
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = "UTC"
+CELERY_TIMEZONE = "Asia/Kolkata"  # Match Django timezone (IST)
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
