@@ -124,7 +124,7 @@ class SnapshotGenerator:
         Each kiosk gets full database to identify wrong-bus students instantly.
         """
         try:
-            bus = Bus.objects.get(bus_id=self.bus_id)
+            Bus.objects.get(bus_id=self.bus_id)  # Verify bus exists
         except Bus.DoesNotExist:
             return [], [], []
 
