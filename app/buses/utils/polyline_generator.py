@@ -2,6 +2,7 @@
 Google Maps Polyline Generator
 
 Generates encoded polylines for bus routes using Google Maps Directions API.
+Uses shared storage bucket for boarding event images.
 """
 
 import logging
