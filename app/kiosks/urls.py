@@ -6,6 +6,7 @@ from .views import (
     KioskViewSet,
     check_updates,
     download_snapshot,
+    get_me,
     heartbeat,
     kiosk_log,
     update_location,
@@ -19,6 +20,7 @@ router.register(r"logs", DeviceLogViewSet, basename="device-log")
 # URL patterns
 urlpatterns = [
     # Individual kiosk endpoints (flattened to avoid URLResolver issues)
+    path("kiosks/me/", get_me, name="kiosk-me"),
     path("kiosks/logs/", kiosk_log, name="kiosk-logs"),
     path(
         "kiosks/<str:kiosk_id>/check-updates/",

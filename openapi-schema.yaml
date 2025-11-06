@@ -1390,6 +1390,21 @@ paths:
                   status:
                     type: string
           description: ''
+  /api/v1/kiosks/me/:
+    get:
+      operationId: kiosk_get_me
+      description: Get current authenticated kiosk details including bus assignment
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
   /api/v1/locations/:
     get:
       operationId: bus_locations_api

@@ -49,6 +49,42 @@ class KioskViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(
+    responses={200: KioskSerializer},
+    operation_id="kiosk_get_me",
+    description="Get current authenticated kiosk details including bus assignment",
+)
+@api_view(["GET"])
+@authentication_classes([FirebaseAuthentication])
+@permission_classes([IsKiosk])
+def get_me(request: Request) -> Response:
+    """
+    Get current authenticated kiosk details.
+
+    Returns kiosk_id and bus_id for the authenticated kiosk.
+    This eliminates the need to store these IDs in Firebase custom claims.
+
+    The backend looks up the kiosk by firebase_uid and returns:
+    - kiosk_id: The kiosk identifier
+    - bus_id: The assigned bus UUID (if any)
+
+    Fortune 500 pattern: Single source of truth in backend database.
+    """
+    # Get authenticated kiosk from request.user (set by FirebaseAuthentication)
+    kiosk = request.user
+
+    # Security check: Ensure request.user is actually a Kiosk (not a User)
+    if not isinstance(kiosk, Kiosk):
+        return Response(
+            {"detail": "Authentication credentials are not valid for kiosk endpoints"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Serialize and return kiosk details
+    serializer = KioskSerializer(kiosk)
+    return Response(serializer.data)
+
+
+@extend_schema(
     request=DeviceLogSerializer,
     responses={200: {"type": "object", "properties": {"status": {"type": "string"}}}},
     operation_id="kiosk_log",
