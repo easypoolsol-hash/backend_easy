@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin import display
 
 from .models import AttendanceRecord, BoardingEvent
 
@@ -9,7 +10,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     list_display = [
         "event_id_short",
-        "student",
+        "get_student_name",
         "kiosk_id",
         "confidence_score",
         "timestamp",
@@ -36,6 +37,15 @@ class BoardingEventAdmin(admin.ModelAdmin):
         ("Location", {"fields": ("latitude", "longitude", "bus_route")}),
         ("Metadata", {"fields": ("metadata", "created_at"), "classes": ("collapse",)}),
     )
+
+    @display(description="Student Name")
+    def get_student_name(self, obj):
+        """Display decrypted student name"""
+        try:
+            return obj.student.encrypted_name
+        except Exception:
+            # If decryption fails, return the student ID
+            return f"Student {obj.student.student_id}"
 
     def event_id_short(self, obj):
         """Display shortened ULID for readability"""
