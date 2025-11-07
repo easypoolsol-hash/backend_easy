@@ -1,6 +1,13 @@
+import csv
+import os
+import tempfile
+import zipfile
+
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import display
+from django.core.files import File
+from django.db import transaction
 from django.utils.html import format_html
 
 from .models import (
@@ -152,6 +159,20 @@ class StudentParentInline(admin.TabularInline):
         return "-"
 
 
+class BulkUploadForm(forms.Form):
+    """Form for bulk student upload via ZIP file"""
+
+    zip_file = forms.FileField(
+        label="Upload ZIP file",
+        help_text="ZIP containing: students.csv + student_folders/ with photos",
+    )
+    school = forms.ModelChoiceField(
+        queryset=School.objects.all(),
+        label="School",
+        help_text="Select the school for all students",
+    )
+
+
 @admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
     form = StudentAdminForm  # Use custom form with encryption
@@ -168,6 +189,7 @@ class StudentAdmin(admin.ModelAdmin):
     search_fields = ["school_student_id", "student_id"]
     readonly_fields = ["student_id", "created_at", "updated_at"]
     inlines = [StudentParentInline, StudentPhotoInline]  # Parents first, then photos
+    change_list_template = "admin/students/student_changelist.html"
 
     @display(description="Student Name")
     def get_name(self, obj):
@@ -187,6 +209,156 @@ class StudentAdmin(admin.ModelAdmin):
             return format_html('<span style="color: orange;">No primary parent</span>')
         except Exception:
             return "-"
+
+    def get_urls(self):
+        from django.urls import path
+
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "bulk-upload/",
+                self.admin_site.admin_view(self.bulk_upload_view),
+                name="students_student_bulk_upload",
+            ),
+        ]
+        return custom_urls + urls
+
+    def bulk_upload_view(self, request):
+        """Handle bulk upload of students from ZIP file"""
+        from django.shortcuts import redirect, render
+
+        if request.method == "POST":
+            form = BulkUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                zip_file = form.cleaned_data["zip_file"]
+                school = form.cleaned_data["school"]
+
+                try:
+                    result = self._process_bulk_upload(zip_file, school)
+                    messages.success(
+                        request,
+                        f"✅ Successfully imported {result['created']} students with {result['photos']} photos. "
+                        f"Skipped {result['skipped']} existing students.",
+                    )
+                    return redirect("..")
+                except Exception as e:
+                    messages.error(request, f"❌ Upload failed: {e!s}")
+        else:
+            form = BulkUploadForm()
+
+        context = {
+            "form": form,
+            "title": "Bulk Upload Students",
+            "site_title": self.admin_site.site_title,
+            "site_header": self.admin_site.site_header,
+            "has_permission": True,
+        }
+        return render(request, "admin/students/bulk_upload.html", context)
+
+    def _process_bulk_upload(self, zip_file, school):
+        """Process uploaded ZIP file and create students"""
+        created_count = 0
+        photo_count = 0
+        skipped_count = 0
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract ZIP
+            with zipfile.ZipFile(zip_file, "r") as zip_ref:
+                zip_ref.extractall(temp_dir)
+
+            # Find CSV file
+            csv_path = None
+            for root, _dirs, files in os.walk(temp_dir):
+                for file in files:
+                    if file.endswith(".csv"):
+                        csv_path = os.path.join(root, file)
+                        break
+                if csv_path:
+                    break
+
+            if not csv_path:
+                raise ValueError("No CSV file found in ZIP")
+
+            # Find student_folders directory
+            folders_path = None
+            for root, dirs, _files in os.walk(temp_dir):
+                if "student_folders" in dirs:
+                    folders_path = os.path.join(root, "student_folders")
+                    break
+
+            # Read CSV and create students
+            with transaction.atomic():
+                with open(csv_path, encoding="utf-8") as csvfile:
+                    reader = csv.DictReader(csvfile)
+
+                    for row in reader:
+                        # Extract data (support both old and new headers)
+                        adm_no = (row.get("admission_no") or row.get("Adm  No.", "")).strip()
+                        name = (row.get("name") or row.get("Student Name", "")).strip()
+                        class_section = (row.get("class_section") or row.get("Class Section", "")).strip()
+
+                        if not adm_no or not name:
+                            continue
+
+                        # Parse class and section
+                        grade = ""
+                        section = ""
+                        if class_section:
+                            parts = class_section.split(" - ")
+                            if len(parts) == 2:
+                                grade = parts[0].strip()
+                                section = parts[1].strip()
+                            else:
+                                grade = class_section
+
+                        # Check if student exists
+                        if Student.objects.filter(school_student_id=adm_no, school=school).exists():
+                            skipped_count += 1
+                            continue
+
+                        # Create student
+                        student = Student.objects.create(
+                            school=school,
+                            school_student_id=adm_no,
+                            encrypted_name=name,
+                            grade=grade,
+                            section=section,
+                            status="active",
+                        )
+                        created_count += 1
+
+                        # Find and attach photos
+                        if folders_path:
+                            photo_count += self._attach_photos(student, folders_path, adm_no)
+
+        return {"created": created_count, "photos": photo_count, "skipped": skipped_count}
+
+    def _attach_photos(self, student, folders_path, adm_no):
+        """Find photos in student_folders and attach to student"""
+        photo_count = 0
+
+        # Find folder starting with _{adm_no}_
+        for folder_name in os.listdir(folders_path):
+            if folder_name.startswith(f"_{adm_no}_"):
+                folder_path = os.path.join(folders_path, folder_name)
+
+                # Find all image files in folder
+                for file_name in os.listdir(folder_path):
+                    if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
+                        file_path = os.path.join(folder_path, file_name)
+
+                        # Create StudentPhoto
+                        with open(file_path, "rb") as photo_file:
+                            student_photo = StudentPhoto(
+                                student=student,
+                                is_primary=(photo_count == 0),  # First photo is primary
+                            )
+                            student_photo.photo.save(file_name, File(photo_file), save=True)
+                            photo_count += 1
+
+                break  # Found the folder, no need to continue
+
+        return photo_count
 
 
 class FaceEmbeddingInline(admin.TabularInline):

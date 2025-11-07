@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block content %}
+<div id="content-main">
+  <h1>{{ title }}</h1>
+
+  <div class="module">
+    <h2>Instructions</h2>
+    <p>Upload a ZIP file containing:</p>
+    <ul>
+      <li><strong>students.csv</strong> - CSV file with columns: "Adm  No.", "Student Name", "Class Section"</li>
+      <li><strong>student_folders/</strong> - Folder containing student photo folders named: _<admission_no>_<name>/</li>
+    </ul>
+    <p><strong>Note:</strong> Students with existing admission numbers will be skipped.</p>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div>
+      {% for field in form %}
+        <div class="form-row">
+          {{ field.errors }}
+          <div>
+            <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+            {{ field }}
+            {% if field.help_text %}
+              <p class="help">{{ field.help_text }}</p>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="submit-row">
+      <input type="submit" value="Upload and Import" class="default" />
+      <a href="{% url 'admin:students_student_changelist' %}" class="button cancel-link">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
