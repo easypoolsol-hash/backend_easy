@@ -124,6 +124,24 @@ class Student(models.Model):
         else:
             self.name = ""
 
+    def get_reference_photo(self):
+        """
+        Get the reference photo for this student.
+
+        Returns primary photo if available, otherwise returns first available photo.
+        Used for face recognition verification in boarding events.
+
+        Returns:
+            StudentPhoto instance or None if no photos exist
+        """
+        # First choice: Primary photo
+        primary = self.photos.filter(is_primary=True).first()
+        if primary:
+            return primary
+
+        # Fallback: First photo by capture date
+        return self.photos.order_by("captured_at").first()
+
     def get_parents(self):
         """Get all parents for this student"""
         return Parent.objects.filter(student_parents__student=self)

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.admin import display
+from django.utils.html import format_html
 
 from .models import AttendanceRecord, BoardingEvent
 
@@ -10,6 +11,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     list_display = [
         "event_id_short",
+        "get_reference_photo_thumbnail",
         "get_student_name",
         "kiosk_id",
         "confidence_score",
@@ -46,6 +48,30 @@ class BoardingEventAdmin(admin.ModelAdmin):
         except Exception:
             # If decryption fails, return the student ID
             return f"Student {obj.student.student_id}"
+
+    @display(description="Reference Photo")
+    def get_reference_photo_thumbnail(self, obj):
+        """Display student's reference photo thumbnail"""
+        ref_photo = obj.student.get_reference_photo()
+
+        if ref_photo and ref_photo.photo:
+            return format_html(
+                '<a href="{}" target="_blank">'
+                '<img src="{}" style="width:50px;height:50px;object-fit:cover;'
+                'border:2px solid #28a745;border-radius:4px;" '
+                'title="Reference photo (click to enlarge)"/>'
+                "</a>",
+                ref_photo.photo.url,
+                ref_photo.photo.url,
+            )
+        else:
+            return format_html(
+                '<div style="width:50px;height:50px;background:#e9ecef;'
+                "border:2px solid #6c757d;border-radius:4px;"
+                "display:flex;align-items:center;justify-content:center;"
+                'font-size:10px;color:#6c757d;" '
+                'title="No photo available">No Photo</div>'
+            )
 
     def event_id_short(self, obj):
         """Display shortened ULID for readability"""
