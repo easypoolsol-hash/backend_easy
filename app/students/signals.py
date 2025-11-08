@@ -35,9 +35,9 @@ def process_student_photo_embedding(
     if not created:
         return
 
-    # Skip if photo file is not provided
-    if not instance.photo:
-        logger.debug(f"No photo file for student photo {instance.photo_id}")
+    # Skip if photo data is not provided
+    if not instance.photo_data:
+        logger.debug(f"No photo data for student photo {instance.photo_id}")
         return
 
     # Process embedding synchronously (simple approach for Cloud Run)

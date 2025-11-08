@@ -17,7 +17,6 @@ from pathlib import Path
 import random
 from typing import Any, cast
 
-from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -165,19 +164,21 @@ class Command(BaseCommand):
                 for idx, photo_file in enumerate(photo_files):
                     is_primary = idx == 0  # First photo is primary
 
-                    photo_obj = StudentPhoto(
-                        student=student,
-                        is_primary=is_primary,
-                        captured_at=timezone.now(),
-                    )
+                    # Read photo file and store as binary data
                     with open(photo_file, "rb") as photo_f:
-                        # `photo_f` is a binary file (BufferedReader); cast to Any for Django File
-                        _f = cast(Any, photo_f)
-                        photo_field = cast(Any, photo_obj.photo)
-                        photo_field.save(photo_file.name, File(_f), save=True)
+                        photo_data = photo_f.read()
+                        content_type = "image/jpeg" if photo_file.suffix.lower() in [".jpg", ".jpeg"] else "image/png"
+
+                        StudentPhoto.objects.create(
+                            student=student,
+                            is_primary=is_primary,
+                            captured_at=timezone.now(),
+                            photo_data=photo_data,
+                            photo_content_type=content_type,
+                        )
 
                     primary_label = " (PRIMARY)" if is_primary else ""
-                    msg = f"[OK] Photo {idx + 1}/{len(photo_files)}: {photo_obj.photo.name}{primary_label}"
+                    msg = f"[OK] Photo {idx + 1}/{len(photo_files)}: {photo_file.name}{primary_label}"
                     self.stdout.write(self.style.SUCCESS(msg))
 
                 total_msg = f"Total photos for {student.encrypted_name}: {len(photo_files)}\n"

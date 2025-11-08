@@ -38,10 +38,10 @@ class Command(BaseCommand):
             photo = StudentPhoto.objects.get(photo_id=photo_id)
             self.stdout.write(f"\nFound photo: {photo.photo_id}")
             self.stdout.write(f"  Student: {photo.student}")
-            photo_file_name = photo.photo.name if photo.photo else "None"
-            file_exists = photo.photo.storage.exists(photo.photo.name) if photo.photo else False
-            self.stdout.write(f"  Photo file: {photo_file_name}")
-            self.stdout.write(f"  File exists: {file_exists}")
+            has_photo_data = "Yes" if photo.photo_data else "No"
+            photo_size = len(photo.photo_data) if photo.photo_data else 0
+            self.stdout.write(f"  Has photo data: {has_photo_data}")
+            self.stdout.write(f"  Photo size: {photo_size} bytes")
 
             # Check existing embeddings
             existing_embeddings = FaceEmbeddingMetadata.objects.filter(student_photo=photo)

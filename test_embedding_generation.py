@@ -34,7 +34,10 @@ try:
     photo = StudentPhoto.objects.get(photo_id=photo_id)
     print(f"\n✓ Found photo: {photo.photo_id}")
     print(f"  Student: {photo.student}")
-    print(f"  Photo file: {photo.photo.name if photo.photo else 'None'}")
+    has_photo_data = "Yes" if photo.photo_data else "No"
+    photo_size = len(photo.photo_data) if photo.photo_data else 0
+    print(f"  Has photo data: {has_photo_data}")
+    print(f"  Photo size: {photo_size} bytes")
     print(f"  Captured at: {photo.captured_at}")
 
     # Check existing embeddings

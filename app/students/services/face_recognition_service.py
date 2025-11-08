@@ -49,8 +49,8 @@ class FaceRecognitionService:
         try:
             logger.info(f"Processing photo for student {student_photo.student}")
 
-            # Load and validate image
-            image = self._load_image(student_photo.photo)
+            # Load and validate image from binary data
+            image = self._load_image_from_binary(student_photo.photo_data)
             if not image:
                 logger.error("Failed to load image")
                 return False
@@ -102,6 +102,32 @@ class FaceRecognitionService:
             return pil_image
         except Exception as e:
             logger.error(f"Error loading image: {e}")
+            return None
+
+    def _load_image_from_binary(self, photo_data: bytes | None) -> Any:
+        """Load and validate image from binary data"""
+        from io import BytesIO
+
+        from PIL import Image
+
+        if not photo_data:
+            logger.error("No photo data provided")
+            return None
+
+        try:
+            image_buffer = BytesIO(photo_data)
+            pil_image = Image.open(image_buffer)
+            pil_image.verify()  # Validate image integrity
+            image_buffer.seek(0)  # Reset buffer pointer
+            pil_image = Image.open(image_buffer)  # Re-open after verify
+
+            # Convert to RGB if necessary
+            if pil_image.mode != "RGB":
+                pil_image = pil_image.convert("RGB")  # type: ignore[assignment]
+
+            return pil_image
+        except Exception as e:
+            logger.error(f"Error loading image from binary: {e}")
             return None
 
     def _detect_faces(self, image: Any) -> list[dict[str, Any]]:

@@ -273,14 +273,28 @@ class UserFactory(DjangoModelFactory):
 
 
 class StudentPhotoFactory(DjangoModelFactory):
-    """Factory for creating test student photos"""
+    """Factory for creating test student photos with binary data"""
 
     class Meta:
         model = StudentPhoto
 
     student = factory.SubFactory(StudentFactory)
-    photo = factory.django.ImageField(color="blue")
     is_primary = True
+
+    @factory.lazy_attribute  # type: ignore[arg-type]
+    def photo_data(self):
+        """Generate fake photo binary data"""
+        from io import BytesIO
+
+        from PIL import Image
+
+        # Create a simple 100x100 blue image
+        img = Image.new("RGB", (100, 100), color="blue")
+        buffer = BytesIO()
+        img.save(buffer, format="JPEG")
+        return buffer.getvalue()
+
+    photo_content_type = "image/jpeg"
 
 
 class FaceEmbeddingMetadataFactory(DjangoModelFactory):

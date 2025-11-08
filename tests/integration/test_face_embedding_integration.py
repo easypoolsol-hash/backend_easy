@@ -286,8 +286,13 @@ class TestEmbeddingPipelineEndToEnd:
         """Test complete pipeline with synthetic face image."""
         student = StudentFactory()
 
-        # Create photo with test image
-        photo = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=True)
+        # Create photo with binary data
+        photo = StudentPhoto.objects.create(
+            student=student,
+            photo_data=face_image_file.read(),
+            photo_content_type=face_image_file.content_type,
+            is_primary=True,
+        )
 
         # Process with real service
         service = FaceRecognitionService()
@@ -316,7 +321,12 @@ class TestEmbeddingPipelineEndToEnd:
         student = StudentFactory()
 
         # Create photo (should trigger signal)
-        photo = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=True)
+        photo = StudentPhoto.objects.create(
+            student=student,
+            photo_data=face_image_file.read(),
+            photo_content_type=face_image_file.content_type,
+            is_primary=True,
+        )
 
         # Check if embeddings were auto-generated
         embeddings = FaceEmbeddingMetadata.objects.filter(student_photo=photo)
@@ -332,12 +342,23 @@ class TestEmbeddingPipelineEndToEnd:
         """Test processing multiple photos for same student."""
         student = StudentFactory()
 
-        # Upload 2 photos
-        photo1 = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=True)
+        # Read image data once
+        image_data = face_image_file.read()
 
-        # Create new file object for second photo
-        face_image_file.seek(0)
-        photo2 = StudentPhoto.objects.create(student=student, photo=face_image_file, is_primary=False)
+        # Upload 2 photos with same data
+        photo1 = StudentPhoto.objects.create(
+            student=student,
+            photo_data=image_data,
+            photo_content_type=face_image_file.content_type,
+            is_primary=True,
+        )
+
+        photo2 = StudentPhoto.objects.create(
+            student=student,
+            photo_data=image_data,
+            photo_content_type=face_image_file.content_type,
+            is_primary=False,
+        )
 
         # Check both processed
         embeddings1 = FaceEmbeddingMetadata.objects.filter(student_photo=photo1)
