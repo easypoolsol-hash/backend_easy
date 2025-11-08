@@ -293,3 +293,17 @@ class KioskBoardingView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# Serve student photos from database
+def serve_student_photo(request, photo_id):
+    """Serve student photo from database binary field"""
+    from django.http import HttpResponse, HttpResponseNotFound
+    from django.shortcuts import get_object_or_404
+
+    photo = get_object_or_404(StudentPhoto, photo_id=photo_id)
+
+    if photo.photo_data:
+        return HttpResponse(photo.photo_data, content_type=photo.photo_content_type)
+
+    return HttpResponseNotFound("Photo not found")

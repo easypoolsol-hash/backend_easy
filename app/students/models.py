@@ -155,16 +155,24 @@ class Student(models.Model):
 
 
 class StudentPhoto(models.Model):
-    """Student photo storage with support for multiple photos per student"""
+    """Student photo storage - stored as binary data in Cloud SQL database"""
 
     photo_id: models.UUIDField = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student: models.ForeignKey = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="photos")
-    photo: models.ImageField = models.ImageField(
-        upload_to=student_photo_path,
+
+    # Store photo as binary data in database (Cloud SQL)
+    photo_data: models.BinaryField = models.BinaryField(
         blank=True,
         null=True,
-        help_text="Student photo file",
+        help_text="Photo binary data stored in database",
     )
+    photo_content_type: models.CharField = models.CharField(
+        max_length=50,
+        blank=True,
+        default="image/jpeg",
+        help_text="MIME type (e.g., image/jpeg, image/png)",
+    )
+
     is_primary: models.BooleanField = models.BooleanField(default=False, help_text="Primary photo for student")
     captured_at: models.DateTimeField = models.DateTimeField(default=timezone.now, help_text="When photo was taken")
     created_at: models.DateTimeField = models.DateTimeField(default=timezone.now)
@@ -177,7 +185,16 @@ class StudentPhoto(models.Model):
 
     def __str__(self):
         photo_type = "primary" if self.is_primary else "secondary"
-        return f"Photo for {self.student} ({photo_type}) - {self.photo.name if self.photo else 'No file'}"
+        has_photo = "with photo" if self.photo_data else "no photo"
+        return f"Photo for {self.student} ({photo_type}) - {has_photo}"
+
+    @property
+    def photo_url(self):
+        """Get URL to serve photo from database"""
+        if self.photo_data:
+            from django.urls import reverse
+            return reverse("student-photo-serve", kwargs={"photo_id": str(self.photo_id)})
+        return None
 
     def save(self, *args, **kwargs):
         # Ensure only one primary photo per student

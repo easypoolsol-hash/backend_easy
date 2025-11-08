@@ -121,13 +121,17 @@ NO_PHOTO = "No photo"
 class StudentPhotoInline(admin.TabularInline):
     model = StudentPhoto
     extra = 1  # Allow adding new photos inline
-    fields = ["photo", "is_primary", "captured_at", "photo_preview"]
+    fields = ["photo_upload", "is_primary", "captured_at", "photo_preview"]
     readonly_fields = ["captured_at", "photo_preview"]
+
+    def photo_upload(self, obj):
+        """Custom field for uploading photos - stores as binary data"""
+        return obj.photo_data
 
     @display(description="Preview")
     def photo_preview(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" width="100" height="100" />', obj.photo.url)
+        if obj.photo_url:
+            return format_html('<img src="{}" width="100" height="100" />', obj.photo_url)
         return NO_PHOTO
 
 
@@ -394,14 +398,14 @@ class StudentPhotoAdmin(admin.ModelAdmin):
 
     @display(description="Thumbnail")
     def photo_thumbnail(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" width="50" height="50" />', obj.photo.url)
+        if obj.photo_url:
+            return format_html('<img src="{}" width="50" height="50" />', obj.photo_url)
         return NO_PHOTO
 
     @display(description="Photo Preview")
     def photo_preview(self, obj):
-        if obj.photo:
-            return format_html('<img src="{}" width="300" />', obj.photo.url)
+        if obj.photo_url:
+            return format_html('<img src="{}" width="300" />', obj.photo_url)
         return NO_PHOTO
 
     @display(description="Embeddings")

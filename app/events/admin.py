@@ -54,15 +54,15 @@ class BoardingEventAdmin(admin.ModelAdmin):
         """Display student's reference photo thumbnail"""
         ref_photo = obj.student.get_reference_photo()
 
-        if ref_photo and ref_photo.photo:
+        if ref_photo and ref_photo.photo_url:
             return format_html(
                 '<a href="{}" target="_blank">'
                 '<img src="{}" style="width:50px;height:50px;object-fit:cover;'
                 'border:2px solid #28a745;border-radius:4px;" '
                 'title="Reference photo (click to enlarge)"/>'
                 "</a>",
-                ref_photo.photo.url,
-                ref_photo.photo.url,
+                ref_photo.photo_url,
+                ref_photo.photo_url,
             )
         else:
             return format_html(

@@ -300,7 +300,7 @@ class FaceEmbeddingMetadataSerializer(serializers.ModelSerializer):
     def get_photo_details(self, obj):
         return {
             "photo_id": obj.student_photo.photo_id,
-            "photo": obj.student_photo.photo.url if obj.student_photo.photo else None,
+            "photo": obj.student_photo.photo_url if obj.student_photo.photo_url else None,
             "is_primary": obj.student_photo.is_primary,
             "captured_at": obj.student_photo.captured_at,
         }
