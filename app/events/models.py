@@ -42,6 +42,24 @@ class BoardingEvent(models.Model):
     metadata = models.JSONField(default=dict, help_text="Additional metadata as JSON")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this record was created in database")
 
+    # Confirmation face images (cropped 112x112 JPEG from kiosk)
+    # These are the 3 consecutive frames that confirmed the student identification
+    confirmation_face_1 = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="First confirmation face image (112x112 JPEG, ~5-10KB)",
+    )
+    confirmation_face_2 = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Second confirmation face image (112x112 JPEG, ~5-10KB)",
+    )
+    confirmation_face_3 = models.BinaryField(
+        null=True,
+        blank=True,
+        help_text="Third confirmation face image (112x112 JPEG, ~5-10KB)",
+    )
+
     class Meta:
         db_table = "boarding_events"
         ordering = ["-timestamp"]
@@ -71,6 +89,33 @@ class BoardingEvent(models.Model):
         """Return GPS coordinates as a tuple for compatibility"""
         if self.latitude is not None and self.longitude is not None:
             return (self.latitude, self.longitude)
+        return None
+
+    @property
+    def confirmation_face_1_url(self) -> str | None:
+        """Get URL to serve first confirmation face"""
+        if self.confirmation_face_1:
+            from django.urls import reverse
+
+            return reverse("boarding-event-face", kwargs={"event_id": self.event_id, "face_number": 1})
+        return None
+
+    @property
+    def confirmation_face_2_url(self) -> str | None:
+        """Get URL to serve second confirmation face"""
+        if self.confirmation_face_2:
+            from django.urls import reverse
+
+            return reverse("boarding-event-face", kwargs={"event_id": self.event_id, "face_number": 2})
+        return None
+
+    @property
+    def confirmation_face_3_url(self) -> str | None:
+        """Get URL to serve third confirmation face"""
+        if self.confirmation_face_3:
+            from django.urls import reverse
+
+            return reverse("boarding-event-face", kwargs={"event_id": self.event_id, "face_number": 3})
         return None
 
     def __str__(self) -> str:

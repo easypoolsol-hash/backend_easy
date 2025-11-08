@@ -1,3 +1,5 @@
+import base64
+
 from rest_framework import serializers
 
 from .models import AttendanceRecord, BoardingEvent
@@ -34,6 +36,26 @@ class BoardingEventSerializer(serializers.ModelSerializer):
 class BoardingEventCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating boarding events (kiosk-facing)"""
 
+    # Base64-encoded confirmation face images (write-only)
+    confirmation_face_1_base64 = serializers.CharField(
+        required=False,
+        write_only=True,
+        allow_blank=True,
+        help_text="Base64-encoded first confirmation face (112x112 JPEG)",
+    )
+    confirmation_face_2_base64 = serializers.CharField(
+        required=False,
+        write_only=True,
+        allow_blank=True,
+        help_text="Base64-encoded second confirmation face (112x112 JPEG)",
+    )
+    confirmation_face_3_base64 = serializers.CharField(
+        required=False,
+        write_only=True,
+        allow_blank=True,
+        help_text="Base64-encoded third confirmation face (112x112 JPEG)",
+    )
+
     class Meta:
         model = BoardingEvent
         fields = [
@@ -47,13 +69,16 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
             "face_image_url",
             "model_version",
             "metadata",
+            "confirmation_face_1_base64",
+            "confirmation_face_2_base64",
+            "confirmation_face_3_base64",
         ]
         read_only_fields = ["event_id"]
 
     def create(self, validated_data):
         """
         Create boarding event with auto-generated ULID and default
-        metadata
+        metadata. Decode base64 confirmation faces if provided.
         """
         # Ensure metadata has default event_type if not provided
         if "metadata" not in validated_data or not validated_data["metadata"]:
@@ -64,6 +89,20 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
         # based on time/location
         if "event_type" not in validated_data["metadata"]:
             validated_data["metadata"]["event_type"] = "boarding"
+
+        # Decode confirmation faces from base64
+        for i in range(1, 4):
+            base64_key = f"confirmation_face_{i}_base64"
+            binary_key = f"confirmation_face_{i}"
+
+            if validated_data.get(base64_key):
+                try:
+                    image_data = base64.b64decode(validated_data.pop(base64_key))
+                    validated_data[binary_key] = image_data
+                except Exception as e:
+                    raise serializers.ValidationError({base64_key: f"Invalid base64 data: {e}"}) from None
+            else:
+                validated_data.pop(base64_key, None)
 
         return BoardingEvent.objects.create(**validated_data)
 

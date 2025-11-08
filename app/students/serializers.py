@@ -60,19 +60,21 @@ class BusSerializer(serializers.ModelSerializer):
 
 class StudentPhotoSerializer(serializers.ModelSerializer):
     student_details = serializers.SerializerMethodField()
+    photo_url = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentPhoto
         fields = [
             "photo_id",
             "student",
-            "photo",
+            "photo_url",
+            "photo_content_type",
             "is_primary",
             "captured_at",
             "student_details",
             "created_at",
         ]
-        read_only_fields = ["photo_id", "created_at"]
+        read_only_fields = ["photo_id", "created_at", "photo_url"]
 
     def get_student_details(self, obj):
         return {
@@ -80,6 +82,9 @@ class StudentPhotoSerializer(serializers.ModelSerializer):
             "name": obj.student.encrypted_name,
             "grade": obj.student.grade,
         }
+
+    def get_photo_url(self, obj):
+        return obj.photo_url
 
 
 class ParentSerializer(serializers.ModelSerializer):

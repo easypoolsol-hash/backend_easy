@@ -3230,6 +3230,18 @@ components:
           maxLength: 50
         metadata:
           description: Additional metadata as JSON
+        confirmation_face_1_base64:
+          type: string
+          writeOnly: true
+          description: Base64-encoded first confirmation face (112x112 JPEG)
+        confirmation_face_2_base64:
+          type: string
+          writeOnly: true
+          description: Base64-encoded second confirmation face (112x112 JPEG)
+        confirmation_face_3_base64:
+          type: string
+          writeOnly: true
+          description: Base64-encoded third confirmation face (112x112 JPEG)
       required:
       - confidence_score
       - event_id
@@ -4595,11 +4607,13 @@ components:
         student:
           type: string
           format: uuid
-        photo:
+        photo_url:
           type: string
-          format: uri
-          nullable: true
-          description: Student photo file
+          readOnly: true
+        photo_content_type:
+          type: string
+          description: MIME type (e.g., image/jpeg, image/png)
+          maxLength: 50
         is_primary:
           type: boolean
           description: Primary photo for student
@@ -4959,11 +4973,13 @@ components:
         student:
           type: string
           format: uuid
-        photo:
+        photo_url:
           type: string
-          format: uri
-          nullable: true
-          description: Student photo file
+          readOnly: true
+        photo_content_type:
+          type: string
+          description: MIME type (e.g., image/jpeg, image/png)
+          maxLength: 50
         is_primary:
           type: boolean
           description: Primary photo for student
@@ -4981,6 +4997,7 @@ components:
       required:
       - created_at
       - photo_id
+      - photo_url
       - student
       - student_details
     User:

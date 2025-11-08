@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .api_views import DashboardStatsAPIView, DashboardStudentsAPIView
-from .views import AttendanceRecordViewSet, BoardingEventViewSet
+from .views import AttendanceRecordViewSet, BoardingEventViewSet, serve_boarding_confirmation_face
 
 # Create a router for the events app
 router = DefaultRouter()
@@ -21,6 +21,12 @@ urlpatterns = [
         "dashboard/students/",
         DashboardStudentsAPIView.as_view(),
         name="dashboard-students",
+    ),
+    # Serve boarding confirmation face images
+    path(
+        "boarding-events/<str:event_id>/faces/<int:face_number>/",
+        serve_boarding_confirmation_face,
+        name="boarding-event-face",
     ),
     # ViewSet routes
     path("", include(router.urls)),

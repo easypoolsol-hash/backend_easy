@@ -1,6 +1,8 @@
 from datetime import timedelta
 
 from django.db.models import Count, Q
+from django.http import HttpResponse, HttpResponseNotFound
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
@@ -171,3 +173,23 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
         records = self.get_queryset().filter(student=student)
         serializer = self.get_serializer(records, many=True)
         return Response(serializer.data)
+
+
+# Serve confirmation face images from database
+def serve_boarding_confirmation_face(request, event_id, face_number):
+    """Serve confirmation face image from boarding event"""
+    event = get_object_or_404(BoardingEvent, event_id=event_id)
+
+    # Get the requested face image
+    face_data = None
+    if face_number == 1:
+        face_data = event.confirmation_face_1
+    elif face_number == 2:
+        face_data = event.confirmation_face_2
+    elif face_number == 3:
+        face_data = event.confirmation_face_3
+
+    if face_data:
+        return HttpResponse(face_data, content_type="image/jpeg")
+
+    return HttpResponseNotFound("Confirmation face not found")
