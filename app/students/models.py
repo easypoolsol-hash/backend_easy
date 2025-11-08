@@ -193,6 +193,7 @@ class StudentPhoto(models.Model):
         """Get URL to serve photo from database"""
         if self.photo_data:
             from django.urls import reverse
+
             return reverse("student-photo-serve", kwargs={"photo_id": str(self.photo_id)})
         return None
 

@@ -118,15 +118,35 @@ class SchoolAdmin(admin.ModelAdmin):
 NO_PHOTO = "No photo"
 
 
+class StudentPhotoInlineForm(forms.ModelForm):
+    """Custom form to handle photo upload and convert to binary"""
+
+    photo_upload = forms.ImageField(required=False, label="Upload Photo")
+
+    class Meta:
+        model = StudentPhoto
+        fields = ["is_primary"]
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        # Convert uploaded file to binary data
+        if self.cleaned_data.get("photo_upload"):
+            uploaded_file = self.cleaned_data["photo_upload"]
+            instance.photo_data = uploaded_file.read()
+            instance.photo_content_type = uploaded_file.content_type or "image/jpeg"
+
+        if commit:
+            instance.save()
+        return instance
+
+
 class StudentPhotoInline(admin.TabularInline):
     model = StudentPhoto
+    form = StudentPhotoInlineForm
     extra = 1  # Allow adding new photos inline
-    fields = ["photo_upload", "is_primary", "captured_at", "photo_preview"]
-    readonly_fields = ["captured_at", "photo_preview"]
-
-    def photo_upload(self, obj):
-        """Custom field for uploading photos - stores as binary data"""
-        return obj.photo_data
+    fields = ["photo_upload", "is_primary", "photo_preview"]
+    readonly_fields = ["photo_preview"]
 
     @display(description="Preview")
     def photo_preview(self, obj):

@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("students", "0002_make_enrollment_date_optional"),
     ]
@@ -27,8 +26,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="studentphoto",
             name="photo_data",
-            field=models.BinaryField(
-                blank=True, help_text="Photo binary data stored in database", null=True
-            ),
+            field=models.BinaryField(blank=True, help_text="Photo binary data stored in database", null=True),
         ),
     ]
