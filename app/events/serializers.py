@@ -36,24 +36,14 @@ class BoardingEventSerializer(serializers.ModelSerializer):
 class BoardingEventCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating boarding events (kiosk-facing)"""
 
-    # Base64-encoded confirmation face images (write-only)
-    confirmation_face_1_base64 = serializers.CharField(
+    # List of base64-encoded confirmation face images (flexible: 1-N faces)
+    confirmation_faces_base64 = serializers.ListField(
+        child=serializers.CharField(allow_blank=False),
         required=False,
         write_only=True,
-        allow_blank=True,
-        help_text="Base64-encoded first confirmation face (112x112 JPEG)",
-    )
-    confirmation_face_2_base64 = serializers.CharField(
-        required=False,
-        write_only=True,
-        allow_blank=True,
-        help_text="Base64-encoded second confirmation face (112x112 JPEG)",
-    )
-    confirmation_face_3_base64 = serializers.CharField(
-        required=False,
-        write_only=True,
-        allow_blank=True,
-        help_text="Base64-encoded third confirmation face (112x112 JPEG)",
+        allow_empty=True,
+        max_length=10,  # Max 10 faces (can be adjusted)
+        help_text="Array of base64-encoded confirmation faces (112x112 JPEG). Send as many as available (1-10).",
     )
 
     class Meta:
@@ -69,9 +59,7 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
             "face_image_url",
             "model_version",
             "metadata",
-            "confirmation_face_1_base64",
-            "confirmation_face_2_base64",
-            "confirmation_face_3_base64",
+            "confirmation_faces_base64",
         ]
         read_only_fields = ["event_id"]
 
@@ -90,19 +78,15 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
         if "event_type" not in validated_data["metadata"]:
             validated_data["metadata"]["event_type"] = "boarding"
 
-        # Decode confirmation faces from base64
-        for i in range(1, 4):
-            base64_key = f"confirmation_face_{i}_base64"
-            binary_key = f"confirmation_face_{i}"
+        # Decode confirmation faces from base64 list
+        confirmation_faces = validated_data.pop("confirmation_faces_base64", [])
 
-            if validated_data.get(base64_key):
-                try:
-                    image_data = base64.b64decode(validated_data.pop(base64_key))
-                    validated_data[binary_key] = image_data
-                except Exception as e:
-                    raise serializers.ValidationError({base64_key: f"Invalid base64 data: {e}"}) from None
-            else:
-                validated_data.pop(base64_key, None)
+        for idx, face_base64 in enumerate(confirmation_faces[:3], start=1):  # Store up to 3 faces
+            try:
+                image_data = base64.b64decode(face_base64)
+                validated_data[f"confirmation_face_{idx}"] = image_data
+            except Exception as e:
+                raise serializers.ValidationError({"confirmation_faces_base64": f"Invalid base64 data at index {idx - 1}: {e}"}) from None
 
         return BoardingEvent.objects.create(**validated_data)
 

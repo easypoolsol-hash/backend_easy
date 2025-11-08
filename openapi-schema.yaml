@@ -3230,18 +3230,14 @@ components:
           maxLength: 50
         metadata:
           description: Additional metadata as JSON
-        confirmation_face_1_base64:
-          type: string
+        confirmation_faces_base64:
+          type: array
+          items:
+            type: string
           writeOnly: true
-          description: Base64-encoded first confirmation face (112x112 JPEG)
-        confirmation_face_2_base64:
-          type: string
-          writeOnly: true
-          description: Base64-encoded second confirmation face (112x112 JPEG)
-        confirmation_face_3_base64:
-          type: string
-          writeOnly: true
-          description: Base64-encoded third confirmation face (112x112 JPEG)
+          description: Array of base64-encoded confirmation faces (112x112 JPEG).
+            Send as many as available (1-10).
+          maxItems: 10
       required:
       - confidence_score
       - event_id
