@@ -6,7 +6,6 @@ import zipfile
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import display
-from django.core.files import File
 from django.db import transaction
 from django.utils.html import format_html
 
@@ -371,13 +370,21 @@ class StudentAdmin(admin.ModelAdmin):
                     if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
                         file_path = os.path.join(folder_path, file_name)
 
-                        # Create StudentPhoto
+                        # Create StudentPhoto with binary data
                         with open(file_path, "rb") as photo_file:
-                            student_photo = StudentPhoto(
+                            photo_data = photo_file.read()
+
+                            # Determine content type from file extension
+                            content_type = "image/jpeg"
+                            if file_name.lower().endswith(".png"):
+                                content_type = "image/png"
+
+                            StudentPhoto.objects.create(
                                 student=student,
+                                photo_data=photo_data,
+                                photo_content_type=content_type,
                                 is_primary=(photo_count == 0),  # First photo is primary
                             )
-                            student_photo.photo.save(file_name, File(photo_file), save=True)
                             photo_count += 1
 
                 break  # Found the folder, no need to continue
