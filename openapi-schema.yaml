@@ -3236,8 +3236,8 @@ components:
             type: string
           writeOnly: true
           description: Array of base64-encoded confirmation faces (112x112 JPEG).
-            Send as many as available (1-10).
-          maxItems: 10
+            Send up to 3 consecutive frames.
+          maxItems: 3
       required:
       - confidence_score
       - event_id

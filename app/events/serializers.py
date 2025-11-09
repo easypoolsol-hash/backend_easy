@@ -36,14 +36,14 @@ class BoardingEventSerializer(serializers.ModelSerializer):
 class BoardingEventCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating boarding events (kiosk-facing)"""
 
-    # List of base64-encoded confirmation face images (flexible: 1-N faces)
+    # List of base64-encoded confirmation face images (flexible: 1-3 faces)
     confirmation_faces_base64 = serializers.ListField(
         child=serializers.CharField(allow_blank=False),
         required=False,
         write_only=True,
         allow_empty=True,
-        max_length=10,  # Max 10 faces (can be adjusted)
-        help_text="Array of base64-encoded confirmation faces (112x112 JPEG). Send as many as available (1-10).",
+        max_length=3,  # Max 3 faces to match database storage
+        help_text="Array of base64-encoded confirmation faces (112x112 JPEG). Send up to 3 consecutive frames.",
     )
 
     class Meta:

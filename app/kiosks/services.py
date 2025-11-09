@@ -87,7 +87,8 @@ class SnapshotGenerator:
                 student_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 status TEXT DEFAULT 'active',
-                bus_id TEXT
+                bus_id TEXT,
+                bus_number TEXT
             )
             """
         )
@@ -145,7 +146,8 @@ class SnapshotGenerator:
             # Contract: names must be decrypted
             decrypted_name = student.encrypted_name
             bus_id = str(student.assigned_bus.bus_id) if student.assigned_bus else None
-            student_rows.append((str(student.student_id), decrypted_name, "active", bus_id))
+            bus_number = student.assigned_bus.bus_number if student.assigned_bus else None
+            student_rows.append((str(student.student_id), decrypted_name, "active", bus_id, bus_number))
 
             for photo in student.photos.all():
                 for embedding_meta in photo.face_embeddings.all():
@@ -162,7 +164,7 @@ class SnapshotGenerator:
                         )
                     )
 
-        cursor.executemany("INSERT INTO students (student_id, name, status, bus_id) VALUES (?, ?, ?, ?)", student_rows)
+        cursor.executemany("INSERT INTO students (student_id, name, status, bus_id, bus_number) VALUES (?, ?, ?, ?, ?)", student_rows)
         cursor.executemany(
             "INSERT INTO face_embeddings (student_id, embedding_vector, quality_score, model_name) VALUES (?, ?, ?, ?)",
             embedding_rows,
