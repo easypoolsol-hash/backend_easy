@@ -20,233 +20,205 @@ env:
 
 jobs:
   # ============================================================================
-  # SINGLE UNIFIED FLOW
+  # UNIFIED FLOW - CORRECT ORDER
   # ============================================================================
-  # 1. Detect branch (develop/staging/production)
-  # 2. Quality checks + Tests (parallel - same for all)
-  # 3. Build image (with cache - fast rebuild, fresh every time)
-  # 4. Security scan + Smoke tests (parallel)
-  # 5. Deploy to detected environment
+  # 1. Show path marker (which branch → which environment)
+  # 2. Quality checks (parallel - lint + mypy)
+  # 3. Build image (tests need this!)
+  # 4. Tests using built image (parallel matrix)
+  # 5. Security + Smoke tests (parallel)
+  # 6. Deploy to environment (three isolated branches at end)
   # ============================================================================
 
-  # STEP 1: Detect active branch
-  detect-environment:
-    name: 🎯 Detect Environment
+  # STEP 1: PATH MARKER - Shows which environment will be deployed
+  show-path:
+    name: 🎯 PATH → ${{ github.ref_name }} → ${{ github.ref_name == 'develop' && 'DEV' || github.ref_name == 'staging' && 'STAGING' || 'PRODUCTION' }}
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.detect.outputs.environment }}
-      deploy_target: ${{ steps.detect.outputs.deploy_target }}
+      branch: ${{ steps.detect.outputs.branch }}
     steps:
-      - name: Detect branch and environment
+      - name: Detect and show deployment path
         id: detect
         run: |
           BRANCH="${{ github.ref_name }}"
 
-          echo "## 🎯 Active Branch: **$BRANCH**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Big clear marker showing the path
+          echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓" >> $GITHUB_STEP_SUMMARY
+          echo "┃                                                       ┃" >> $GITHUB_STEP_SUMMARY
+          echo "┃   🎯 PIPELINE PATH MARKER                            ┃" >> $GITHUB_STEP_SUMMARY
+          echo "┃                                                       ┃" >> $GITHUB_STEP_SUMMARY
 
           case "$BRANCH" in
             develop)
-              echo "environment=dev" >> $GITHUB_OUTPUT
-              echo "deploy_target=dev" >> $GITHUB_OUTPUT
-              echo "**Environment:** Development" >> $GITHUB_STEP_SUMMARY
+              ENV="dev"
+              echo "┃   Branch: develop    →    Environment: DEV         ┃" >> $GITHUB_STEP_SUMMARY
               ;;
             staging)
-              echo "environment=staging" >> $GITHUB_OUTPUT
-              echo "deploy_target=staging" >> $GITHUB_OUTPUT
-              echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+              ENV="staging"
+              echo "┃   Branch: staging    →    Environment: STAGING     ┃" >> $GITHUB_STEP_SUMMARY
               ;;
             production)
-              echo "environment=production" >> $GITHUB_OUTPUT
-              echo "deploy_target=production" >> $GITHUB_OUTPUT
-              echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+              ENV="production"
+              echo "┃   Branch: production →    Environment: PRODUCTION  ┃" >> $GITHUB_STEP_SUMMARY
               ;;
             *)
-              echo "❌ Unknown branch: $BRANCH" >> $GITHUB_STEP_SUMMARY
+              echo "┃   ❌ UNKNOWN BRANCH: $BRANCH                        ┃" >> $GITHUB_STEP_SUMMARY
+              echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛" >> $GITHUB_STEP_SUMMARY
               exit 1
               ;;
           esac
 
+          echo "┃                                                       ┃" >> $GITHUB_STEP_SUMMARY
+          echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Pipeline Flow:**" >> $GITHUB_STEP_SUMMARY
-          echo "1. ✅ Quality + Tests (parallel)" >> $GITHUB_STEP_SUMMARY
-          echo "2. 🏗️ Build image (cached)" >> $GITHUB_STEP_SUMMARY
-          echo "3. 🔒 Security + Smoke (parallel)" >> $GITHUB_STEP_SUMMARY
-          echo "4. 🚀 Deploy to $BRANCH" >> $GITHUB_STEP_SUMMARY
+          echo "**Flow:** Quality → Build → Tests (use image) → Security + Smoke → Deploy to $ENV" >> $GITHUB_STEP_SUMMARY
 
-  # STEP 2: Quality checks
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+  # STEP 2: Quality checks (parallel - doesn't need image)
   quality:
-    name: ✅ Quality (lint + mypy)
+    name: ✅ Quality
     runs-on: ubuntu-latest
-    needs: [detect-environment]
+    needs: [show-path]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-quality-checks
 
-  # STEP 2: Tests (parallel matrix)
-  tests:
-    name: 🧪 Tests (${{ matrix.test-type }})
+  # STEP 3: Build image FIRST (tests need this!)
+  build:
+    name: 🏗️ Build Image
     runs-on: ubuntu-latest
-    needs: [detect-environment]
+    needs: [show-path, quality]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-image
+        with:
+          image_tag: ${{ needs.show-path.outputs.environment }}
+
+  # STEP 4: Tests using the built image (parallel matrix)
+  tests:
+    name: 🧪 Test (${{ matrix.test-type }})
+    runs-on: ubuntu-latest
+    needs: [show-path, build]
     strategy:
       fail-fast: false
       matrix:
         test-type: [unit, integration, contract]
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/load-from-cache
+        with:
+          image_tag: ${{ needs.show-path.outputs.environment }}
+          fail_if_missing: 'true'
       - uses: ./.github/actions/run-tests
         with:
           test_type: ${{ matrix.test-type }}
           image_name: ${{ env.IMAGE_NAME }}
 
-  # STEP 3: Build image (fresh build every time, but with cache for speed)
-  build:
-    name: 🏗️ Build Image
-    runs-on: ubuntu-latest
-    needs: [detect-environment, quality, tests]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          load: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }}
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Save image to artifact
-        run: |
-          docker save ${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }} | gzip > /tmp/image.tar.gz
-
-      - name: Upload image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docker-image
-          path: /tmp/image.tar.gz
-          retention-days: 1
-
-  # STEP 4a: Security scan (parallel with smoke tests)
+  # STEP 5: Security scan (parallel with smoke - both use built image)
   security:
-    name: 🔒 Security Scan
+    name: 🔒 Security
     runs-on: ubuntu-latest
-    needs: [detect-environment, build]
+    needs: [show-path, build, tests]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+      - uses: ./.github/actions/load-from-cache
         with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load image
-        run: docker load < /tmp/image.tar.gz
-
+          image_tag: ${{ needs.show-path.outputs.environment }}
+          fail_if_missing: 'true'
       - uses: ./.github/actions/run-security-scan
         with:
           image_name: ${{ env.IMAGE_NAME }}
 
-  # STEP 4b: Smoke tests (parallel with security)
-  smoke-tests:
-    name: 💨 Smoke Tests
+  # STEP 5: Smoke tests (parallel with security)
+  smoke:
+    name: 💨 Smoke
     runs-on: ubuntu-latest
-    needs: [detect-environment, build]
+    needs: [show-path, build, tests]
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+      - uses: ./.github/actions/load-from-cache
         with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load image
-        run: docker load < /tmp/image.tar.gz
-
+          image_tag: ${{ needs.show-path.outputs.environment }}
+          fail_if_missing: 'true'
       - uses: ./.github/actions/run-smoke-test
         with:
           image_name: ${{ env.IMAGE_NAME }}
 
-  # STEP 5: Deploy to environment (branch-specific)
-  deploy:
-    name: 🚀 Deploy to ${{ needs.detect-environment.outputs.deploy_target }}
+  # ============================================================================
+  # STEP 6: THREE ISOLATED DEPLOY BRANCHES (clear which one runs)
+  # ============================================================================
+
+  deploy-dev:
+    name: 🚀 Deploy DEV
     runs-on: ubuntu-latest
-    needs: [detect-environment, build, security, smoke-tests]
+    needs: [show-path, build, tests, security, smoke]
+    if: needs.show-path.outputs.environment == 'dev'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download image artifact
-        uses: actions/download-artifact@v4
+      - uses: ./.github/actions/load-from-cache
         with:
-          name: docker-image
-          path: /tmp
-
-      - name: Load image
-        run: docker load < /tmp/image.tar.gz
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+          image_tag: dev
+          fail_if_missing: 'true'
+      - uses: ./.github/actions/push-image
         with:
+          image_tag: dev
+          sha_tag_prefix: dev
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Configure Docker for GCP
-        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
-
-      - name: Tag and push image
-        run: |
-          ENV="${{ needs.detect-environment.outputs.environment }}"
-
-          # Tag with environment and SHA
-          docker tag ${{ env.IMAGE_NAME }}:$ENV ${{ env.GCR_IMAGE }}:$ENV
-          docker tag ${{ env.IMAGE_NAME }}:$ENV ${{ env.GCR_IMAGE }}:$ENV-${{ github.sha }}
-
-          # Tag production with version tag if production branch
-          if [ "$ENV" = "production" ]; then
-            docker tag ${{ env.IMAGE_NAME }}:$ENV ${{ env.GCR_IMAGE }}:latest
-          fi
-
-          # Push all tags
-          docker push ${{ env.GCR_IMAGE }}:$ENV
-          docker push ${{ env.GCR_IMAGE }}:$ENV-${{ github.sha }}
-
-          if [ "$ENV" = "production" ]; then
-            docker push ${{ env.GCR_IMAGE }}:latest
-          fi
-
-          echo "## 📦 Pushed Images" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.GCR_IMAGE }}:$ENV\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`${{ env.GCR_IMAGE }}:$ENV-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          if [ "$ENV" = "production" ]; then
-            echo "- \`${{ env.GCR_IMAGE }}:latest\`" >> $GITHUB_STEP_SUMMARY
-          fi
-
       - uses: ./.github/actions/deploy-cloudrun
         with:
-          environment: ${{ needs.detect-environment.outputs.environment }}
-          image_tag: ${{ needs.detect-environment.outputs.environment }}
+          environment: dev
+          image_tag: dev
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Deployment summary
-        run: |
-          ENV="${{ needs.detect-environment.outputs.environment }}"
+  deploy-staging:
+    name: 🚀 Deploy STAGING
+    runs-on: ubuntu-latest
+    needs: [show-path, build, tests, security, smoke]
+    if: needs.show-path.outputs.environment == 'staging'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/load-from-cache
+        with:
+          image_tag: staging
+          fail_if_missing: 'true'
+      - uses: ./.github/actions/push-image
+        with:
+          image_tag: staging
+          sha_tag_prefix: staging
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: ./.github/actions/deploy-cloudrun
+        with:
+          environment: staging
+          image_tag: staging
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## ✅ Deployment Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Service:** easypool-backend-$ENV" >> $GITHUB_STEP_SUMMARY
-          echo "**Region:** asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
+  deploy-production:
+    name: 🚀 Deploy PRODUCTION
+    runs-on: ubuntu-latest
+    needs: [show-path, build, tests, security, smoke]
+    if: needs.show-path.outputs.environment == 'production'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/load-from-cache
+        with:
+          image_tag: production
+          fail_if_missing: 'true'
+      - uses: ./.github/actions/push-image
+        with:
+          image_tag: latest
+          sha_tag_prefix: production
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: ./.github/actions/deploy-cloudrun
+        with:
+          environment: production
+          image_tag: latest
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
