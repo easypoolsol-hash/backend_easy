@@ -101,8 +101,12 @@ if "?host=/cloudsql/" in DATABASE_URL or "@//cloudsql/" in DATABASE_URL:
                 "connect_timeout": 10,
                 "options": "-c timezone=UTC",
             },
-            "CONN_MAX_AGE": 600,
+            # Connection pooling for Cloud Run (prevent connection exhaustion)
+            # Cloud Run scales horizontally, so we need to limit per-instance connections
+            "CONN_MAX_AGE": 60,  # Reduced from 600 to 60 seconds (1 minute)
             "CONN_HEALTH_CHECKS": True,
+            # Set max connections per instance (Cloud Run best practice)
+            "POOL_SIZE": int(os.getenv("DB_POOL_SIZE", "5")),  # Max connections per instance
         }
     }
 else:
@@ -122,8 +126,10 @@ else:
                     "connect_timeout": 10,
                     "options": "-c timezone=UTC",
                 },
-                "CONN_MAX_AGE": 600,
+                # Connection pooling for Cloud Run (prevent connection exhaustion)
+                "CONN_MAX_AGE": 60,  # Reduced from 600 to 60 seconds (1 minute)
                 "CONN_HEALTH_CHECKS": True,
+                "POOL_SIZE": int(os.getenv("DB_POOL_SIZE", "5")),  # Max connections per instance
             }
         }
     else:
