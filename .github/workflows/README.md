@@ -1,32 +1,69 @@
-# GitHub Actions Workflows
+# Unified CI/CD Pipeline
 
-## Philosophy: Build → Push → Forget
+## **Simple Single-Flow Architecture**
 
-**GitHub Actions:** Build image and push to registry
-**Terraform:** Already configured everything else
-**Cloud Run:** Auto-deploys when it sees new image
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PUSH TO BRANCH                           │
+│         (develop / staging / production)                    │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+                     ▼
+            ┌────────────────┐
+            │  🎯 DETECT     │
+            │  ENVIRONMENT   │
+            └────────┬───────┘
+                     │
+        ┌────────────┴────────────┐
+        │                         │
+        ▼                         ▼
+   ┌─────────┐             ┌──────────┐
+   │ Quality │             │  Tests   │
+   │ (lint + │◄───PARALLEL───►(matrix) │
+   │  mypy)  │             │ u/i/c    │
+   └────┬────┘             └────┬─────┘
+        │                       │
+        └───────────┬───────────┘
+                    │
+                    ▼
+            ┌───────────────┐
+            │  BUILD IMAGE  │
+            │  (with cache) │
+            └───────┬───────┘
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+        ▼                       ▼
+   ┌─────────┐           ┌──────────┐
+   │Security │◄─PARALLEL─►│  Smoke   │
+   │  Scan   │           │  Tests   │
+   └────┬────┘           └────┬─────┘
+        │                     │
+        └──────────┬──────────┘
+                   │
+                   ▼
+            ┌──────────┐
+            │  DEPLOY  │
+            │  TO ENV  │
+            └──────────┘
+                   │
+        ┌──────────┼──────────┐
+        │          │          │
+        ▼          ▼          ▼
+     develop   staging   production
+```
 
----
+## **Active Workflow**
 
-## Active Workflows
-
-### ✅ `deploy.yml` - Main Deployment
-**Trigger:** Push to `main` or `master`
+### ✅ `ci.yml` - Unified CI/CD Pipeline
+**Trigger:** Push to `develop`, `staging`, or `production` branches
 
 **What it does:**
-1. Run tests (quality gate)
-2. Build Docker image
-3. Push to GCP Artifact Registry as `:latest`
-4. **Done!** Cloud Run auto-deploys
-
-### ✅ `ci.yml` - Full CI Pipeline (Optional)
-**Trigger:** All pushes & PRs
-
-**What it does:**
-- Full test suite (unit, integration, contract, e2e)
-- Security scanning
-- Smoke tests
-- Does NOT deploy
+1. 🎯 Detect which branch (auto-routes to environment)
+2. ✅ Quality checks (lint + mypy) + 🧪 Tests (parallel matrix)
+3. 🏗️ Build image (fresh every time, cached for speed)
+4. 🔒 Security scan + 💨 Smoke tests (parallel)
+5. 🚀 Deploy to correct environment (based on branch)
 
 ---
 
@@ -163,17 +200,39 @@ ruff check .
 
 ## Summary
 
-**OLD WAY (Complex):**
-- GitHub builds image
-- GitHub pushes to registry
-- GitHub authenticates to GCP
-- GitHub runs `gcloud run deploy`
-- GitHub manages traffic splitting
-- GitHub handles rollback
+**OLD WAY (Complex - 514 lines):**
+- Separate paths for develop/PR/master/tags
+- Complex decision trees
+- Test tag management
+- Cache-based promotion flows
+- Digest verification between environments
+- Confusing conditional logic
 
-**NEW WAY (Simple):**
-- GitHub builds image
-- GitHub pushes to registry
-- **Done!**
+**NEW WAY (Simple - 253 lines):**
+- Single unified workflow for all branches
+- Branch detection auto-routes to environment
+- Fresh build every time (guaranteed correctness)
+- Cache for speed (not correctness)
+- No test tags needed
+- Clear, linear flow
+
+## **Key Benefits**
+
+✅ **Single workflow** - One file for all environments
+✅ **Branch-based routing** - Push to `develop`/`staging`/`production`
+✅ **Same quality checks** - All branches get same validation
+✅ **Fresh builds** - Built every time to ensure correctness
+✅ **Fast rebuilds** - GitHub Actions cache makes it quick
+✅ **Parallel execution** - Tests and scans run simultaneously
+✅ **No test tags** - Simplified, no complex tagging logic
+✅ **Easy to understand** - Clear flow, easy to debug
+
+## **Branch → Environment Mapping**
+
+| Branch | Environment | Image Tags |
+|--------|-------------|------------|
+| `develop` | `dev` | `dev`, `dev-<sha>` |
+| `staging` | `staging` | `staging`, `staging-<sha>` |
+| `production` | `production` | `production`, `production-<sha>`, `latest` |
 
 **Keep it simple!** 🎯

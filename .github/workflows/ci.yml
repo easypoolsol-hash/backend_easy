@@ -1,152 +1,97 @@
-name: CI/CD Pipeline
+name: Unified CI/CD Pipeline
 
 on:
   push:
-    branches: [ master, main, develop ]
-    tags:
-      - 'v*'  # Trigger on version tags (v1.0.0, v1.2.3, etc.)
+    branches: [ develop, staging, production ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
-      - '.editorconfig'
-  pull_request:
-    branches: [ master, main, develop ]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.editorconfig'
 
 permissions:
   contents: read
   packages: write
-  id-token: write  # Required for GCP Workload Identity
+  id-token: write
 
 env:
-  # Git Domain: Application & workflow configuration
   IMAGE_NAME: backend_easy
-  REGISTRY: ghcr.io
-
-  # Terraform Domain: Infrastructure configuration (read-only reference)
-  # These match Terraform outputs - update when infrastructure changes
-  # Canonical source: backend_easy_infra/terragrunt/modules/cicd-outputs
   GCR_IMAGE: asia-south1-docker.pkg.dev/easypool-backend/backend-repo/backend_easy
 
 jobs:
   # ============================================================================
-  # DECISION HEAD: Route to correct path
+  # SINGLE UNIFIED FLOW
   # ============================================================================
-  # develop/PR → BUILD (quality + tests + security + deploy staging)
-  # master     → PROMOTE (load cache → deploy candidate)
-  # v* tags    → RELEASE (load cache → deploy production)
+  # 1. Detect branch (develop/staging/production)
+  # 2. Quality checks + Tests (parallel - same for all)
+  # 3. Build image (with cache - fast rebuild, fresh every time)
+  # 4. Security scan + Smoke tests (parallel)
+  # 5. Deploy to detected environment
   # ============================================================================
-  decide:
-    name: Decide workflow path
+
+  # STEP 1: Detect active branch
+  detect-environment:
+    name: 🎯 Detect Environment
     runs-on: ubuntu-latest
     outputs:
-      build_path: ${{ steps.route.outputs.build_path }}
-      promote_path: ${{ steps.route.outputs.promote_path }}
-      release_path: ${{ steps.route.outputs.release_path }}
+      environment: ${{ steps.detect.outputs.environment }}
+      deploy_target: ${{ steps.detect.outputs.deploy_target }}
     steps:
-      - name: Route workflow
-        id: route
+      - name: Detect branch and environment
+        id: detect
         run: |
-          echo "# 🎯 Workflow Routing Decision" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          BRANCH="${{ github.ref_name }}"
+
+          echo "## 🎯 Active Branch: **$BRANCH**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # BUILD PATH: develop (fast deployment - quality already checked by pre-commit hooks)
-          # PRs still run full checks for external contributors
-          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            echo "build_path=true" >> $GITHUB_OUTPUT
-            echo "promote_path=false" >> $GITHUB_OUTPUT
-            echo "release_path=false" >> $GITHUB_OUTPUT
+          case "$BRANCH" in
+            develop)
+              echo "environment=dev" >> $GITHUB_OUTPUT
+              echo "deploy_target=dev" >> $GITHUB_OUTPUT
+              echo "**Environment:** Development" >> $GITHUB_STEP_SUMMARY
+              ;;
+            staging)
+              echo "environment=staging" >> $GITHUB_OUTPUT
+              echo "deploy_target=staging" >> $GITHUB_OUTPUT
+              echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+              ;;
+            production)
+              echo "environment=production" >> $GITHUB_OUTPUT
+              echo "deploy_target=production" >> $GITHUB_OUTPUT
+              echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+              ;;
+            *)
+              echo "❌ Unknown branch: $BRANCH" >> $GITHUB_STEP_SUMMARY
+              exit 1
+              ;;
+          esac
 
-            echo "## 🟢 DEVELOP PATH SELECTED (Fast Deploy)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Streamlined deployment (pre-commit hooks already validated):**" >> $GITHUB_STEP_SUMMARY
-            echo "1. 🏗️ Build Docker image" >> $GITHUB_STEP_SUMMARY
-            echo "2. 🚀 Deploy to dev environment" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚡ **SKIPPED:** Quality checks & tests (already done by pre-commit hooks)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pipeline Flow:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✅ Quality + Tests (parallel)" >> $GITHUB_STEP_SUMMARY
+          echo "2. 🏗️ Build image (cached)" >> $GITHUB_STEP_SUMMARY
+          echo "3. 🔒 Security + Smoke (parallel)" >> $GITHUB_STEP_SUMMARY
+          echo "4. 🚀 Deploy to $BRANCH" >> $GITHUB_STEP_SUMMARY
 
-          # PRs get full validation for external contributors
-          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "build_path=true" >> $GITHUB_OUTPUT
-            echo "promote_path=false" >> $GITHUB_OUTPUT
-            echo "release_path=false" >> $GITHUB_OUTPUT
-
-            echo "## 🟢 PR PATH SELECTED (Full Validation)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Full CI/CD pipeline for PRs:**" >> $GITHUB_STEP_SUMMARY
-            echo "1. ✅ Quality checks (lint + mypy)" >> $GITHUB_STEP_SUMMARY
-            echo "2. 🏗️ Build Docker image" >> $GITHUB_STEP_SUMMARY
-            echo "3. 🧪 Tests (unit + integration + contract)" >> $GITHUB_STEP_SUMMARY
-            echo "4. 🔒 Security scan (trivy)" >> $GITHUB_STEP_SUMMARY
-            echo "5. ✅ Mark as test-safe" >> $GITHUB_STEP_SUMMARY
-
-          # PROMOTE PATH: master (no build, just promote)
-          elif [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "build_path=false" >> $GITHUB_OUTPUT
-            echo "promote_path=true" >> $GITHUB_OUTPUT
-            echo "release_path=false" >> $GITHUB_OUTPUT
-
-            echo "## 🟡 PROMOTE PATH SELECTED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Promotion flow (no rebuild):**" >> $GITHUB_STEP_SUMMARY
-            echo "1. 🔍 Check test-safe marker" >> $GITHUB_STEP_SUMMARY
-            echo "2. 📦 Load pre-tested image from cache" >> $GITHUB_STEP_SUMMARY
-            echo "3. 🚀 Deploy to candidate environment" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ **Will verify test-safe marker exists**" >> $GITHUB_STEP_SUMMARY
-
-          # RELEASE PATH: tags (no build, just release)
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "build_path=false" >> $GITHUB_OUTPUT
-            echo "promote_path=false" >> $GITHUB_OUTPUT
-            echo "release_path=true" >> $GITHUB_OUTPUT
-
-            echo "## 🔴 RELEASE PATH SELECTED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Production release flow:**" >> $GITHUB_STEP_SUMMARY
-            echo "1. 🔍 Verify test-safe marker (REQUIRED)" >> $GITHUB_STEP_SUMMARY
-            echo "2. 📦 Load certified image from cache" >> $GITHUB_STEP_SUMMARY
-            echo "3. 🚀 Deploy to PRODUCTION" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "🛡️ **PRODUCTION: Will BLOCK if test-safe marker missing**" >> $GITHUB_STEP_SUMMARY
-          fi
-
+  # STEP 2: Quality checks
   quality:
-    name: quality (lint + mypy)
+    name: ✅ Quality (lint + mypy)
     runs-on: ubuntu-latest
-    needs: [decide]
-    # Only run for PRs (develop branch skips quality - already done by pre-commit hooks)
-    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
+    needs: [detect-environment]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-quality-checks
 
-  # Parallel test execution - Fortune 500 pattern
+  # STEP 2: Tests (parallel matrix)
   tests:
-    name: ${{ matrix.test-type }}
+    name: 🧪 Tests (${{ matrix.test-type }})
     runs-on: ubuntu-latest
-    needs: [decide, quality, build]
-    # Only run for PRs (develop branch skips tests - already done by pre-commit hooks)
-    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
+    needs: [detect-environment]
     strategy:
       fail-fast: false
       matrix:
-        test-type:
-          - unit
-          - integration
-          - contract
-
+        test-type: [unit, integration, contract]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-tests
@@ -154,183 +99,99 @@ jobs:
           test_type: ${{ matrix.test-type }}
           image_name: ${{ env.IMAGE_NAME }}
 
-  # Build image once and save as artifact (Fortune 500 pattern - no registry push)
+  # STEP 3: Build image (fresh build every time, but with cache for speed)
   build:
-    name: Build image (artifact)
+    name: 🏗️ Build Image
     runs-on: ubuntu-latest
-    needs: [decide]
-    # For develop: skip quality checks (already done by pre-commit)
-    # For PRs: wait for quality checks to pass
-    if: |
-      needs.decide.outputs.build_path == 'true' &&
-      (github.ref == 'refs/heads/develop' || (github.event_name == 'pull_request' && needs.quality.result == 'success'))
-
+    needs: [detect-environment, quality, tests]
     steps:
       - uses: actions/checkout@v4
 
-      # Sanitize branch name to create valid Docker tag
-      # Replace slashes with dashes, PR merge refs become "pr-N-merge"
-      - name: Generate Docker tag
-        id: tag
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }}
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image to artifact
         run: |
-          TAG="${{ github.ref_name }}"
-          # Replace slashes with dashes (e.g., "1/merge" -> "1-merge")
-          TAG=$(echo "$TAG" | sed 's/\//-/g')
-          # For PR merge refs like "1/merge", prefix with "pr-"
-          if [[ "$TAG" =~ ^[0-9]+-merge$ ]]; then
-            TAG="pr-$TAG"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Generated Docker tag: $TAG"
+          docker save ${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }} | gzip > /tmp/image.tar.gz
 
-      - uses: ./.github/actions/build-image
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
         with:
-          image_tag: ${{ steps.tag.outputs.tag }}
+          name: docker-image
+          path: /tmp/image.tar.gz
+          retention-days: 1
 
-  test-image:
-    name: test image (smoke)
-    runs-on: ubuntu-latest
-    needs: [decide, build]
-    # Only run for PRs (develop skips smoke tests)
-    if: always() && needs.build.result == 'success' && needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/run-smoke-test
-        with:
-          image_name: ${{ env.IMAGE_NAME }}
-
+  # STEP 4a: Security scan (parallel with smoke tests)
   security:
-    name: security scan (trivy)
+    name: 🔒 Security Scan
     runs-on: ubuntu-latest
-    needs: [decide, test-image]
-    # Only run for PRs (develop skips security scan)
-    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
+    needs: [detect-environment, build]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load < /tmp/image.tar.gz
+
       - uses: ./.github/actions/run-security-scan
         with:
           image_name: ${{ env.IMAGE_NAME }}
 
-  # ============================================================================
-  # ADD TEST LABELS: Embed test status into Docker image
-  # ============================================================================
-  # Labels travel WITH the image (no cache dependency)
-  # Master/Production verify these labels before promoting
-  # Only for PRs - develop images don't need test labels
-  # ============================================================================
-  add-test-labels:
-    name: Add Test Labels ✅
+  # STEP 4b: Smoke tests (parallel with security)
+  smoke-tests:
+    name: 💨 Smoke Tests
     runs-on: ubuntu-latest
-    needs: [decide, security, tests]
-    # Only run for PRs (develop skips test labels)
-    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
+    needs: [detect-environment, build]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Load image from cache
-        uses: ./.github/actions/load-from-cache
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
         with:
-          image_tag: develop
-          fail_if_missing: 'true'
+          name: docker-image
+          path: /tmp
 
-      - uses: ./.github/actions/add-test-labels
+      - name: Load image
+        run: docker load < /tmp/image.tar.gz
+
+      - uses: ./.github/actions/run-smoke-test
         with:
-          image_tag: develop
-          test_status: passed
+          image_name: ${{ env.IMAGE_NAME }}
 
-      # Image now has test labels embedded - will persist when pushed to GCR
-
-  # DEPLOY: Push to GCP Artifact Registry
-  # For develop: Fast deploy after build (tests already done by pre-commit)
-  # For PRs: Deploy after all tests pass
-  deploy-dev:
-    name: Deploy Dev
+  # STEP 5: Deploy to environment (branch-specific)
+  deploy:
+    name: 🚀 Deploy to ${{ needs.detect-environment.outputs.deploy_target }}
     runs-on: ubuntu-latest
-    needs: [decide, build]
-    # For develop: deploy immediately after build
-    # For PRs: wait for all tests to pass
-    if: |
-      needs.decide.outputs.build_path == 'true' &&
-      (github.ref == 'refs/heads/develop' ||
-       (github.event_name == 'pull_request' &&
-        needs.security.result == 'success' &&
-        needs.tests.result == 'success' &&
-        needs.add-test-labels.result == 'success'))
+    needs: [detect-environment, build, security, smoke-tests]
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/load-from-cache
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
         with:
-          image_tag: develop
-          fail_if_missing: 'false'
+          name: docker-image
+          path: /tmp
 
-      - uses: ./.github/actions/push-image
-        with:
-          image_tag: develop
-          sha_tag_prefix: develop
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - name: Load image
+        run: docker load < /tmp/image.tar.gz
 
-  deploy-dev-cloudrun:
-    name: Deploy Dev to Cloud Run
-    runs-on: ubuntu-latest
-    needs: [deploy-dev]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/deploy-cloudrun
-        with:
-          environment: dev
-          image_tag: develop
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-  deploy-staging:
-    name: Deploy Staging (Promote from Same SHA Build)
-    runs-on: ubuntu-latest
-    needs: [decide]
-    # CRITICAL: Uses same git SHA to ensure identical build from cache
-    if: needs.decide.outputs.promote_path == 'true'
-    steps:
-      - uses: actions/checkout@v4
-
-      # ========================================================================
-      # BUILD FROM CACHE: Same git SHA = Same image digest (deterministic)
-      # ========================================================================
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build from cache (same SHA as develop)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          load: true
-          tags: backend_easy:staging
-          cache-from: type=gha
-          # Uses GHA cache from develop build (same git SHA = same cache layers)
-
-      - name: Verify deterministic build
-        run: |
-          STAGING_DIGEST=$(docker inspect backend_easy:staging --format='{{.Id}}')
-          echo "## 🔒 Deterministic Build Verification" >> $GITHUB_STEP_SUMMARY
-          echo "**Git SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Staging Image Digest:** \`$STAGING_DIGEST\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-      # ========================================================================
-      # CRITICAL SAFETY CHECK: Verify image has test labels
-      # ========================================================================
-      - uses: ./.github/actions/verify-test-labels
-        with:
-          image_url: ${{ env.GCR_IMAGE }}:develop
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          block_on_failure: 'false'  # Warning only for staging
-
-      # ========================================================================
-      # VERIFY SAME SHA: Pull develop image and compare digests
-      # ========================================================================
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -340,174 +201,52 @@ jobs:
       - name: Configure Docker for GCP
         run: gcloud auth configure-docker asia-south1-docker.pkg.dev
 
-      - name: Compare with develop image digest
+      - name: Tag and push image
         run: |
-          echo "## 🔍 Image Digest Comparison" >> $GITHUB_STEP_SUMMARY
+          ENV="${{ needs.detect-environment.outputs.environment }}"
 
-          # Pull develop image from GCR
-          docker pull ${{ env.GCR_IMAGE }}:develop-${{ github.sha }} || {
-            echo "⚠️ **WARNING:** Develop image not found in GCR for SHA \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "This might indicate develop pipeline didn't complete" >> $GITHUB_STEP_SUMMARY
-            exit 0  # Don't fail, just warn
-          }
+          # Tag with environment and SHA
+          docker tag ${{ env.IMAGE_NAME }}:$ENV ${{ env.GCR_IMAGE }}:$ENV
+          docker tag ${{ env.IMAGE_NAME }}:$ENV ${{ env.GCR_IMAGE }}:$ENV-${{ github.sha }}
 
-          # Get digests
-          STAGING_DIGEST=$(docker inspect backend_easy:staging --format='{{.Id}}')
-          DEVELOP_DIGEST=$(docker inspect ${{ env.GCR_IMAGE }}:develop-${{ github.sha }} --format='{{.Id}}')
-
-          echo "**Develop Digest:**  \`$DEVELOP_DIGEST\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Staging Digest:**  \`$STAGING_DIGEST\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$STAGING_DIGEST" = "$DEVELOP_DIGEST" ]; then
-            echo "✅ **VERIFIED:** Staging and develop images are IDENTICAL" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Deterministic build successful" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **ERROR:** Image digests DO NOT MATCH!" >> $GITHUB_STEP_SUMMARY
-            echo "This indicates non-deterministic build or cache mismatch" >> $GITHUB_STEP_SUMMARY
-            exit 1
+          # Tag production with version tag if production branch
+          if [ "$ENV" = "production" ]; then
+            docker tag ${{ env.IMAGE_NAME }}:$ENV ${{ env.GCR_IMAGE }}:latest
           fi
 
-      - uses: ./.github/actions/push-image
-        with:
-          image_tag: staging
-          sha_tag_prefix: staging
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # Push all tags
+          docker push ${{ env.GCR_IMAGE }}:$ENV
+          docker push ${{ env.GCR_IMAGE }}:$ENV-${{ github.sha }}
 
-  deploy-staging-cloudrun:
-    name: Deploy Staging to Cloud Run
-    runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    steps:
-      - uses: actions/checkout@v4
+          if [ "$ENV" = "production" ]; then
+            docker push ${{ env.GCR_IMAGE }}:latest
+          fi
+
+          echo "## 📦 Pushed Images" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.GCR_IMAGE }}:$ENV\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${{ env.GCR_IMAGE }}:$ENV-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          if [ "$ENV" = "production" ]; then
+            echo "- \`${{ env.GCR_IMAGE }}:latest\`" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - uses: ./.github/actions/deploy-cloudrun
         with:
-          environment: staging
-          image_tag: staging
+          environment: ${{ needs.detect-environment.outputs.environment }}
+          image_tag: ${{ needs.detect-environment.outputs.environment }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Production promotion message
+      - name: Deployment summary
         run: |
+          ENV="${{ needs.detect-environment.outputs.environment }}"
+
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Ready for production?** Create a tag:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "git tag v1.0.0 && git push --tags" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-
-  deploy-production:
-    name: Deploy Production (Promote from Same SHA Build)
-    runs-on: ubuntu-latest
-    needs: [decide]
-    if: needs.decide.outputs.release_path == 'true'
-    steps:
-      - uses: actions/checkout@v4
-
-      # ========================================================================
-      # BUILD FROM CACHE: Same git SHA = Same image digest (deterministic)
-      # ========================================================================
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build from cache (same SHA as develop/staging)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: false
-          load: true
-          tags: backend_easy:latest
-          cache-from: type=gha
-          # Uses GHA cache from original develop build (same git SHA)
-
-      - name: Verify deterministic build
-        run: |
-          PROD_DIGEST=$(docker inspect backend_easy:latest --format='{{.Id}}')
-          echo "## 🔒 Production Build Verification" >> $GITHUB_STEP_SUMMARY
-          echo "**Git SHA:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Version Tag:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Production Image Digest:** \`$PROD_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Deployment Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-      # ========================================================================
-      # CRITICAL SAFETY CHECK: Verify image has test labels (BLOCKS if missing)
-      # ========================================================================
-      - uses: ./.github/actions/verify-test-labels
-        with:
-          image_url: ${{ env.GCR_IMAGE }}:staging
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          block_on_failure: 'true'  # BLOCK production if not tested
-
-      # ========================================================================
-      # VERIFY SAME SHA: Pull staging image and compare digests
-      # ========================================================================
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Configure Docker for GCP
-        run: gcloud auth configure-docker asia-south1-docker.pkg.dev
-
-      - name: Compare with staging image digest
-        run: |
-          echo "## 🔍 Production Image Digest Comparison" >> $GITHUB_STEP_SUMMARY
-
-          # Pull staging image from GCR (tagged with git SHA)
-          docker pull ${{ env.GCR_IMAGE }}:staging-${{ github.sha }} || {
-            echo "❌ **ERROR:** Staging image not found in GCR for SHA \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "**BLOCKING PRODUCTION DEPLOY**" >> $GITHUB_STEP_SUMMARY
-            echo "Staging must be deployed before production!" >> $GITHUB_STEP_SUMMARY
-            exit 1  # BLOCK production if staging missing
-          }
-
-          # Get digests
-          PROD_DIGEST=$(docker inspect backend_easy:latest --format='{{.Id}}')
-          STAGING_DIGEST=$(docker inspect ${{ env.GCR_IMAGE }}:staging-${{ github.sha }} --format='{{.Id}}')
-
-          echo "**Staging Digest:**    \`$STAGING_DIGEST\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Production Digest:** \`$PROD_DIGEST\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** $ENV" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$PROD_DIGEST" = "$STAGING_DIGEST" ]; then
-            echo "✅ **VERIFIED:** Production and staging images are IDENTICAL" >> $GITHUB_STEP_SUMMARY
-            echo "✅ Deterministic build successful - safe to deploy" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **ERROR:** Image digests DO NOT MATCH!" >> $GITHUB_STEP_SUMMARY
-            echo "**BLOCKING PRODUCTION DEPLOY**" >> $GITHUB_STEP_SUMMARY
-            echo "This indicates non-deterministic build or cache mismatch" >> $GITHUB_STEP_SUMMARY
-            exit 1  # BLOCK production
-          fi
-
-      - uses: ./.github/actions/push-image
-        with:
-          image_tag: latest
-          sha_tag_prefix: production
-          version_tag: ${{ github.ref_name }}
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-  deploy-production-cloudrun:
-    name: Deploy Production to Cloud Run
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/deploy-cloudrun
-        with:
-          environment: production
-          image_tag: latest
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Production deployment success
-        run: |
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Production Deployed! Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Service: easypool-backend-production" >> $GITHUB_STEP_SUMMARY
-          echo "Region: asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** easypool-backend-$ENV" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** asia-south1 (Mumbai)" >> $GITHUB_STEP_SUMMARY
