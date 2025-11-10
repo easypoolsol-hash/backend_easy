@@ -204,6 +204,8 @@ class StudentAdmin(admin.ModelAdmin):
         "get_name",
         "grade",
         "section",
+        "get_photo_count",
+        "get_embedding_count",
         "get_primary_parent",
         "assigned_bus",
         "status",
@@ -214,6 +216,17 @@ class StudentAdmin(admin.ModelAdmin):
     inlines = [StudentParentInline, StudentPhotoInline]  # Parents first, then photos
     change_list_template = "admin/students/student_changelist.html"
 
+    def get_queryset(self, request):
+        """Optimize queryset with counts to avoid N+1 queries"""
+        from django.db.models import Count
+
+        qs = super().get_queryset(request)
+        qs = qs.annotate(
+            photo_count=Count("photos", distinct=True),
+            embedding_count=Count("photos__face_embeddings", distinct=True),
+        )
+        return qs
+
     @display(description="Student Name")
     def get_name(self, obj):
         try:
@@ -221,6 +234,29 @@ class StudentAdmin(admin.ModelAdmin):
         except Exception:
             # If decryption fails, return the raw name (likely not encrypted)
             return obj.name
+
+    @display(description="Photos", ordering="photo_count")
+    def get_photo_count(self, obj):
+        """Display number of photos with status indicator"""
+        count = getattr(obj, "photo_count", obj.photos.count())
+        if count == 0:
+            return format_html('<span style="color: red; font-weight: bold;">⚠️ 0</span>')
+        elif count == 1:
+            return format_html('<span style="color: orange;">📷 1</span>')
+        else:
+            return format_html('<span style="color: green;">📷 {}</span>', count)
+
+    @display(description="Embeddings", ordering="embedding_count")
+    def get_embedding_count(self, obj):
+        """Display number of face embeddings with status indicator"""
+        count = getattr(obj, "embedding_count", 0)
+        if count == 0:
+            return format_html('<span style="color: red; font-weight: bold;">⚠️ 0</span>')
+        elif count < getattr(obj, "photo_count", obj.photos.count()):
+            # Some photos don't have embeddings
+            return format_html('<span style="color: orange;">🔍 {}</span>', count)
+        else:
+            return format_html('<span style="color: green;">🔍 {}</span>', count)
 
     @display(description="Primary Parent")
     def get_primary_parent(self, obj):
