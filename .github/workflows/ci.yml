@@ -61,21 +61,35 @@ jobs:
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # BUILD PATH: develop or PRs (full CI/CD)
-          if [[ "${{ github.ref }}" == "refs/heads/develop" ]] || [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          # BUILD PATH: develop (fast deployment - quality already checked by pre-commit hooks)
+          # PRs still run full checks for external contributors
+          if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
             echo "build_path=true" >> $GITHUB_OUTPUT
             echo "promote_path=false" >> $GITHUB_OUTPUT
             echo "release_path=false" >> $GITHUB_OUTPUT
 
-            echo "## 🟢 BUILD PATH SELECTED" >> $GITHUB_STEP_SUMMARY
+            echo "## 🟢 DEVELOP PATH SELECTED (Fast Deploy)" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Full CI/CD pipeline will run:**" >> $GITHUB_STEP_SUMMARY
+            echo "**Streamlined deployment (pre-commit hooks already validated):**" >> $GITHUB_STEP_SUMMARY
+            echo "1. 🏗️ Build Docker image" >> $GITHUB_STEP_SUMMARY
+            echo "2. 🚀 Deploy to dev environment" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚡ **SKIPPED:** Quality checks & tests (already done by pre-commit hooks)" >> $GITHUB_STEP_SUMMARY
+
+          # PRs get full validation for external contributors
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "build_path=true" >> $GITHUB_OUTPUT
+            echo "promote_path=false" >> $GITHUB_OUTPUT
+            echo "release_path=false" >> $GITHUB_OUTPUT
+
+            echo "## 🟢 PR PATH SELECTED (Full Validation)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Full CI/CD pipeline for PRs:**" >> $GITHUB_STEP_SUMMARY
             echo "1. ✅ Quality checks (lint + mypy)" >> $GITHUB_STEP_SUMMARY
             echo "2. 🏗️ Build Docker image" >> $GITHUB_STEP_SUMMARY
             echo "3. 🧪 Tests (unit + integration + contract)" >> $GITHUB_STEP_SUMMARY
             echo "4. 🔒 Security scan (trivy)" >> $GITHUB_STEP_SUMMARY
             echo "5. ✅ Mark as test-safe" >> $GITHUB_STEP_SUMMARY
-            echo "6. 🚀 Deploy to staging" >> $GITHUB_STEP_SUMMARY
 
           # PROMOTE PATH: master (no build, just promote)
           elif [[ "${{ github.ref }}" == "refs/heads/master" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -112,7 +126,8 @@ jobs:
     name: quality (lint + mypy)
     runs-on: ubuntu-latest
     needs: [decide]
-    if: needs.decide.outputs.build_path == 'true'
+    # Only run for PRs (develop branch skips quality - already done by pre-commit hooks)
+    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-quality-checks
@@ -122,7 +137,8 @@ jobs:
     name: ${{ matrix.test-type }}
     runs-on: ubuntu-latest
     needs: [decide, quality, build]
-    if: needs.decide.outputs.build_path == 'true'
+    # Only run for PRs (develop branch skips tests - already done by pre-commit hooks)
+    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -142,8 +158,12 @@ jobs:
   build:
     name: Build image (artifact)
     runs-on: ubuntu-latest
-    needs: [decide, quality]
-    if: needs.decide.outputs.build_path == 'true'
+    needs: [decide]
+    # For develop: skip quality checks (already done by pre-commit)
+    # For PRs: wait for quality checks to pass
+    if: |
+      needs.decide.outputs.build_path == 'true' &&
+      (github.ref == 'refs/heads/develop' || (github.event_name == 'pull_request' && needs.quality.result == 'success'))
 
     steps:
       - uses: actions/checkout@v4
@@ -171,7 +191,8 @@ jobs:
     name: test image (smoke)
     runs-on: ubuntu-latest
     needs: [decide, build]
-    if: always() && needs.build.result == 'success' && needs.decide.outputs.build_path == 'true'
+    # Only run for PRs (develop skips smoke tests)
+    if: always() && needs.build.result == 'success' && needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-smoke-test
@@ -182,7 +203,8 @@ jobs:
     name: security scan (trivy)
     runs-on: ubuntu-latest
     needs: [decide, test-image]
-    if: needs.decide.outputs.build_path == 'true'
+    # Only run for PRs (develop skips security scan)
+    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/run-security-scan
@@ -194,12 +216,14 @@ jobs:
   # ============================================================================
   # Labels travel WITH the image (no cache dependency)
   # Master/Production verify these labels before promoting
+  # Only for PRs - develop images don't need test labels
   # ============================================================================
   add-test-labels:
     name: Add Test Labels ✅
     runs-on: ubuntu-latest
     needs: [decide, security, tests]
-    if: needs.decide.outputs.build_path == 'true'
+    # Only run for PRs (develop skips test labels)
+    if: needs.decide.outputs.build_path == 'true' && github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
 
@@ -216,12 +240,22 @@ jobs:
 
       # Image now has test labels embedded - will persist when pushed to GCR
 
-  # DEPLOY: Push to GCP Artifact Registry after all tests pass
+  # DEPLOY: Push to GCP Artifact Registry
+  # For develop: Fast deploy after build (tests already done by pre-commit)
+  # For PRs: Deploy after all tests pass
   deploy-dev:
     name: Deploy Dev
     runs-on: ubuntu-latest
-    needs: [decide, security, tests, add-test-labels]
-    if: needs.decide.outputs.build_path == 'true'
+    needs: [decide, build]
+    # For develop: deploy immediately after build
+    # For PRs: wait for all tests to pass
+    if: |
+      needs.decide.outputs.build_path == 'true' &&
+      (github.ref == 'refs/heads/develop' ||
+       (github.event_name == 'pull_request' &&
+        needs.security.result == 'success' &&
+        needs.tests.result == 'success' &&
+        needs.add-test-labels.result == 'success'))
     steps:
       - uses: actions/checkout@v4
 
