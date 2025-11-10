@@ -204,7 +204,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_initial_bus_locations(self):
-        """Fetch all current bus locations as GeoJSON features."""
+        """Fetch all current bus locations in the same format as real-time updates."""
         from django.db.models import Max
 
         from kiosks.models import BusLocation
@@ -212,7 +212,7 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
         # Get latest location for each kiosk
         latest_locations = BusLocation.objects.values("kiosk_id").annotate(latest_timestamp=Max("timestamp"))
 
-        features = []
+        locations = []
         for loc_data in latest_locations:
             location = (
                 BusLocation.objects.filter(
@@ -227,33 +227,26 @@ class BusTrackingConsumer(AsyncWebsocketConsumer):
                 kiosk = location.kiosk
                 bus = kiosk.bus
 
-                features.append(
+                # Use same format as real-time updates (bus_location_update)
+                locations.append(
                     {
-                        "type": "Feature",
-                        "geometry": {
-                            "type": "Point",
-                            "coordinates": [
-                                float(location.longitude),
-                                float(location.latitude),
-                            ],
-                        },
-                        "properties": {
-                            "id": str(bus.bus_id),
-                            "name": bus.license_plate,
-                            "bus_number": bus.bus_number,
-                            "route_id": str(bus.route_id) if bus.route else None,
-                            "status": bus.status,
-                            "last_location_update": location.timestamp.isoformat(),
-                            "speed": float(location.speed) if location.speed else 0,
-                            "heading": float(location.heading) if location.heading else 0,
-                        },
+                        "bus_id": str(bus.bus_id),
+                        "license_plate": bus.license_plate,
+                        "bus_number": bus.bus_number,
+                        "latitude": float(location.latitude),
+                        "longitude": float(location.longitude),
+                        "speed": float(location.speed) if location.speed else 0,
+                        "heading": float(location.heading) if location.heading else 0,
+                        "status": bus.status,
+                        "timestamp": location.timestamp.isoformat(),
                     }
                 )
 
-        return features
+        return locations
 
     async def send_initial_bus_locations(self):
         """Send current bus locations to newly connected client."""
-        features = await self.get_initial_bus_locations()
+        locations = await self.get_initial_bus_locations()
 
-        await self.send(text_data=json.dumps({"type": "bus_location_update", "features": features}))
+        # Send as an array of location updates (same format as real-time)
+        await self.send(text_data=json.dumps({"type": "initial_locations", "locations": locations}))
