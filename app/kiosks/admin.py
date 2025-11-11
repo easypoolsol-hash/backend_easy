@@ -7,6 +7,7 @@ from .models import (
     DeviceLog,
     Kiosk,
     KioskStatus,
+    SOSAlert,
 )
 
 
@@ -428,3 +429,189 @@ class BusLocationAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(SOSAlert)
+class SOSAlertAdmin(admin.ModelAdmin):
+    """Admin interface for SOS emergency alerts"""
+
+    list_display = [
+        "alert_id",
+        "kiosk",
+        "bus_info",
+        "status_badge",
+        "coordinates_display",
+        "created_at",
+        "acknowledged_by",
+    ]
+
+    list_filter = ["status", "created_at", "kiosk__kiosk_id"]
+
+    search_fields = [
+        "kiosk__kiosk_id",
+        "kiosk__bus__license_plate",
+        "message",
+        "acknowledged_by",
+        "resolved_by",
+    ]
+
+    readonly_fields = ["alert_id", "created_at", "map_preview"]
+
+    date_hierarchy = "created_at"
+
+    ordering = ["-created_at"]
+
+    fieldsets = (
+        (
+            "Alert Info",
+            {
+                "fields": (
+                    "alert_id",
+                    "kiosk",
+                    "created_at",
+                    "status",
+                )
+            },
+        ),
+        (
+            "Location",
+            {
+                "fields": (
+                    "latitude",
+                    "longitude",
+                    "map_preview",
+                )
+            },
+        ),
+        (
+            "Details",
+            {
+                "fields": (
+                    "message",
+                    "metadata",
+                )
+            },
+        ),
+        (
+            "Response Tracking",
+            {
+                "fields": (
+                    "acknowledged_at",
+                    "acknowledged_by",
+                    "resolved_at",
+                    "resolved_by",
+                )
+            },
+        ),
+    )
+
+    @display(description="Bus")
+    def bus_info(self, obj):
+        """Display bus information"""
+        if obj.kiosk.bus:
+            return f"{obj.kiosk.bus.bus_number} - {obj.kiosk.bus.license_plate}"
+        return "No bus assigned"
+
+    @display(description="Status")
+    def status_badge(self, obj):
+        """Display status with color badge"""
+        colors = {
+            "active": "red",
+            "acknowledged": "orange",
+            "resolved": "green",
+            "false_alarm": "gray",
+        }
+        color = colors.get(obj.status, "gray")
+        icon = "🚨" if obj.status == "active" else "✓"
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{} {}</span>',
+            color,
+            icon,
+            obj.get_status_display().upper(),
+        )
+
+    @display(description="Coordinates")
+    def coordinates_display(self, obj):
+        """Display GPS coordinates with link to Google Maps"""
+        if obj.latitude is None or obj.longitude is None:
+            return "No location"
+
+        maps_url = f"https://www.google.com/maps?q={obj.latitude},{obj.longitude}"
+        return format_html(
+            '<a href="{}" target="_blank">📍 {:.6f}, {:.6f}</a>',
+            maps_url,
+            obj.latitude,
+            obj.longitude,
+        )
+
+    @display(description="Map Preview")
+    def map_preview(self, obj):
+        """Show map with SOS alert location"""
+        if obj.latitude is None or obj.longitude is None:
+            return "No location data"
+
+        from django.conf import settings
+
+        api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", "")
+
+        if not api_key:
+            return format_html(
+                '<div style="padding: 20px; background: #f5f5f5; '
+                'border-radius: 5px; text-align: center;">'
+                "<p>Google Maps API Key not configured</p>"
+                '<p><a href="https://www.google.com/maps?q={},{}" '
+                'target="_blank">View on Google Maps</a></p>'
+                "</div>",
+                obj.latitude,
+                obj.longitude,
+            )
+
+        map_id = f"sos_map_{obj.alert_id}"
+
+        return format_html(
+            '<div id="{}" style="width:100%; height:300px;"></div>'
+            "<script>"
+            "(function() {{"
+            "  if (window.initSOSMap_{}_done) return;"
+            "  window.initSOSMap_{}_done = true;"
+            '  const script = document.createElement("script");'
+            '  script.src = "https://maps.googleapis.com/maps/api/js?key={}&libraries=marker&loading=async&callback=initSOSMap_{}";'
+            "  script.async = true;"
+            "  script.defer = true;"
+            "  document.head.appendChild(script);"
+            "}})();"
+            "async function initSOSMap_{}() {{"
+            '  const {{ Map }} = await google.maps.importLibrary("maps");'
+            '  const {{ AdvancedMarkerElement, PinElement }} = await google.maps.importLibrary("marker");'
+            "  const pos = {{ lat: {}, lng: {} }};"
+            '  const map = new Map(document.getElementById("{}"), {{'
+            '    zoom: 15, center: pos, mapId: "SOS_ALERT_MAP"'
+            "  }});"
+            "  const pinBackground = new PinElement({{"
+            '    background: "#DC2626",'
+            '    borderColor: "#991B1B",'
+            '    glyphColor: "white",'
+            '    glyph: "⚠",'
+            "    scale: 1.5"
+            "  }});"
+            '  new AdvancedMarkerElement({{ map: map, position: pos, content: pinBackground.element, title: "SOS Alert Location" }});'
+            "}}"
+            "</script>",
+            map_id,
+            obj.alert_id,
+            obj.alert_id,
+            api_key,
+            obj.alert_id,
+            obj.alert_id,
+            obj.latitude,
+            obj.longitude,
+            map_id,
+        )
+
+    def get_queryset(self, request):
+        """Optimize queryset"""
+        return super().get_queryset(request).select_related("kiosk__bus")
+
+    # Allow manual status updates for acknowledgment/resolution
+    def has_add_permission(self, request):
+        return False  # SOS alerts created by kiosks only

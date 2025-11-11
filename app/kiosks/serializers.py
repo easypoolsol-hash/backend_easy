@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import BusLocation, DeviceLog, Kiosk, KioskStatus
+from .models import BusLocation, DeviceLog, Kiosk, KioskStatus, SOSAlert
 
 
 class KioskSerializer(serializers.ModelSerializer):
@@ -200,5 +200,71 @@ class BusLocationSerializer(serializers.ModelSerializer):
     def validate_longitude(self, value):
         """Validate longitude is valid"""
         if not (-180 <= value <= 180):
+            raise serializers.ValidationError("Longitude must be between -180 and 180")
+        return value
+
+
+class SOSAlertSerializer(serializers.ModelSerializer):
+    """Serializer for SOS emergency alerts"""
+
+    kiosk_id = serializers.CharField(source="kiosk.kiosk_id", read_only=True)
+    bus_license_plate = serializers.CharField(source="kiosk.bus.license_plate", read_only=True, allow_null=True)
+    bus_number = serializers.CharField(source="kiosk.bus.bus_number", read_only=True, allow_null=True)
+
+    class Meta:
+        model = SOSAlert
+        fields = [
+            "alert_id",
+            "kiosk_id",
+            "bus_license_plate",
+            "bus_number",
+            "latitude",
+            "longitude",
+            "status",
+            "message",
+            "metadata",
+            "created_at",
+            "acknowledged_at",
+            "resolved_at",
+            "acknowledged_by",
+            "resolved_by",
+        ]
+        read_only_fields = [
+            "alert_id",
+            "created_at",
+            "acknowledged_at",
+            "resolved_at",
+        ]
+
+    def validate_latitude(self, value):
+        """Validate latitude is valid"""
+        if value is not None and not (-90 <= value <= 90):
+            raise serializers.ValidationError("Latitude must be between -90 and 90")
+        return value
+
+    def validate_longitude(self, value):
+        """Validate longitude is valid"""
+        if value is not None and not (-180 <= value <= 180):
+            raise serializers.ValidationError("Longitude must be between -180 and 180")
+        return value
+
+
+class SOSAlertCreateSerializer(serializers.Serializer):
+    """Serializer for creating SOS alerts from kiosk"""
+
+    latitude = serializers.FloatField(required=False, allow_null=True, help_text="GPS latitude at time of alert")
+    longitude = serializers.FloatField(required=False, allow_null=True, help_text="GPS longitude at time of alert")
+    message = serializers.CharField(required=False, allow_blank=True, help_text="Optional message from operator")
+    metadata = serializers.JSONField(required=False, default=dict, help_text="Additional context data")
+
+    def validate_latitude(self, value):
+        """Validate latitude is valid"""
+        if value is not None and not (-90 <= value <= 90):
+            raise serializers.ValidationError("Latitude must be between -90 and 90")
+        return value
+
+    def validate_longitude(self, value):
+        """Validate longitude is valid"""
+        if value is not None and not (-180 <= value <= 180):
             raise serializers.ValidationError("Longitude must be between -180 and 180")
         return value

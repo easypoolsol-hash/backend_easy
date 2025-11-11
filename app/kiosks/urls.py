@@ -9,6 +9,7 @@ from .views import (
     get_me,
     heartbeat,
     kiosk_log,
+    trigger_sos,
     update_location,
 )
 
@@ -41,6 +42,11 @@ urlpatterns = [
         "kiosks/<str:kiosk_id>/location/",
         update_location,
         name="kiosk-location",
+    ),
+    path(
+        "kiosks/<str:kiosk_id>/sos/",
+        trigger_sos,
+        name="kiosk-sos",
     ),
     # Router for standard CRUD operations
     path("", include(router.urls)),

@@ -317,3 +317,65 @@ class BusLocation(models.Model):
     def coordinates(self):
         """Return coordinates as tuple (lat, lng)"""
         return (self.latitude, self.longitude)
+
+
+class SOSAlert(models.Model):
+    """
+    Emergency SOS alerts triggered by kiosk drivers/attendants.
+
+    Provides immediate emergency notification with location tracking.
+    """
+
+    ALERT_STATUS_CHOICES = [
+        ("active", "Active"),
+        ("acknowledged", "Acknowledged"),
+        ("resolved", "Resolved"),
+        ("false_alarm", "False Alarm"),
+    ]
+
+    alert_id = models.BigAutoField(primary_key=True, help_text="Auto-incrementing alert ID")
+
+    kiosk = models.ForeignKey(Kiosk, on_delete=models.CASCADE, related_name="sos_alerts", help_text="Kiosk that triggered the SOS alert")
+
+    latitude = models.FloatField(null=True, blank=True, help_text="GPS latitude at time of alert")
+    longitude = models.FloatField(null=True, blank=True, help_text="GPS longitude at time of alert")
+
+    status = models.CharField(max_length=20, choices=ALERT_STATUS_CHOICES, default="active", help_text="Current status of the alert")
+
+    message = models.TextField(blank=True, help_text="Optional message/notes from the kiosk operator")
+
+    metadata = models.JSONField(default=dict, blank=True, help_text="Additional data (battery level, network status, etc.)")
+
+    created_at = models.DateTimeField(auto_now_add=True, help_text="When the alert was created")
+
+    acknowledged_at = models.DateTimeField(null=True, blank=True, help_text="When the alert was first acknowledged by staff")
+
+    resolved_at = models.DateTimeField(null=True, blank=True, help_text="When the alert was resolved")
+
+    acknowledged_by = models.CharField(max_length=255, blank=True, help_text="Name/ID of person who acknowledged the alert")
+
+    resolved_by = models.CharField(max_length=255, blank=True, help_text="Name/ID of person who resolved the alert")
+
+    class Meta:
+        db_table = "sos_alerts"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["kiosk", "-created_at"], name="idx_sos_kiosk_time"),
+            models.Index(fields=["status"], name="idx_sos_status"),
+            models.Index(fields=["-created_at"], name="idx_sos_created"),
+        ]
+
+    def __str__(self):
+        return f"SOS Alert #{self.alert_id} - {self.kiosk.kiosk_id} ({self.status}) - {self.created_at}"
+
+    @property
+    def coordinates(self):
+        """Return coordinates as tuple (lat, lng)"""
+        if self.latitude is not None and self.longitude is not None:
+            return (self.latitude, self.longitude)
+        return None
+
+    @property
+    def is_active(self):
+        """Check if alert is still active"""
+        return self.status == "active"

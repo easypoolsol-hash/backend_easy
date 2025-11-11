@@ -1253,6 +1253,39 @@ paths:
                 type: string
                 format: binary
           description: ''
+  /api/v1/kiosks/{kiosk_id}/sos/:
+    post:
+      operationId: kiosk_trigger_sos
+      description: Trigger SOS emergency alert. Creates an active alert with optional
+        location and message.
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SOSAlertCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SOSAlertCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SOSAlertCreate'
+      security:
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SOSAlert'
+          description: ''
   /api/v1/kiosks/{kiosk_id}/:
     get:
       operationId: api_v1_kiosks_retrieve
@@ -4768,6 +4801,107 @@ components:
       - latitude
       - longitude
       - sequence
+    SOSAlert:
+      type: object
+      description: Serializer for SOS emergency alerts
+      properties:
+        alert_id:
+          type: integer
+          readOnly: true
+          description: Auto-incrementing alert ID
+        kiosk_id:
+          type: string
+          readOnly: true
+        bus_license_plate:
+          type: string
+          readOnly: true
+          nullable: true
+        bus_number:
+          type: string
+          readOnly: true
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude at time of alert
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude at time of alert
+        status:
+          enum:
+          - active
+          - acknowledged
+          - resolved
+          - false_alarm
+          type: string
+          x-spec-enum-id: 807151cfe11df5c3
+          description: |-
+            Current status of the alert
+
+            * `active` - Active
+            * `acknowledged` - Acknowledged
+            * `resolved` - Resolved
+            * `false_alarm` - False Alarm
+        message:
+          type: string
+          description: Optional message/notes from the kiosk operator
+        metadata:
+          description: Additional data (battery level, network status, etc.)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the alert was created
+        acknowledged_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When the alert was first acknowledged by staff
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When the alert was resolved
+        acknowledged_by:
+          type: string
+          description: Name/ID of person who acknowledged the alert
+          maxLength: 255
+        resolved_by:
+          type: string
+          description: Name/ID of person who resolved the alert
+          maxLength: 255
+      required:
+      - acknowledged_at
+      - alert_id
+      - bus_license_plate
+      - bus_number
+      - created_at
+      - kiosk_id
+      - resolved_at
+    SOSAlertCreate:
+      type: object
+      description: Serializer for creating SOS alerts from kiosk
+      properties:
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude at time of alert
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude at time of alert
+        message:
+          type: string
+          description: Optional message from operator
+        metadata:
+          description: Additional context data
     School:
       type: object
       properties:

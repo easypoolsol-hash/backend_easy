@@ -23,7 +23,7 @@ from rest_framework.response import Response
 
 from bus_kiosk_backend.core.authentication import FirebaseAuthentication
 
-from .models import DeviceLog, Kiosk, KioskStatus
+from .models import DeviceLog, Kiosk, KioskStatus, SOSAlert
 from .permissions import IsKiosk
 from .serializers import (
     BusLocationSerializer,
@@ -32,6 +32,8 @@ from .serializers import (
     DeviceLogSerializer,
     HeartbeatSerializer,
     KioskSerializer,
+    SOSAlertCreateSerializer,
+    SOSAlertSerializer,
 )
 from .services import SnapshotGenerator
 
@@ -402,3 +404,54 @@ def update_location(request: Request, kiosk_id: str) -> Response:
     location = serializer.save(kiosk=kiosk)
 
     return Response(BusLocationSerializer(location).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    request=SOSAlertCreateSerializer,
+    responses={201: SOSAlertSerializer},
+    operation_id="kiosk_trigger_sos",
+    description="Trigger SOS emergency alert. Creates an active alert with optional location and message.",
+)
+@api_view(["POST"])
+@authentication_classes([FirebaseAuthentication])
+@permission_classes([IsKiosk])
+def trigger_sos(request: Request, kiosk_id: str) -> Response:
+    """
+    Trigger an emergency SOS alert from the kiosk.
+
+    Creates an active SOS alert with location (if available) and optional message.
+    Alert is immediately visible to administrators for emergency response.
+    """
+    # Use authenticated kiosk from request.user (already verified by FirebaseAuthentication)
+    kiosk = cast(Kiosk, request.user)
+
+    # Verify authenticated kiosk matches requested kiosk_id (ATOMICITY check)
+    if kiosk.kiosk_id != kiosk_id:
+        return Response(
+            {"detail": "Not authorized for this kiosk"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # Validate request data
+    serializer = SOSAlertCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    data = serializer.validated_data
+
+    # Create SOS alert
+    sos_alert = SOSAlert.objects.create(
+        kiosk=kiosk,
+        latitude=data.get("latitude"),
+        longitude=data.get("longitude"),
+        message=data.get("message", ""),
+        metadata=data.get("metadata", {}),
+        status="active",
+    )
+
+    # TODO: Send real-time notification to administrators
+    # This could be via Firebase Cloud Messaging, WebSockets, or email
+
+    return Response(
+        SOSAlertSerializer(sos_alert).data,
+        status=status.HTTP_201_CREATED,
+    )
