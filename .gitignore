@@ -229,7 +229,7 @@ tests/fixtures/test_images/*.png
 scripts/seed_bus_locations.py
 firebase-adminsdk-key.json
 
-# Face Recognition Models - Keep only MobileFaceNet
+# Face Recognition Models - Keep only MobileFaceNet and OpenCV detection models
 # Ignore all other face recognition models and conversion scripts
 ml_models/face_recognition/models/*_openface*.py
 ml_models/face_recognition/models/*ghostface*.py
@@ -238,8 +238,8 @@ ml_models/face_recognition/models/extract_openface_architecture.py
 ml_models/face_recognition/models/load_openface_full.py
 ml_models/face_recognition/models/verify_openface.py
 ml_models/face_recognition/models/*.h5
-ml_models/face_recognition/models/*.caffemodel
-ml_models/face_recognition/models/*.prototxt
 ml_models/face_recognition/models/.convert_venv/
-# Keep MobileFaceNet model
+# Keep production models only
 !ml_models/face_recognition/models/mobilefacenet.tflite
+!ml_models/face_recognition/models/deploy.prototxt
+!ml_models/face_recognition/models/res10_300x300_ssd_iter_140000.caffemodel
