@@ -210,7 +210,12 @@ class Bus(models.Model):
         related_name="buses",
         help_text="Route this bus is assigned to",
     )
-    capacity = models.PositiveIntegerField(validators=[MinValueValidator(1)], help_text="Maximum number of passengers")
+    capacity = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        blank=True,
+        null=True,
+        help_text="Maximum number of passengers",
+    )
     device_id = models.CharField(
         max_length=100,
         unique=True,
@@ -228,6 +233,17 @@ class Bus(models.Model):
     model = models.CharField(max_length=100, blank=True, help_text="Bus model")
     year = models.PositiveIntegerField(null=True, blank=True, help_text="Manufacturing year")
     last_maintenance = models.DateField(null=True, blank=True, help_text="Date of last maintenance")
+
+    # Driver information
+    driver_name = models.CharField(max_length=200, blank=True, help_text="Driver's full name")
+    driver_phone = models.CharField(max_length=20, blank=True, help_text="Driver's contact number")
+    driver_address = models.TextField(blank=True, help_text="Driver's address")
+    driver_license_number = models.CharField(max_length=50, blank=True, help_text="Driver's license number")
+
+    # Conductor information
+    conductor_name = models.CharField(max_length=200, blank=True, help_text="Conductor's full name")
+    conductor_phone = models.CharField(max_length=20, blank=True, help_text="Conductor's contact number")
+    conductor_address = models.TextField(blank=True, help_text="Conductor's address")
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this bus was added to the system")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this bus record was last updated")
     last_student_update = models.DateTimeField(

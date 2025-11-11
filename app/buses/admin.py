@@ -94,9 +94,21 @@ class BusAdmin(admin.ModelAdmin):
     ordering = ["bus_number"]
 
     fieldsets = (
-        ("Bus Info", {"fields": ("bus_id", "bus_number", "license_plate", "status")}),
+        ("Bus Info", {"fields": ("bus_id", "bus_number", "license_plate", "status", "capacity")}),
         ("Assignment", {"fields": ("route", "device_id")}),
-        ("Capacity", {"fields": ("capacity",)}),
+        (
+            "Personnel",
+            {
+                "fields": (
+                    ("driver_name", "driver_phone"),
+                    "driver_address",
+                    "driver_license_number",
+                    ("conductor_name", "conductor_phone"),
+                    "conductor_address",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
         (
             "Vehicle Details",
             {

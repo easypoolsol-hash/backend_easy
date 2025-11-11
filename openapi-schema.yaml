@@ -3331,6 +3331,7 @@ components:
           maximum: 9223372036854775807
           minimum: 1
           format: int64
+          nullable: true
           description: Maximum number of passengers
         device_id:
           type: string
@@ -3370,6 +3371,32 @@ components:
           format: date
           nullable: true
           description: Date of last maintenance
+        driver_name:
+          type: string
+          description: Driver's full name
+          maxLength: 200
+        driver_phone:
+          type: string
+          description: Driver's contact number
+          maxLength: 20
+        driver_address:
+          type: string
+          description: Driver's address
+        driver_license_number:
+          type: string
+          description: Driver's license number
+          maxLength: 50
+        conductor_name:
+          type: string
+          description: Conductor's full name
+          maxLength: 200
+        conductor_phone:
+          type: string
+          description: Conductor's contact number
+          maxLength: 20
+        conductor_address:
+          type: string
+          description: Conductor's address
         assigned_students_count:
           type: integer
           readOnly: true
@@ -3394,7 +3421,6 @@ components:
       - assigned_students_count
       - bus_id
       - bus_number
-      - capacity
       - created_at
       - is_available
       - license_plate
@@ -3419,6 +3445,7 @@ components:
           maximum: 9223372036854775807
           minimum: 1
           format: int64
+          nullable: true
           description: Maximum number of passengers
         status:
           enum:
@@ -3445,7 +3472,6 @@ components:
           description: When this bus record was last updated
       required:
       - bus_id
-      - capacity
       - created_at
       - license_plate
       - updated_at
@@ -4292,6 +4318,7 @@ components:
           maximum: 9223372036854775807
           minimum: 1
           format: int64
+          nullable: true
           description: Maximum number of passengers
         device_id:
           type: string
@@ -4331,6 +4358,32 @@ components:
           format: date
           nullable: true
           description: Date of last maintenance
+        driver_name:
+          type: string
+          description: Driver's full name
+          maxLength: 200
+        driver_phone:
+          type: string
+          description: Driver's contact number
+          maxLength: 20
+        driver_address:
+          type: string
+          description: Driver's address
+        driver_license_number:
+          type: string
+          description: Driver's license number
+          maxLength: 50
+        conductor_name:
+          type: string
+          description: Conductor's full name
+          maxLength: 200
+        conductor_phone:
+          type: string
+          description: Conductor's contact number
+          maxLength: 20
+        conductor_address:
+          type: string
+          description: Conductor's address
         assigned_students_count:
           type: integer
           readOnly: true
