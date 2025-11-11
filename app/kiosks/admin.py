@@ -455,7 +455,7 @@ class SOSAlertAdmin(admin.ModelAdmin):
         "resolved_by",
     ]
 
-    readonly_fields = ["alert_id", "created_at", "map_preview"]
+    readonly_fields = ["alert_id", "created_at", "map_preview", "device_info_display"]
 
     date_hierarchy = "created_at"
 

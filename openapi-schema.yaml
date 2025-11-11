@@ -1552,6 +1552,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeviceLog'
           description: ''
+  /api/v1/my-bus-location/:
+    get:
+      operationId: parent_bus_location_api
+      description: "\n    Returns real-time bus location for the parent's child's\
+        \ assigned bus only.\n\n    Security: Parents can ONLY see their own child's\
+        \ bus location, not other buses.\n\n    **Response Format:**\n    GeoJSON\
+        \ Feature with Point geometry for the bus location.\n\n    Returns 404 if:\n\
+        \    - Parent has no students assigned\n    - Student has no bus assigned\n\
+        \    - No recent location data available\n    "
+      tags:
+      - Buses
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentBusLocationResponse'
+          description: ''
   /api/v1/parent/my-buses/:
     get:
       operationId: parent_bus_locations
@@ -4188,6 +4209,23 @@ components:
       - name
       - parent_id
       - phone
+    ParentBusLocationResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          default: Feature
+        geometry:
+          type: object
+          additionalProperties: {}
+          description: GeoJSON Point geometry with bus location
+        properties:
+          type: object
+          additionalProperties: {}
+          description: Bus details including bus_id, name, status, etc.
+      required:
+      - geometry
+      - properties
     ParentBusLocationsResponse:
       type: object
       properties:
