@@ -2,7 +2,9 @@ name: Unified CI/CD Pipeline
 
 on:
   push:
-    branches: [ develop, staging, production ]
+    branches: [ develop, master ]
+    tags:
+      - 'v*.*.*'
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -22,25 +24,33 @@ jobs:
   # ============================================================================
   # UNIFIED FLOW - CORRECT ORDER
   # ============================================================================
-  # 1. Show path marker (which branch → which environment)
+  # Branch/Tag → Environment mapping:
+  #   - develop branch → DEV environment
+  #   - master branch  → STAGING environment
+  #   - v*.*.* tag     → PRODUCTION environment
+  #
+  # Pipeline steps:
+  # 1. Show path marker (which branch/tag → which environment)
   # 2. Quality checks (parallel - lint + mypy)
   # 3. Build image (tests need this!)
   # 4. Tests + Security + Smoke (all parallel using built image)
-  # 5. Deploy to environment (three isolated branches at end)
+  # 5. Deploy to environment (three isolated deploy jobs)
   # ============================================================================
 
   # STEP 1: PATH MARKER - Shows which environment will be deployed
   show-path:
-    name: 🎯 PATH → ${{ github.ref_name }} → ${{ github.ref_name == 'develop' && 'DEV' || github.ref_name == 'staging' && 'STAGING' || 'PRODUCTION' }}
+    name: 🎯 PATH → ${{ github.ref_name }} → ${{ github.ref_name == 'develop' && 'DEV' || github.ref_name == 'master' && 'STAGING' || 'PRODUCTION' }}
     runs-on: ubuntu-latest
     outputs:
       environment: ${{ steps.detect.outputs.environment }}
       branch: ${{ steps.detect.outputs.branch }}
+      is_tag: ${{ steps.detect.outputs.is_tag }}
     steps:
       - name: Detect and show deployment path
         id: detect
         run: |
-          BRANCH="${{ github.ref_name }}"
+          REF_NAME="${{ github.ref_name }}"
+          REF_TYPE="${{ github.ref_type }}"
 
           # Big clear marker showing the path
           echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓" >> $GITHUB_STEP_SUMMARY
@@ -48,25 +58,30 @@ jobs:
           echo "┃   🎯 PIPELINE PATH MARKER                            ┃" >> $GITHUB_STEP_SUMMARY
           echo "┃                                                       ┃" >> $GITHUB_STEP_SUMMARY
 
-          case "$BRANCH" in
-            develop)
-              ENV="dev"
-              echo "┃   Branch: develop    →    Environment: DEV         ┃" >> $GITHUB_STEP_SUMMARY
-              ;;
-            staging)
-              ENV="staging"
-              echo "┃   Branch: staging    →    Environment: STAGING     ┃" >> $GITHUB_STEP_SUMMARY
-              ;;
-            production)
-              ENV="production"
-              echo "┃   Branch: production →    Environment: PRODUCTION  ┃" >> $GITHUB_STEP_SUMMARY
-              ;;
-            *)
-              echo "┃   ❌ UNKNOWN BRANCH: $BRANCH                        ┃" >> $GITHUB_STEP_SUMMARY
-              echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛" >> $GITHUB_STEP_SUMMARY
-              exit 1
-              ;;
-          esac
+          # Check if it's a tag (version tag triggers production)
+          if [[ "$REF_TYPE" == "tag" ]]; then
+            ENV="production"
+            echo "┃   Tag: $REF_NAME    →    Environment: PRODUCTION   ┃" >> $GITHUB_STEP_SUMMARY
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+            # It's a branch
+            case "$REF_NAME" in
+              develop)
+                ENV="dev"
+                echo "┃   Branch: develop    →    Environment: DEV         ┃" >> $GITHUB_STEP_SUMMARY
+                ;;
+              master)
+                ENV="staging"
+                echo "┃   Branch: master     →    Environment: STAGING     ┃" >> $GITHUB_STEP_SUMMARY
+                ;;
+              *)
+                echo "┃   ❌ UNKNOWN BRANCH: $REF_NAME                      ┃" >> $GITHUB_STEP_SUMMARY
+                echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛" >> $GITHUB_STEP_SUMMARY
+                exit 1
+                ;;
+            esac
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
 
           echo "┃                                                       ┃" >> $GITHUB_STEP_SUMMARY
           echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛" >> $GITHUB_STEP_SUMMARY
@@ -74,7 +89,7 @@ jobs:
           echo "**Flow:** Quality → Build → Tests + Security + Smoke (parallel) → Deploy to $ENV" >> $GITHUB_STEP_SUMMARY
 
           echo "environment=$ENV" >> $GITHUB_OUTPUT
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "branch=$REF_NAME" >> $GITHUB_OUTPUT
 
   # STEP 2: Quality checks (parallel - doesn't need image)
   quality:
