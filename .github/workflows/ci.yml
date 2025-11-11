@@ -25,9 +25,8 @@ jobs:
   # 1. Show path marker (which branch → which environment)
   # 2. Quality checks (parallel - lint + mypy)
   # 3. Build image (tests need this!)
-  # 4. Tests using built image (parallel matrix)
-  # 5. Security + Smoke tests (parallel)
-  # 6. Deploy to environment (three isolated branches at end)
+  # 4. Tests + Security + Smoke (all parallel using built image)
+  # 5. Deploy to environment (three isolated branches at end)
   # ============================================================================
 
   # STEP 1: PATH MARKER - Shows which environment will be deployed
@@ -72,7 +71,7 @@ jobs:
           echo "┃                                                       ┃" >> $GITHUB_STEP_SUMMARY
           echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Flow:** Quality → Build → Tests (use image) → Security + Smoke → Deploy to $ENV" >> $GITHUB_STEP_SUMMARY
+          echo "**Flow:** Quality → Build → Tests + Security + Smoke (parallel) → Deploy to $ENV" >> $GITHUB_STEP_SUMMARY
 
           echo "environment=$ENV" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
@@ -117,11 +116,11 @@ jobs:
           test_type: ${{ matrix.test-type }}
           image_name: ${{ env.IMAGE_NAME }}
 
-  # STEP 5: Security scan (parallel with smoke - both use built image)
+  # STEP 4: Security scan (parallel with tests and smoke - all use built image)
   security:
     name: 🔒 Security
     runs-on: ubuntu-latest
-    needs: [show-path, build, tests]
+    needs: [show-path, build]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/load-from-cache
@@ -132,11 +131,11 @@ jobs:
         with:
           image_name: ${{ env.IMAGE_NAME }}
 
-  # STEP 5: Smoke tests (parallel with security)
+  # STEP 4: Smoke tests (parallel with tests and security)
   smoke:
     name: 💨 Smoke
     runs-on: ubuntu-latest
-    needs: [show-path, build, tests]
+    needs: [show-path, build]
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/load-from-cache
@@ -148,7 +147,7 @@ jobs:
           image_name: ${{ env.IMAGE_NAME }}
 
   # ============================================================================
-  # STEP 6: THREE ISOLATED DEPLOY BRANCHES (clear which one runs)
+  # STEP 5: THREE ISOLATED DEPLOY BRANCHES (clear which one runs)
   # ============================================================================
 
   deploy-dev:
