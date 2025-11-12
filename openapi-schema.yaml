@@ -2595,7 +2595,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedStudentList'
+                $ref: '#/components/schemas/PaginatedStudentListList'
           description: ''
     post:
       operationId: api_v1_students_create
@@ -4090,7 +4090,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/School'
-    PaginatedStudentList:
+    PaginatedStudentListList:
       type: object
       required:
       - count
@@ -4112,7 +4112,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/Student'
+            $ref: '#/components/schemas/StudentList'
     PaginatedStudentParentList:
       type: object
       required:
@@ -5161,6 +5161,55 @@ components:
       - grade
       - school_student_id
       - student_name
+    StudentList:
+      type: object
+      description: Lightweight serializer for list view - only essential fields
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          readOnly: true
+        school_student_id:
+          type: string
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
+        decrypted_name:
+          type: string
+          readOnly: true
+        grade:
+          type: string
+          maxLength: 10
+        section:
+          type: string
+          maxLength: 10
+        primary_parent_name:
+          type: string
+          readOnly: true
+        primary_parent_phone:
+          type: string
+          readOnly: true
+        bus_number:
+          type: string
+          readOnly: true
+        status:
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
+      required:
+      - bus_number
+      - decrypted_name
+      - grade
+      - primary_parent_name
+      - primary_parent_phone
+      - school_student_id
+      - student_id
     StudentParent:
       type: object
       properties:

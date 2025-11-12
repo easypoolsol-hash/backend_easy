@@ -22,6 +22,7 @@ from .serializers import (
     # BusSerializer removed - Use buses.serializers.BusSerializer instead
     ParentSerializer,
     SchoolSerializer,
+    StudentListSerializer,
     StudentParentSerializer,
     StudentPhotoSerializer,
     StudentSerializer,
@@ -49,6 +50,12 @@ class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        """Use lightweight serializer for list, full serializer for detail"""
+        if self.action == "list":
+            return StudentListSerializer
+        return StudentSerializer
 
     def get_queryset(self):
         queryset = Student.objects.select_related("school", "assigned_bus")
