@@ -3759,6 +3759,12 @@ components:
           type: integer
           minimum: 0
           description: Embeddings in DB
+        git_commit_sha:
+          type: string
+          nullable: true
+          description: Git commit SHA of the kiosk app build (40 chars). Null for
+            dev builds.
+          maxLength: 40
         health:
           $ref: '#/components/schemas/HealthData'
       required:
@@ -3784,6 +3790,11 @@ components:
           type: string
           description: Current firmware version installed on device
           maxLength: 50
+        git_commit_sha:
+          type: string
+          nullable: true
+          description: Git commit SHA of current kiosk app build
+          maxLength: 40
         last_heartbeat:
           type: string
           format: date-time
@@ -4460,6 +4471,11 @@ components:
           type: string
           description: Current firmware version installed on device
           maxLength: 50
+        git_commit_sha:
+          type: string
+          nullable: true
+          description: Git commit SHA of current kiosk app build
+          maxLength: 40
         last_heartbeat:
           type: string
           format: date-time

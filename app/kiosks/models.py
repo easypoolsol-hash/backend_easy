@@ -43,6 +43,12 @@ class Kiosk(models.Model):
         blank=True,
         help_text="Current firmware version installed on device",
     )
+    git_commit_sha = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        help_text="Git commit SHA of current kiosk app build",
+    )
     last_heartbeat = models.DateTimeField(
         null=True,
         blank=True,

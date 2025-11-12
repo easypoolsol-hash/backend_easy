@@ -20,6 +20,7 @@ class KioskAdmin(admin.ModelAdmin):
         "bus",
         "status_display",
         "firmware_version",
+        "git_commit_sha_display",
         "current_battery_display",
         "last_heartbeat",
         "is_online_display",
@@ -43,6 +44,7 @@ class KioskAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "firmware_version",
+                    "git_commit_sha",
                     "battery_level",
                     "storage_used_mb",
                 )
@@ -85,6 +87,18 @@ class KioskAdmin(admin.ModelAdmin):
             color = "green" if is_online else "red"
             text = "Online" if is_online else "Offline"
             return format_html('<span style="color: {};">● {}</span>', color, text)
+
+    @display(description="Git SHA")
+    def git_commit_sha_display(self, obj):
+        """Display short git commit SHA"""
+        if not obj.git_commit_sha:
+            return format_html('<span style="color: gray;">—</span>')
+        # Show first 7 characters (short SHA)
+        short_sha = obj.git_commit_sha[:7]
+        return format_html(
+            '<code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace;">{}</code>',
+            short_sha,
+        )
 
     @display(description="Online Status")
     def is_online_display(self, obj):

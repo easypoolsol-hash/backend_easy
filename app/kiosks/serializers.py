@@ -19,6 +19,7 @@ class KioskSerializer(serializers.ModelSerializer):
             "bus",
             "bus_license_plate",
             "firmware_version",
+            "git_commit_sha",
             "last_heartbeat",
             "is_active",
             "battery_level",
@@ -136,6 +137,12 @@ class HeartbeatSerializer(serializers.Serializer):
     )
     student_count = serializers.IntegerField(min_value=0, help_text="Students in DB")
     embedding_count = serializers.IntegerField(min_value=0, help_text="Embeddings in DB")
+    git_commit_sha = serializers.CharField(
+        max_length=40,
+        required=False,
+        allow_null=True,
+        help_text="Git commit SHA of the kiosk app build (40 chars). Null for dev builds.",
+    )
     health = HealthDataSerializer(required=False)
 
 

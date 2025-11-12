@@ -363,9 +363,10 @@ def heartbeat(request: Request, kiosk_id: str) -> Response:
         },
     )
 
-    # Also update Kiosk model heartbeat
+    # Also update Kiosk model heartbeat and git commit SHA
     kiosk.last_heartbeat = data["timestamp"]
-    kiosk.save(update_fields=["last_heartbeat"])
+    kiosk.git_commit_sha = data.get("git_commit_sha")  # Null for dev builds
+    kiosk.save(update_fields=["last_heartbeat", "git_commit_sha"])
 
     return Response(status=status.HTTP_204_NO_CONTENT)
 
