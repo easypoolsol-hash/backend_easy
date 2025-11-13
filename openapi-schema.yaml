@@ -3814,8 +3814,12 @@ components:
           nullable: true
           description: Storage used in MB on the device
         schedule:
-          description: 'Bus operation schedule: {''operation_hours'': [{''start'':
-            ''08:00'', ''end'': ''10:00''}]}'
+          description: 'DEPRECATED: Use operation_timing instead. Legacy field for
+            backward compatibility.'
+        operation_timing:
+          allOf:
+          - $ref: '#/components/schemas/OperationTiming'
+          readOnly: true
         status_display:
           type: string
           readOnly: true
@@ -3838,8 +3842,52 @@ components:
       - created_at
       - is_online
       - kiosk_id
+      - operation_timing
       - status_display
       - updated_at
+    OperationSlot:
+      type: object
+      description: Serializer for operation time slots
+      properties:
+        start_time:
+          type: string
+          format: time
+          description: Start time (e.g., 08:00)
+        end_time:
+          type: string
+          format: time
+          description: End time (e.g., 10:00)
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Display order (0 = first slot)
+      required:
+      - end_time
+      - start_time
+    OperationTiming:
+      type: object
+      description: Serializer for operation timing with slots
+      properties:
+        name:
+          type: string
+          description: Schedule name (e.g., 'Morning Shift', 'Full Day')
+          maxLength: 100
+        description:
+          type: string
+          description: Optional description of this schedule
+        is_active:
+          type: boolean
+          description: Whether this schedule is available for selection
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationSlot'
+          readOnly: true
+      required:
+      - name
+      - slots
     PaginatedAPIKeyList:
       type: object
       required:
@@ -4498,8 +4546,12 @@ components:
           nullable: true
           description: Storage used in MB on the device
         schedule:
-          description: 'Bus operation schedule: {''operation_hours'': [{''start'':
-            ''08:00'', ''end'': ''10:00''}]}'
+          description: 'DEPRECATED: Use operation_timing instead. Legacy field for
+            backward compatibility.'
+        operation_timing:
+          allOf:
+          - $ref: '#/components/schemas/OperationTiming'
+          readOnly: true
         status_display:
           type: string
           readOnly: true

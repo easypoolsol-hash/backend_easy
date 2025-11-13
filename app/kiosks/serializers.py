@@ -1,6 +1,25 @@
 from rest_framework import serializers
 
 from .models import BusLocation, DeviceLog, Kiosk, KioskStatus, SOSAlert
+from .models_operation_timing import OperationSlot, OperationTiming
+
+
+class OperationSlotSerializer(serializers.ModelSerializer):
+    """Serializer for operation time slots"""
+
+    class Meta:
+        model = OperationSlot
+        fields = ["start_time", "end_time", "order"]
+
+
+class OperationTimingSerializer(serializers.ModelSerializer):
+    """Serializer for operation timing with slots"""
+
+    slots = OperationSlotSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OperationTiming
+        fields = ["name", "description", "is_active", "slots"]
 
 
 class KioskSerializer(serializers.ModelSerializer):
@@ -11,6 +30,7 @@ class KioskSerializer(serializers.ModelSerializer):
     status_display = serializers.ReadOnlyField()
     is_online = serializers.ReadOnlyField()
     battery_level = serializers.FloatField(required=False)
+    operation_timing = OperationTimingSerializer(read_only=True)
 
     class Meta:
         model = Kiosk
@@ -25,6 +45,7 @@ class KioskSerializer(serializers.ModelSerializer):
             "battery_level",
             "storage_used_mb",
             "schedule",
+            "operation_timing",
             "status_display",
             "is_online",
             "created_at",
