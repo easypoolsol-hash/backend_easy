@@ -135,6 +135,7 @@ class HealthDataSerializer(serializers.Serializer):
     """Serializer for health metrics"""
 
     battery_level = serializers.IntegerField(required=False, min_value=0, max_value=100, allow_null=True)
+    device_temperature = serializers.IntegerField(required=False, allow_null=True, help_text="Device temperature in deciselsius (Celsius * 10)")
     is_charging = serializers.BooleanField(default=False)
     storage_available_mb = serializers.IntegerField(required=False, min_value=0, allow_null=True)
     camera_active = serializers.BooleanField(default=False)
@@ -186,6 +187,7 @@ class KioskStatusSerializer(serializers.ModelSerializer):
             "student_count",
             "embedding_count",
             "battery_level",
+            "device_temperature",
             "is_charging",
             "storage_available_mb",
             "camera_active",

@@ -347,6 +347,7 @@ def heartbeat(request: Request, kiosk_id: str) -> Response:
             "student_count": data["student_count"],
             "embedding_count": data["embedding_count"],
             "battery_level": battery_level,
+            "device_temperature": health.get("device_temperature"),
             "is_charging": is_charging,
             "storage_available_mb": health.get("storage_available_mb"),
             "camera_active": health.get("camera_active", False),

@@ -3705,6 +3705,10 @@ components:
           maximum: 100
           minimum: 0
           nullable: true
+        device_temperature:
+          type: integer
+          nullable: true
+          description: Device temperature in deciselsius (Celsius * 10)
         is_charging:
           type: boolean
           default: false
@@ -3813,9 +3817,6 @@ components:
           format: int64
           nullable: true
           description: Storage used in MB on the device
-        schedule:
-          description: 'DEPRECATED: Use operation_timing instead. Legacy field for
-            backward compatibility.'
         operation_timing:
           allOf:
           - $ref: '#/components/schemas/OperationTiming'
@@ -4545,9 +4546,6 @@ components:
           format: int64
           nullable: true
           description: Storage used in MB on the device
-        schedule:
-          description: 'DEPRECATED: Use operation_timing instead. Legacy field for
-            backward compatibility.'
         operation_timing:
           allOf:
           - $ref: '#/components/schemas/OperationTiming'

@@ -254,6 +254,9 @@ class KioskStatusAdmin(admin.ModelAdmin):
         "student_count",
         "embedding_count",
         "battery_display",
+        "temperature_display",
+        "network_display",
+        "camera_display",
         "last_heartbeat",
         "is_outdated_display",
     ]
@@ -280,6 +283,7 @@ class KioskStatusAdmin(admin.ModelAdmin):
             {
                 "fields": (
                     "battery_level",
+                    "device_temperature",
                     "is_charging",
                     "storage_available_mb",
                     "camera_active",
@@ -338,6 +342,44 @@ class KioskStatusAdmin(admin.ModelAdmin):
             return "—"
         icon = "🔌" if obj.is_charging else "⚡"
         return f"{obj.battery_level}% {icon}"
+
+    @display(description="Temp")
+    def temperature_display(self, obj):
+        """Display device temperature with color coding"""
+        if obj.device_temperature is None:
+            return "—"
+        temp_celsius = obj.device_temperature / 10
+        # Color code: green < 40, orange 40-45, red > 45
+        if temp_celsius >= 45:
+            color = "red"
+        elif temp_celsius >= 40:
+            color = "orange"
+        else:
+            color = "green"
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}°C</span>',
+            color,
+            f"{temp_celsius:.1f}",
+        )
+
+    @display(description="Network")
+    def network_display(self, obj):
+        """Display network type"""
+        if not obj.network_type:
+            return "—"
+        icons = {
+            "wifi": "📶",
+            "4g": "📱",
+            "5g": "📱",
+            "none": "❌",
+        }
+        icon = icons.get(obj.network_type.lower(), "📡")
+        return f"{icon} {obj.network_type.upper()}"
+
+    @display(description="Camera", boolean=True)
+    def camera_display(self, obj):
+        """Display camera status"""
+        return obj.camera_active
 
     # short_description via decorator
 

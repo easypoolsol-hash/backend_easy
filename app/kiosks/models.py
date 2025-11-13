@@ -8,6 +8,7 @@ from django.db import models
 from django.utils import timezone
 
 from buses.models import Bus
+
 from .models_operation_timing import OperationTiming
 
 
@@ -175,6 +176,11 @@ class KioskStatus(models.Model):
         blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         help_text="Battery level percentage (0-100)",
+    )
+    device_temperature = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Device battery temperature in deciselsius (Celsius * 10, e.g., 350 = 35.0°C)",
     )
     is_charging = models.BooleanField(default=False, help_text="Is device charging")
     storage_available_mb = models.IntegerField(null=True, blank=True, help_text="Available storage in MB")
