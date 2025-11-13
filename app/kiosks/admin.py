@@ -20,6 +20,12 @@ class OperationSlotInline(admin.TabularInline):
     fields = ["start_time", "end_time", "order"]
     ordering = ["order", "start_time"]
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """Override time fields to use HTML5 time input"""
+        if db_field.name in ["start_time", "end_time"]:
+            kwargs["widget"] = admin.widgets.AdminTimeWidget(attrs={"type": "time"})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
 
 @admin.register(OperationTiming)
 class OperationTimingAdmin(admin.ModelAdmin):
@@ -55,10 +61,7 @@ class OperationTimingAdmin(admin.ModelAdmin):
             return format_html('<span style="color: gray;">No slots</span>')
 
         slot_html = " | ".join(
-            [
-                f'<span style="color: green;">{slot.start_time.strftime("%H:%M")} - {slot.end_time.strftime("%H:%M")}</span>'
-                for slot in slots
-            ]
+            [f'<span style="color: green;">{slot.start_time.strftime("%H:%M")} - {slot.end_time.strftime("%H:%M")}</span>' for slot in slots]
         )
         return format_html(slot_html)
 
