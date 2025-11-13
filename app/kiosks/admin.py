@@ -9,6 +9,58 @@ from .models import (
     KioskStatus,
     SOSAlert,
 )
+from .models_operation_timing import OperationSlot, OperationTiming
+
+
+class OperationSlotInline(admin.TabularInline):
+    """Inline for adding time slots to operation timings"""
+
+    model = OperationSlot
+    extra = 1
+    fields = ["start_time", "end_time", "order"]
+    ordering = ["order", "start_time"]
+
+
+@admin.register(OperationTiming)
+class OperationTimingAdmin(admin.ModelAdmin):
+    """Admin for operation timings"""
+
+    list_display = ["name", "slots_display", "is_active", "created_at"]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["name", "description"]
+    inlines = [OperationSlotInline]
+    readonly_fields = ["created_at", "updated_at"]
+
+    fieldsets = (
+        (
+            "Basic Info",
+            {
+                "fields": ("name", "description", "is_active"),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    @display(description="Time Slots")
+    def slots_display(self, obj):
+        """Display time slots"""
+        slots = obj.slots.all()
+        if not slots:
+            return format_html('<span style="color: gray;">No slots</span>')
+
+        slot_html = " | ".join(
+            [
+                f'<span style="color: green;">{slot.start_time.strftime("%H:%M")} - {slot.end_time.strftime("%H:%M")}</span>'
+                for slot in slots
+            ]
+        )
+        return format_html(slot_html)
 
 
 @admin.register(Kiosk)
@@ -42,8 +94,8 @@ class KioskAdmin(admin.ModelAdmin):
         (
             "Bus Schedule",
             {
-                "fields": ("schedule",),
-                "description": 'Operation hours in JSON format: {"operation_hours": [{"start": "08:00", "end": "10:00"}]}',
+                "fields": ("operation_timing",),
+                "description": "Select operation schedule from predefined timings. Create timings in Operation Timings section.",
             },
         ),
         (

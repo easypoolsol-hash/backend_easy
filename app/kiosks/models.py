@@ -8,6 +8,7 @@ from django.db import models
 from django.utils import timezone
 
 from buses.models import Bus
+from .models_operation_timing import OperationTiming
 
 
 class Kiosk(models.Model):
@@ -67,10 +68,18 @@ class Kiosk(models.Model):
         help_text="Battery level percentage (0-100)",
     )
     storage_used_mb = models.PositiveIntegerField(null=True, blank=True, help_text="Storage used in MB on the device")
+    operation_timing = models.ForeignKey(
+        OperationTiming,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="kiosks",
+        help_text="Operation schedule for this kiosk (select from predefined timings)",
+    )
     schedule = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Bus operation schedule: {'operation_hours': [{'start': '08:00', 'end': '10:00'}]}",
+        help_text="DEPRECATED: Use operation_timing instead. Legacy field for backward compatibility.",
     )
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this kiosk was registered")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this kiosk record was last updated")
