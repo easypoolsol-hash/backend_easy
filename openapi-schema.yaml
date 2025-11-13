@@ -3813,6 +3813,9 @@ components:
           format: int64
           nullable: true
           description: Storage used in MB on the device
+        schedule:
+          description: 'Bus operation schedule: {''operation_hours'': [{''start'':
+            ''08:00'', ''end'': ''10:00''}]}'
         status_display:
           type: string
           readOnly: true
@@ -4494,6 +4497,9 @@ components:
           format: int64
           nullable: true
           description: Storage used in MB on the device
+        schedule:
+          description: 'Bus operation schedule: {''operation_hours'': [{''start'':
+            ''08:00'', ''end'': ''10:00''}]}'
         status_display:
           type: string
           readOnly: true

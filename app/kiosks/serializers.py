@@ -24,6 +24,7 @@ class KioskSerializer(serializers.ModelSerializer):
             "is_active",
             "battery_level",
             "storage_used_mb",
+            "schedule",
             "status_display",
             "is_online",
             "created_at",

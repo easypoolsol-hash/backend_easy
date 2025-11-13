@@ -67,6 +67,11 @@ class Kiosk(models.Model):
         help_text="Battery level percentage (0-100)",
     )
     storage_used_mb = models.PositiveIntegerField(null=True, blank=True, help_text="Storage used in MB on the device")
+    schedule = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Bus operation schedule: {'operation_hours': [{'start': '08:00', 'end': '10:00'}]}",
+    )
     created_at = models.DateTimeField(auto_now_add=True, help_text="When this kiosk was registered")
     updated_at = models.DateTimeField(auto_now=True, help_text="When this kiosk record was last updated")
 
