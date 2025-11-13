@@ -40,6 +40,13 @@ class KioskAdmin(admin.ModelAdmin):
             },
         ),
         (
+            "Bus Schedule",
+            {
+                "fields": ("schedule",),
+                "description": 'Operation hours in JSON format: {"operation_hours": [{"start": "08:00", "end": "10:00"}]}',
+            },
+        ),
+        (
             "Technical Details",
             {
                 "fields": (
