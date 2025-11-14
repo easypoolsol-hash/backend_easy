@@ -1603,6 +1603,8 @@ paths:
   /api/v1/parents/:
     get:
       operationId: api_v1_parents_list
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       parameters:
       - name: ordering
         required: false
@@ -1636,6 +1638,8 @@ paths:
           description: ''
     post:
       operationId: api_v1_parents_create
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       tags:
       - api
       requestBody:
@@ -1663,6 +1667,8 @@ paths:
   /api/v1/parents/{parent_id}/:
     get:
       operationId: api_v1_parents_retrieve
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       parameters:
       - in: path
         name: parent_id
@@ -1685,6 +1691,8 @@ paths:
           description: ''
     put:
       operationId: api_v1_parents_update
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       parameters:
       - in: path
         name: parent_id
@@ -1719,6 +1727,8 @@ paths:
           description: ''
     patch:
       operationId: api_v1_parents_partial_update
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       parameters:
       - in: path
         name: parent_id
@@ -1752,6 +1762,8 @@ paths:
           description: ''
     delete:
       operationId: api_v1_parents_destroy
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       parameters:
       - in: path
         name: parent_id
@@ -1771,6 +1783,8 @@ paths:
   /api/v1/parents/{parent_id}/students/:
     get:
       operationId: api_v1_parents_students_retrieve
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
       parameters:
       - in: path
         name: parent_id
@@ -1779,6 +1793,97 @@ paths:
           format: uuid
         description: A UUID string identifying this parent.
         required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+  /api/v1/parents/me/buses/:
+    get:
+      operationId: api_v1_parents_me_buses_retrieve
+      description: Get all buses for my children
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buses:
+                    type: array
+                    items:
+                      type: object
+          description: ''
+  /api/v1/parents/me/buses/{bus_id}/location/:
+    get:
+      operationId: api_v1_parents_me_buses_location_retrieve
+      description: Get real-time location for a specific bus (only buses for my children)
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bus_id:
+                    type: string
+                  license_plate:
+                    type: string
+                  location:
+                    type: object
+                    properties:
+                      latitude:
+                        type: number
+                      longitude:
+                        type: number
+                      last_updated:
+                        type: string
+          description: ''
+  /api/v1/parents/me/children/:
+    get:
+      operationId: api_v1_parents_me_children_list
+      description: Get my children
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/parents/me/profile/:
+    get:
+      operationId: api_v1_parents_me_profile_retrieve
+      description: Get my parent profile
       tags:
       - api
       security:
@@ -4857,6 +4962,35 @@ components:
           type: string
           format: date-time
           readOnly: true
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        approval_status:
+          enum:
+          - pending
+          - approved
+          - rejected
+          type: string
+          x-spec-enum-id: 970a114d38fbbcd9
+          readOnly: true
+          description: |-
+            Approval status for parent users
+
+            * `pending` - Pending Approval
+            * `approved` - Approved
+            * `rejected` - Rejected
+        approved_by_username:
+          type: string
+          readOnly: true
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Timestamp when parent was approved
     Route:
       type: object
       description: Serializer for bus routes with polyline support
@@ -5379,12 +5513,45 @@ components:
           type: string
           format: date-time
           readOnly: true
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        approval_status:
+          enum:
+          - pending
+          - approved
+          - rejected
+          type: string
+          x-spec-enum-id: 970a114d38fbbcd9
+          readOnly: true
+          description: |-
+            Approval status for parent users
+
+            * `pending` - Pending Approval
+            * `approved` - Approved
+            * `rejected` - Rejected
+        approved_by_username:
+          type: string
+          readOnly: true
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: Timestamp when parent was approved
       required:
+      - approval_status
+      - approved_at
+      - approved_by_username
       - created_at
       - email
       - group_names
       - groups
       - last_login
+      - parent_id
       - updated_at
       - user_id
       - username

@@ -26,6 +26,8 @@ class GroupSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     groups: Any = serializers.StringRelatedField(many=True, read_only=True)
     group_names = serializers.SerializerMethodField()
+    parent_id = serializers.UUIDField(source="parent.parent_id", read_only=True, allow_null=True)
+    approved_by_username = serializers.CharField(source="approved_by.username", read_only=True, allow_null=True)
 
     class Meta:
         model = User
@@ -39,8 +41,21 @@ class UserSerializer(serializers.ModelSerializer):
             "last_login",
             "created_at",
             "updated_at",
+            "parent_id",
+            "approval_status",
+            "approved_by_username",
+            "approved_at",
         ]
-        read_only_fields = ["user_id", "last_login", "created_at", "updated_at"]
+        read_only_fields = [
+            "user_id",
+            "last_login",
+            "created_at",
+            "updated_at",
+            "parent_id",
+            "approval_status",
+            "approved_by_username",
+            "approved_at",
+        ]
         extra_kwargs = {"password": {"write_only": True}}
 
     def get_group_names(self, obj):

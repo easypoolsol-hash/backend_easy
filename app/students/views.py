@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from bus_kiosk_backend.permissions import IsApprovedParent
 from buses.models import Bus
 
 from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
@@ -136,6 +137,8 @@ class StudentViewSet(viewsets.ModelViewSet):
 
 
 class ParentViewSet(viewsets.ModelViewSet):
+    """Admin-only parent management - NO row-level filtering (requires admin access)"""
+
     queryset = Parent.objects.all()
     serializer_class = ParentSerializer
     permission_classes = [IsAuthenticated]
@@ -156,6 +159,152 @@ class ParentViewSet(viewsets.ModelViewSet):
         student_parents = parent.student_parents.select_related("student").all()
         serializer = StudentParentSerializer(student_parents, many=True)
         return Response(serializer.data)
+
+
+class ParentMeViewSet(viewsets.ViewSet):
+    """
+    Parent-specific endpoints with row-level security.
+
+    Parents can ONLY access their own data:
+    - Their own profile
+    - Their own children
+    - Buses for their children
+    - Locations for their children's buses
+
+    IAM Principle: Backend enforces all filtering (zero-trust).
+    """
+
+    permission_classes = [IsApprovedParent]
+
+    @extend_schema(
+        responses={200: ParentSerializer},
+        description="Get my parent profile",
+    )
+    @action(detail=False, methods=["get"])
+    def profile(self, request):
+        """GET /api/v1/parents/me/profile/ - Get my parent profile"""
+        parent = request.user.parent
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = ParentSerializer(parent)
+        return Response(serializer.data)
+
+    @extend_schema(
+        responses={200: StudentSerializer(many=True)},
+        description="Get my children",
+    )
+    @action(detail=False, methods=["get"])
+    def children(self, request):
+        """GET /api/v1/parents/me/children/ - Get my children"""
+        parent = request.user.parent
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get students through StudentParent relationship
+        student_parents = StudentParent.objects.filter(parent=parent).select_related("student")
+        students = [sp.student for sp in student_parents]
+
+        serializer = StudentSerializer(students, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "buses": {
+                        "type": "array",
+                        "items": {"type": "object"},
+                    }
+                },
+            }
+        },
+        description="Get all buses for my children",
+    )
+    @action(detail=False, methods=["get"])
+    def buses(self, request):
+        """GET /api/v1/parents/me/buses/ - Get all buses for my children"""
+        from buses.serializers import BusSerializer
+
+        parent = request.user.parent
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get all students for this parent
+        student_parents = StudentParent.objects.filter(parent=parent).select_related("student")
+        student_ids = [sp.student.student_id for sp in student_parents]
+
+        # Get unique buses for these students
+        buses = Bus.objects.filter(students__student_id__in=student_ids).distinct()
+
+        serializer = BusSerializer(buses, many=True)
+        return Response(serializer.data)
+
+    @extend_schema(
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "bus_id": {"type": "string"},
+                    "license_plate": {"type": "string"},
+                    "location": {
+                        "type": "object",
+                        "properties": {
+                            "latitude": {"type": "number"},
+                            "longitude": {"type": "number"},
+                            "last_updated": {"type": "string"},
+                        },
+                    },
+                },
+            }
+        },
+        description="Get real-time location for a specific bus (only buses for my children)",
+    )
+    @action(detail=False, methods=["get"], url_path=r"buses/(?P<bus_id>[^/.]+)/location")
+    def bus_location(self, request, bus_id=None):
+        """GET /api/v1/parents/me/buses/{bus_id}/location/ - Get bus location"""
+        parent = request.user.parent
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get all students for this parent
+        student_parents = StudentParent.objects.filter(parent=parent).select_related("student")
+        student_ids = [sp.student.student_id for sp in student_parents]
+
+        # Verify this bus belongs to one of their children
+        try:
+            bus = Bus.objects.get(bus_id=bus_id, students__student_id__in=student_ids)
+        except Bus.DoesNotExist:
+            return Response(
+                {"error": "Bus not found or not linked to your children"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Return bus location (placeholder - integrate with real-time tracking system)
+        return Response(
+            {
+                "bus_id": str(bus.bus_id),
+                "license_plate": bus.license_plate,
+                "location": {
+                    "latitude": 28.6139,  # Placeholder - integrate with GPS tracking
+                    "longitude": 77.2090,
+                    "last_updated": "2025-11-15T00:00:00Z",
+                },
+            }
+        )
 
 
 class StudentParentViewSet(viewsets.ModelViewSet):

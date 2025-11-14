@@ -70,6 +70,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     - New User: No permissions (default for Firebase-authenticated users)
     """
 
+    APPROVAL_STATUS_CHOICES = [
+        ("pending", "Pending Approval"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
     # UUID primary key - auto-generates for all users (Firebase, manual, any source)
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=150, unique=True)
@@ -82,6 +88,35 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_login = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Parent approval system fields
+    parent = models.ForeignKey(
+        "students.Parent",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="user_account",
+        help_text="Link to Parent record if this user is a parent",
+    )
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default="pending",
+        help_text="Approval status for parent users",
+    )
+    approved_by = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_users",
+        help_text="Admin who approved this parent user",
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when parent was approved",
+    )
 
     objects = UserManager()
 
@@ -98,6 +133,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         indexes = [
             models.Index(fields=["email"], name="idx_users_email"),
             models.Index(fields=["username"], name="idx_users_username"),
+            models.Index(fields=["parent"], name="idx_users_parent"),
+            models.Index(fields=["approval_status"], name="idx_users_approval_status"),
         ]
 
     def __str__(self):
@@ -134,6 +171,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.groups.filter(name="Parent").exists()
 
     @property
+    def is_approved_parent(self):
+        """Check if user is an approved parent with linked Parent record"""
+        return self.parent is not None and self.approval_status == "approved" and self.groups.filter(name="Parent").exists()
+
+    @property
     def role_name(self):
         """
         Get primary role name for backwards compatibility.
@@ -141,6 +183,36 @@ class User(AbstractBaseUser, PermissionsMixin):
         """
         first_group = self.groups.first()
         return first_group.name if first_group else None
+
+    def approve_as_parent(self, approved_by_user):
+        """
+        Approve this user as a parent.
+        Assigns Parent group and updates approval status.
+        """
+        if not self.parent:
+            raise ValueError("Cannot approve user without linked Parent record")
+
+        # Remove New User group
+        new_user_group = Group.objects.filter(name="New User").first()
+        if new_user_group:
+            self.groups.remove(new_user_group)
+
+        # Add Parent group
+        parent_group, _ = Group.objects.get_or_create(name="Parent")
+        self.groups.add(parent_group)
+
+        # Update approval fields
+        self.approval_status = "approved"
+        self.approved_by = approved_by_user
+        self.approved_at = timezone.now()
+        self.save()
+
+    def reject_parent_request(self, rejected_by_user):
+        """Reject this user's parent request"""
+        self.approval_status = "rejected"
+        self.approved_by = rejected_by_user
+        self.approved_at = timezone.now()
+        self.save()
 
 
 class APIKey(models.Model):

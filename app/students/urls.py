@@ -8,6 +8,7 @@ router.register(r"schools", views.SchoolViewSet)
 router.register(r"students", views.StudentViewSet)
 router.register(r"student-photos", views.StudentPhotoViewSet)
 router.register(r"parents", views.ParentViewSet)
+router.register(r"parents/me", views.ParentMeViewSet, basename="parent-me")
 router.register(r"student-parents", views.StudentParentViewSet)
 # face-embeddings endpoint removed - embeddings are generated server-side
 # and packaged into kiosk snapshots. No API access needed.

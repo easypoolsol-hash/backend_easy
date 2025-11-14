@@ -65,3 +65,50 @@ class IsSchoolAdmin(BasePermission):
             logger.warning(f"IsSchoolAdmin DENIED: user={request.user.username}, groups={user_groups}")
 
         return has_permission
+
+
+class IsApprovedParent(BasePermission):
+    """
+    Permission: Allow ONLY approved parent users (deny-by-default IAM principle).
+
+    Uses Django's built-in Groups and custom approval system.
+    Deny-by-default means: If NOT an approved parent → Denied.
+
+    ALLOWED (Explicit):
+    - Authenticated users in "Parent" group
+    - With approval_status == "approved"
+    - With linked Parent record
+
+    DENIED (Everything Else):
+    - Unauthenticated requests
+    - Users without "Parent" group
+    - Users with approval_status == "pending" or "rejected"
+    - Users without linked Parent record
+    - Any other case
+
+    IAM Principle: Deny by default, grant explicitly via approval.
+    """
+
+    def has_permission(self, request, view):
+        # 1. Deny unauthenticated
+        if not request.user or not request.user.is_authenticated:
+            logger.warning("IsApprovedParent: User not authenticated")
+            return False
+
+        # 2. Check if user is in Parent group
+        is_parent_group = request.user.groups.filter(name="Parent").exists()
+        if not is_parent_group:
+            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} not in Parent group")
+            return False
+
+        # 3. Check approval status
+        if request.user.approval_status != "approved":
+            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} approval_status={request.user.approval_status}")
+            return False
+
+        # 4. Check linked Parent record
+        if not request.user.parent:
+            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} has no linked Parent record")
+            return False
+
+        return True
