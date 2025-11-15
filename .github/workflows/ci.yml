@@ -206,7 +206,7 @@ jobs:
       - uses: ./.github/actions/deploy-cloudrun
         with:
           environment: dev
-          image_tag: dev
+          image_tag: dev-${{ github.sha }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
@@ -236,7 +236,7 @@ jobs:
       - uses: ./.github/actions/deploy-cloudrun
         with:
           environment: staging
-          image_tag: staging
+          image_tag: staging-${{ github.sha }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
@@ -259,13 +259,13 @@ jobs:
           fail_if_missing: 'true'
       - uses: ./.github/actions/push-image
         with:
-          image_tag: latest
+          image_tag: production
           sha_tag_prefix: production
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - uses: ./.github/actions/deploy-cloudrun
         with:
           environment: production
-          image_tag: latest
+          image_tag: production-${{ github.sha }}
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
