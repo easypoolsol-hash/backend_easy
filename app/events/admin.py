@@ -20,6 +20,24 @@ class BoardingEventAdmin(admin.ModelAdmin):
         "bus_route",
         "model_version",
     ]
+
+    def get_queryset(self, request):
+        """Optimize queryset to include GCS fields for thumbnail display"""
+        qs = super().get_queryset(request)
+        # Ensure GCS path fields are loaded (needed for thumbnails)
+        qs = qs.select_related('student').only(
+            'event_id',
+            'student_id',
+            'kiosk_id',
+            'confidence_score',
+            'timestamp',
+            'bus_route',
+            'model_version',
+            'confirmation_face_1_gcs',
+            'confirmation_face_2_gcs',
+            'confirmation_face_3_gcs',
+        )
+        return qs
     list_filter = [
         "timestamp",
         "kiosk_id",
@@ -101,11 +119,17 @@ class BoardingEventAdmin(admin.ModelAdmin):
     @display(description="Confirmation Faces")
     def get_confirmation_faces_thumbnails(self, obj):
         """Display 3 confirmation face thumbnails inline"""
+        import logging
+        logger = logging.getLogger(__name__)
+
         faces_html = []
+        gcs_paths_found = []
 
         for i in range(1, 4):
             # Check if GCS path exists
             gcs_path = getattr(obj, f"confirmation_face_{i}_gcs", None)
+            gcs_paths_found.append(gcs_path or "None")
+
             if gcs_path:
                 # Generate signed URL
                 face_url = getattr(obj, f"confirmation_face_{i}_url", None)
@@ -114,7 +138,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
                         f'<a href="{face_url}" target="_blank">'
                         f'<img src="{face_url}" style="width:50px;height:50px;object-fit:cover;'
                         f'border:2px solid #007bff;border-radius:4px;margin-right:4px;" '
-                        f'title="Face {i} (click to enlarge)" '
+                        f'title="Face {i}: {gcs_path} (click to enlarge)" '
                         f'onerror="this.style.display=\'none\'"/>'
                         f"</a>"
                     )
@@ -125,17 +149,20 @@ class BoardingEventAdmin(admin.ModelAdmin):
                         f"border:2px solid #f44336;border-radius:4px;"
                         f"display:inline-flex;align-items:center;justify-content:center;"
                         f'font-size:10px;color:#c62828;margin-right:4px;" '
-                        f'title="Error generating URL for face {i}">ERR</div>'
+                        f'title="Error: {gcs_path}">ERR</div>'
                     )
             else:
-                # No photo uploaded for this slot
+                # No photo uploaded for this slot - show gray box
                 faces_html.append(
                     f'<div style="width:50px;height:50px;background:#f8f9fa;'
                     f"border:1px solid #dee2e6;border-radius:4px;"
                     f"display:inline-flex;align-items:center;justify-content:center;"
                     f'font-size:10px;color:#adb5bd;margin-right:4px;display:inline-block;" '
-                    f'title="No photo {i}">-</div>'
+                    f'title="No photo uploaded">-</div>'
                 )
+
+        # Log what we found for debugging
+        logger.info(f"Event {obj.event_id}: GCS paths = {gcs_paths_found}")
 
         return format_html("".join(faces_html))
 
