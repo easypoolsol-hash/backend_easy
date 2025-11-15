@@ -1808,7 +1808,8 @@ paths:
   /api/v1/parents/me/bus-locations/:
     get:
       operationId: api_v1_parents_me_bus_locations_retrieve
-      description: Get real-time locations for all buses assigned to my children
+      description: Get real-time locations for all buses assigned to my children (row-level
+        security enforced)
       tags:
       - api
       security:
@@ -1825,11 +1826,15 @@ paths:
                   properties:
                     bus_id:
                       type: string
-                    license_plate:
+                    bus_number:
                       type: string
                     latitude:
                       type: number
                     longitude:
+                      type: number
+                    speed:
+                      type: number
+                    heading:
                       type: number
                     last_updated:
                       type: string
@@ -3614,9 +3619,9 @@ components:
           format: uuid
           readOnly: true
           description: UUID primary key
-        license_plate:
+        bus_number:
           type: string
-          description: Vehicle license plate number
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
           maxLength: 20
         capacity:
           type: integer
@@ -3650,8 +3655,8 @@ components:
           description: When this bus record was last updated
       required:
       - bus_id
+      - bus_number
       - created_at
-      - license_plate
       - updated_at
     BusLocation:
       type: object
