@@ -107,68 +107,40 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     def get_confirmation_faces_thumbnails(self, obj):
         """Display 3 confirmation face thumbnails inline"""
-        import logging
-
         from django.utils.html import format_html
-        from django.utils.safestring import mark_safe
 
-        logger = logging.getLogger(__name__)
-
-        faces_html_parts = []
-        gcs_paths = []
+        thumbnails = []
 
         for i in range(1, 4):
             # Check if GCS path exists
             gcs_path = getattr(obj, f"confirmation_face_{i}_gcs", None)
             if gcs_path:
-                gcs_paths.append(gcs_path)
-
                 # Generate signed URL
-                try:
-                    face_url = getattr(obj, f"confirmation_face_{i}_url", None)
-                    if face_url:
-                        faces_html_parts.append(
-                            format_html(
-                                '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
-                                '<img src="{}" width="50" height="50" '
-                                'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
-                                'alt="Face {}" title="Click to enlarge"/>'
-                                "</a>",
-                                face_url,
-                                face_url,
-                                i,
-                            )
-                        )
-                    else:
-                        # URL generation failed
-                        faces_html_parts.append(
-                            format_html(
-                                '<div style="width:50px;height:50px;background:#ffebee;'
-                                "border:2px solid #f44336;border-radius:4px;margin-right:4px;"
-                                "display:inline-block;text-align:center;line-height:50px;"
-                                'font-size:10px;color:#c62828;" '
-                                'title="Error generating URL">ERR</div>'
-                            )
-                        )
-                except Exception as e:
-                    logger.error(f"Error getting face {i} URL for event {obj.event_id}: {e}")
-                    faces_html_parts.append(
-                        format_html(
-                            '<div style="width:50px;height:50px;background:#ffebee;'
-                            "border:2px solid #f44336;border-radius:4px;margin-right:4px;"
-                            "display:inline-block;text-align:center;line-height:50px;"
-                            'font-size:10px;color:#c62828;">ERR</div>'
-                        )
-                    )
+                face_url = getattr(obj, f"confirmation_face_{i}_url", None)
+                if face_url:
+                    thumbnails.append((face_url, face_url, i))
 
-        # Log GCS paths for debugging
-        logger.info(f"Event {obj.event_id}: GCS paths = {gcs_paths}")
-
-        if not faces_html_parts:
+        if not thumbnails:
             return format_html('<span style="color:#999;">-</span>')
 
-        # Combine all HTML parts
-        return mark_safe("".join(str(part) for part in faces_html_parts))
+        # Use format_html for the complete HTML string
+        html_parts = []
+        for url, img_url, index in thumbnails:
+            html_parts.append(
+                format_html(
+                    '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
+                    '<img src="{}" width="50" height="50" '
+                    'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
+                    'title="Confirmation face {}"/>'
+                    "</a>",
+                    url,
+                    img_url,
+                    index,
+                )
+            )
+
+        # Combine using format_html to maintain safety
+        return format_html("{}" * len(html_parts), *html_parts)
 
     get_confirmation_faces_thumbnails.short_description = "Confirmation Faces"  # type: ignore[attr-defined]
 
