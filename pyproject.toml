@@ -40,6 +40,9 @@ dependencies = [
     "redis>=5.0.0,<6.0",
     "django-redis>=5.4.0,<6.0",
 
+    # Google Cloud Platform
+    "google-cloud-storage>=2.14.0,<3.0",  # GCS for image storage (private buckets + signed URLs)
+
     # Real-time Communication (WebSocket)
     "channels>=4.1.0,<5.0",  # Django Channels for WebSocket support
     "channels-redis>=4.2.0,<5.0",  # Redis channel layer for Channels

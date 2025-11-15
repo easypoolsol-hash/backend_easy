@@ -44,20 +44,44 @@ class BoardingEvent(models.Model):
 
     # Confirmation face images (cropped 112x112 JPEG from kiosk)
     # These are the 3 consecutive frames that confirmed the student identification
+
+    # DEPRECATED: BinaryField storage (causes DB connection exhaustion)
+    # Keep for backward compatibility during migration, will be removed after data cleanup
     confirmation_face_1 = models.BinaryField(
         null=True,
         blank=True,
-        help_text="First confirmation face image (112x112 JPEG, ~5-10KB)",
+        help_text="[DEPRECATED] Use confirmation_face_1_gcs instead",
     )
     confirmation_face_2 = models.BinaryField(
         null=True,
         blank=True,
-        help_text="Second confirmation face image (112x112 JPEG, ~5-10KB)",
+        help_text="[DEPRECATED] Use confirmation_face_2_gcs instead",
     )
     confirmation_face_3 = models.BinaryField(
         null=True,
         blank=True,
-        help_text="Third confirmation face image (112x112 JPEG, ~5-10KB)",
+        help_text="[DEPRECATED] Use confirmation_face_3_gcs instead",
+    )
+
+    # NEW: Google Cloud Storage paths (industry best practice)
+    # Path format: boarding_events/{event_id}/face_{1,2,3}.jpg
+    confirmation_face_1_gcs = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="GCS path for first confirmation face (112x112 JPEG, ~5-10KB)",
+    )
+    confirmation_face_2_gcs = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="GCS path for second confirmation face (112x112 JPEG, ~5-10KB)",
+    )
+    confirmation_face_3_gcs = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="GCS path for third confirmation face (112x112 JPEG, ~5-10KB)",
     )
 
     class Meta:
@@ -93,29 +117,83 @@ class BoardingEvent(models.Model):
 
     @property
     def confirmation_face_1_url(self) -> str | None:
-        """Get URL to serve first confirmation face"""
+        """Get URL to serve first confirmation face.
+
+        Returns:
+            Signed GCS URL if using GCS storage, Django URL for legacy BinaryField storage,
+            or None if no face image exists.
+        """
+        # Prefer GCS path if available
+        if self.confirmation_face_1_gcs:
+            from .services.storage_service import BoardingEventStorageService
+
+            try:
+                storage_service = BoardingEventStorageService()
+                return storage_service.get_signed_url(self.confirmation_face_1_gcs)
+            except Exception:
+                # Fallback to None if GCS access fails
+                return None
+
+        # Legacy: BinaryField storage (DEPRECATED)
         if self.confirmation_face_1:
             from django.urls import reverse
 
             return reverse("boarding-event-face", kwargs={"event_id": self.event_id, "face_number": 1})
+
         return None
 
     @property
     def confirmation_face_2_url(self) -> str | None:
-        """Get URL to serve second confirmation face"""
+        """Get URL to serve second confirmation face.
+
+        Returns:
+            Signed GCS URL if using GCS storage, Django URL for legacy BinaryField storage,
+            or None if no face image exists.
+        """
+        # Prefer GCS path if available
+        if self.confirmation_face_2_gcs:
+            from .services.storage_service import BoardingEventStorageService
+
+            try:
+                storage_service = BoardingEventStorageService()
+                return storage_service.get_signed_url(self.confirmation_face_2_gcs)
+            except Exception:
+                # Fallback to None if GCS access fails
+                return None
+
+        # Legacy: BinaryField storage (DEPRECATED)
         if self.confirmation_face_2:
             from django.urls import reverse
 
             return reverse("boarding-event-face", kwargs={"event_id": self.event_id, "face_number": 2})
+
         return None
 
     @property
     def confirmation_face_3_url(self) -> str | None:
-        """Get URL to serve third confirmation face"""
+        """Get URL to serve third confirmation face.
+
+        Returns:
+            Signed GCS URL if using GCS storage, Django URL for legacy BinaryField storage,
+            or None if no face image exists.
+        """
+        # Prefer GCS path if available
+        if self.confirmation_face_3_gcs:
+            from .services.storage_service import BoardingEventStorageService
+
+            try:
+                storage_service = BoardingEventStorageService()
+                return storage_service.get_signed_url(self.confirmation_face_3_gcs)
+            except Exception:
+                # Fallback to None if GCS access fails
+                return None
+
+        # Legacy: BinaryField storage (DEPRECATED)
         if self.confirmation_face_3:
             from django.urls import reverse
 
             return reverse("boarding-event-face", kwargs={"event_id": self.event_id, "face_number": 3})
+
         return None
 
     def __str__(self) -> str:

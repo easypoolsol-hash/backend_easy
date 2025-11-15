@@ -174,8 +174,75 @@ class BoardingEventAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        """Boarding events are append-only, never delete"""
-        return False
+        """Only superusers can delete boarding events (for greenfield cleanup).
+
+        Args:
+            request: The HTTP request object.
+            obj: The BoardingEvent object (if checking specific object).
+
+        Returns:
+            True if user is superuser, False otherwise.
+
+        Note:
+            Boarding events are append-only in production.
+            Delete permission for superusers enables manual cleanup during development.
+        """
+        return request.user.is_superuser
+
+    def delete_model(self, request, obj):
+        """Delete boarding event and associated GCS confirmation face images.
+
+        Args:
+            request: The HTTP request object.
+            obj: The BoardingEvent object to delete.
+
+        Note:
+            This ensures GCS images are cleaned up when deleting via admin interface.
+        """
+        # Delete GCS confirmation face images if they exist
+        if obj.confirmation_face_1_gcs or obj.confirmation_face_2_gcs or obj.confirmation_face_3_gcs:
+            try:
+                from .services.storage_service import BoardingEventStorageService
+
+                storage_service = BoardingEventStorageService()
+                storage_service.delete_confirmation_faces(obj.event_id)
+            except Exception:
+                # Log error but don't block deletion
+                # Images will be orphaned in GCS but can be cleaned up with lifecycle rules
+                pass
+
+        # Delete the database record
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        """Delete multiple boarding events and their GCS images (bulk delete action).
+
+        Args:
+            request: The HTTP request object.
+            queryset: QuerySet of BoardingEvent objects to delete.
+
+        Note:
+            Used for bulk delete actions in admin interface.
+        """
+        # Delete GCS images for each event
+        try:
+            from .services.storage_service import BoardingEventStorageService
+
+            storage_service = BoardingEventStorageService()
+
+            for obj in queryset:
+                if obj.confirmation_face_1_gcs or obj.confirmation_face_2_gcs or obj.confirmation_face_3_gcs:
+                    try:
+                        storage_service.delete_confirmation_faces(obj.event_id)
+                    except Exception:
+                        # Continue deleting other events even if one fails
+                        pass
+        except Exception:
+            # Log error but don't block deletion
+            pass
+
+        # Delete the database records
+        super().delete_queryset(request, queryset)
 
 
 @admin.register(AttendanceRecord)

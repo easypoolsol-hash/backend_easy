@@ -64,31 +64,81 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ["event_id"]
 
     def create(self, validated_data):
-        """
-        Create boarding event with auto-generated ULID and default
-        metadata. Decode base64 confirmation faces if provided.
+        """Create boarding event with confirmation faces stored in Google Cloud Storage.
+
+        This method:
+        1. Creates the BoardingEvent with auto-generated ULID
+        2. Uploads confirmation face images to GCS
+        3. Stores GCS paths in the database (not binary data)
+
+        Args:
+            validated_data: Validated data from the serializer.
+
+        Returns:
+            Created BoardingEvent instance with GCS paths populated.
+
+        Raises:
+            serializers.ValidationError: If base64 decoding or GCS upload fails.
         """
         # Ensure metadata has default event_type if not provided
         if "metadata" not in validated_data or not validated_data["metadata"]:
             validated_data["metadata"] = {}
 
         # Set default event_type to 'boarding' if not specified
-        # Later: logic will determine 'pickup' vs 'dropoff'
-        # based on time/location
         if "event_type" not in validated_data["metadata"]:
             validated_data["metadata"]["event_type"] = "boarding"
 
-        # Decode confirmation faces from base64 list
-        confirmation_faces = validated_data.pop("confirmation_faces_base64", [])
+        # Extract confirmation faces (don't add to BoardingEvent yet)
+        confirmation_faces_base64 = validated_data.pop("confirmation_faces_base64", [])
 
-        for idx, face_base64 in enumerate(confirmation_faces[:3], start=1):  # Store up to 3 faces
+        # Create the boarding event first (generates ULID)
+        boarding_event = BoardingEvent.objects.create(**validated_data)
+
+        # Upload confirmation faces to Google Cloud Storage
+        if confirmation_faces_base64:
+            from .services.storage_service import BoardingEventStorageService
+
             try:
-                image_data = base64.b64decode(face_base64)
-                validated_data[f"confirmation_face_{idx}"] = image_data
-            except Exception as e:
-                raise serializers.ValidationError({"confirmation_faces_base64": f"Invalid base64 data at index {idx - 1}: {e}"}) from None
+                storage_service = BoardingEventStorageService()
 
-        return BoardingEvent.objects.create(**validated_data)
+                # Upload each face and store GCS path
+                for idx, face_base64 in enumerate(confirmation_faces_base64[:3], start=1):
+                    try:
+                        # Decode base64 image
+                        image_bytes = base64.b64decode(face_base64)
+
+                        # Upload to GCS
+                        gcs_path = storage_service.upload_confirmation_face(
+                            event_id=boarding_event.event_id,
+                            face_number=idx,
+                            image_bytes=image_bytes,
+                            content_type="image/jpeg",
+                        )
+
+                        # Store GCS path in model
+                        setattr(boarding_event, f"confirmation_face_{idx}_gcs", gcs_path)
+
+                    except Exception as e:
+                        # Clean up: Delete the boarding event and any uploaded faces
+                        storage_service.delete_confirmation_faces(boarding_event.event_id)
+                        boarding_event.delete()
+                        raise serializers.ValidationError({"confirmation_faces_base64": f"Failed to process face {idx}: {e!s}"}) from None
+
+                # Save GCS paths to database
+                boarding_event.save(
+                    update_fields=[
+                        "confirmation_face_1_gcs",
+                        "confirmation_face_2_gcs",
+                        "confirmation_face_3_gcs",
+                    ]
+                )
+
+            except Exception as e:
+                # Clean up: Delete the boarding event
+                boarding_event.delete()
+                raise serializers.ValidationError({"confirmation_faces_base64": f"GCS upload failed: {e!s}"}) from None
+
+        return boarding_event
 
 
 class AttendanceRecordSerializer(serializers.ModelSerializer):
