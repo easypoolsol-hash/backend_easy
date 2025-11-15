@@ -108,8 +108,9 @@ class BoardingEventAdmin(admin.ModelAdmin):
     def get_confirmation_faces_thumbnails(self, obj):
         """Display 3 confirmation face thumbnails inline"""
         from django.utils.html import format_html
+        from django.utils.safestring import mark_safe
 
-        thumbnails = []
+        html_parts = []
 
         for i in range(1, 4):
             # Check if GCS path exists
@@ -118,29 +119,24 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 # Generate signed URL
                 face_url = getattr(obj, f"confirmation_face_{i}_url", None)
                 if face_url:
-                    thumbnails.append((face_url, face_url, i))
+                    html_parts.append(
+                        format_html(
+                            '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
+                            '<img src="{}" width="50" height="50" '
+                            'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
+                            'title="Confirmation face {}"/>'
+                            "</a>",
+                            face_url,
+                            face_url,
+                            i,
+                        )
+                    )
 
-        if not thumbnails:
+        if not html_parts:
             return format_html('<span style="color:#999;">-</span>')
 
-        # Use format_html for the complete HTML string
-        html_parts = []
-        for url, img_url, index in thumbnails:
-            html_parts.append(
-                format_html(
-                    '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
-                    '<img src="{}" width="50" height="50" '
-                    'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
-                    'title="Confirmation face {}"/>'
-                    "</a>",
-                    url,
-                    img_url,
-                    index,
-                )
-            )
-
-        # Combine using format_html to maintain safety
-        return format_html("{}" * len(html_parts), *html_parts)
+        # Combine safe HTML parts using mark_safe
+        return mark_safe("".join(html_parts))
 
     get_confirmation_faces_thumbnails.short_description = "Confirmation Faces"  # type: ignore[attr-defined]
 
