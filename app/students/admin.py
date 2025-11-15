@@ -66,7 +66,8 @@ class ParentAdminForm(forms.ModelForm):
     plaintext_name = forms.CharField(
         label="Name",
         max_length=255,
-        help_text="Enter parent's name (will be encrypted automatically)",
+        required=False,
+        help_text="Enter parent's name (will be encrypted automatically). Auto-populated from user if available.",
     )
     plaintext_phone = forms.CharField(
         label="Phone",
@@ -75,7 +76,8 @@ class ParentAdminForm(forms.ModelForm):
     )
     plaintext_email = forms.EmailField(
         label="Email",
-        help_text="Enter email address (will be encrypted automatically)",
+        required=False,
+        help_text="Auto-populated from linked user account. Read-only if user is selected.",
     )
 
     class Meta:
@@ -106,10 +108,31 @@ class ParentAdminForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        # Encrypt all fields before saving
-        instance.encrypted_name = self.cleaned_data["plaintext_name"]
+
+        # Auto-populate from user if available
+        user = self.cleaned_data.get("user")
+        if user:
+            # Auto-populate email from user account (SSOT principle)
+            if not self.cleaned_data.get("plaintext_email"):
+                instance.encrypted_email = user.email
+            else:
+                instance.encrypted_email = self.cleaned_data["plaintext_email"]
+
+            # Auto-populate name from user if not provided
+            if not self.cleaned_data.get("plaintext_name"):
+                # Try to get name from user display_name or username
+                name = getattr(user, "display_name", user.username)
+                instance.encrypted_name = name
+            else:
+                instance.encrypted_name = self.cleaned_data["plaintext_name"]
+        else:
+            # No user linked - use provided values
+            instance.encrypted_name = self.cleaned_data["plaintext_name"]
+            instance.encrypted_email = self.cleaned_data["plaintext_email"]
+
+        # Phone is always required and must be entered manually
         instance.encrypted_phone = self.cleaned_data["plaintext_phone"]
-        instance.encrypted_email = self.cleaned_data["plaintext_email"]
+
         if commit:
             instance.save()
         return instance
