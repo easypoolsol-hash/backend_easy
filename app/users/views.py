@@ -1,5 +1,6 @@
 from django.contrib.auth.models import Group
-from drf_spectacular.utils import OpenApiExample, extend_schema, inline_serializer
+from django.views.decorators.cache import cache_page
+from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -161,11 +162,14 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@cache_page(30)  # Cache for 30 seconds to protect database from polling load
 def parent_bus_locations(request):
     """
     Parent-specific bus locations endpoint (IAM-filtered).
 
     Returns ONLY buses assigned to the authenticated parent's children.
+
+    Cached for 30 seconds to protect database from polling load.
     """
     from django.db.models import Max
     from django.http import JsonResponse
