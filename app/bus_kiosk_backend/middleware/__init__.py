@@ -107,6 +107,32 @@ class SecurityHeadersMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         self.get_response = get_response
 
+        # Build environment-specific CSP for GCS bucket
+        # This matches the bucket used by BoardingEventStorageService
+        import os
+
+        gcs_bucket = os.getenv("GCS_BUCKET_NAME", "")
+
+        # Build img-src directive with environment-specific GCS bucket
+        img_sources = "'self' data: https://maps.gstatic.com https://maps.googleapis.com"
+        if gcs_bucket:
+            # Add bucket-specific URL for maximum security (principle of least privilege)
+            img_sources += f" https://storage.googleapis.com/{gcs_bucket}"
+
+        self.csp_policy = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://maps.googleapis.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            f"img-src {img_sources}; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "connect-src 'self' https://maps.googleapis.com; "
+            "media-src 'none'; "
+            "object-src 'none'; "
+            "frame-src 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+
     def __call__(self, request: HttpRequest) -> HttpResponse:
         response = self.get_response(request)
 
@@ -117,19 +143,7 @@ class SecurityHeadersMiddleware:
         response["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=()"
 
-        # Content Security Policy (allows specific CDNs for school dashboard and Google Maps)
-        response["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://maps.googleapis.com; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-            "img-src 'self' data: https://maps.gstatic.com https://maps.googleapis.com; "
-            "font-src 'self' https://fonts.gstatic.com; "
-            "connect-src 'self' https://maps.googleapis.com; "
-            "media-src 'none'; "
-            "object-src 'none'; "
-            "frame-src 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'"
-        )
+        # Content Security Policy (environment-aware, built in __init__)
+        response["Content-Security-Policy"] = self.csp_policy
 
         return response
