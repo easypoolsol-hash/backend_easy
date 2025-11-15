@@ -21,6 +21,11 @@ class BoardingEventNestedSerializer(serializers.Serializer):
     timestamp = serializers.DateTimeField(help_text="When event occurred")
     kiosk_id = serializers.CharField(help_text="Kiosk device ID")
     event_type = serializers.CharField(help_text="Event type (boarding/pickup/dropoff)")
+    confirmation_face_urls = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="List of signed URLs for confirmation faces (flexible - 1 to N photos)",
+    )
 
 
 class StudentActivitySerializer(serializers.Serializer):

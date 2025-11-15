@@ -20,6 +20,13 @@ class BoardingEventAdmin(admin.ModelAdmin):
         "bus_route",
         "model_version",
     ]
+
+    def get_queryset(self, request):
+        """Optimize queryset with student prefetch for thumbnail display"""
+        qs = super().get_queryset(request)
+        # Prefetch student data for reference photo thumbnails
+        return qs.select_related("student")
+
     list_filter = [
         "timestamp",
         "kiosk_id",
@@ -98,31 +105,40 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 'title="No photo available">No Photo</div>'
             )
 
-    @display(description="Confirmation Faces")
     def get_confirmation_faces_thumbnails(self, obj):
         """Display 3 confirmation face thumbnails inline"""
-        faces_html = []
+        from django.utils.html import format_html
+        from django.utils.safestring import mark_safe
+
+        html_parts = []
 
         for i in range(1, 4):
-            face_url = getattr(obj, f"confirmation_face_{i}_url", None)
-            if face_url:
-                faces_html.append(
-                    f'<a href="{face_url}" target="_blank">'
-                    f'<img src="{face_url}" style="width:40px;height:40px;object-fit:cover;'
-                    f'border:1px solid #007bff;border-radius:3px;margin-right:2px;" '
-                    f'title="Confirmation {i} (click to enlarge)"/>'
-                    f"</a>"
-                )
-            else:
-                faces_html.append(
-                    f'<div style="width:40px;height:40px;background:#f8f9fa;'
-                    f"border:1px solid #dee2e6;border-radius:3px;"
-                    f"display:inline-flex;align-items:center;justify-content:center;"
-                    f'font-size:8px;color:#adb5bd;margin-right:2px;" '
-                    f'title="No face {i}">-</div>'
-                )
+            # Check if GCS path exists
+            gcs_path = getattr(obj, f"confirmation_face_{i}_gcs", None)
+            if gcs_path:
+                # Generate signed URL
+                face_url = getattr(obj, f"confirmation_face_{i}_url", None)
+                if face_url:
+                    html_parts.append(
+                        format_html(
+                            '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
+                            '<img src="{}" width="50" height="50" '
+                            'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
+                            'title="Confirmation face {}"/>'
+                            "</a>",
+                            face_url,
+                            face_url,
+                            i,
+                        )
+                    )
 
-        return format_html("".join(faces_html))
+        if not html_parts:
+            return format_html('<span style="color:#999;">-</span>')
+
+        # Combine safe HTML parts using mark_safe
+        return mark_safe("".join(html_parts))
+
+    get_confirmation_faces_thumbnails.short_description = "Confirmation Faces"  # type: ignore[attr-defined]
 
     @display(description="Verification Images")
     def get_confirmation_faces_display(self, obj):

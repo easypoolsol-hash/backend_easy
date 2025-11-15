@@ -7,6 +7,11 @@ import ulid
 
 from students.models import Student
 
+# Configuration: Number of confirmation face photos
+# Adjust this to change how many photos are stored (1-5 recommended)
+# If changed, also update database migration to add/remove fields
+MAX_CONFIRMATION_FACES = 3
+
 
 class BoardingEvent(models.Model):
     """
@@ -104,13 +109,20 @@ class BoardingEvent(models.Model):
             Signed GCS URL (1-hour expiration) or None if no face image exists.
         """
         if self.confirmation_face_1_gcs:
+            import logging
+
             from .services.storage_service import BoardingEventStorageService
+
+            logger = logging.getLogger(__name__)
 
             try:
                 storage_service = BoardingEventStorageService()
-                return storage_service.get_signed_url(self.confirmation_face_1_gcs)
-            except Exception:
-                # Fallback to None if GCS access fails
+                url = storage_service.get_signed_url(self.confirmation_face_1_gcs)
+                logger.info(f"Generated signed URL for {self.event_id} face 1: SUCCESS")
+                return url
+            except Exception as e:
+                # Log the error for debugging
+                logger.error(f"Failed to generate signed URL for {self.event_id} face 1: {e}", exc_info=True)
                 return None
 
         return None
@@ -123,13 +135,19 @@ class BoardingEvent(models.Model):
             Signed GCS URL (1-hour expiration) or None if no face image exists.
         """
         if self.confirmation_face_2_gcs:
+            import logging
+
             from .services.storage_service import BoardingEventStorageService
+
+            logger = logging.getLogger(__name__)
 
             try:
                 storage_service = BoardingEventStorageService()
-                return storage_service.get_signed_url(self.confirmation_face_2_gcs)
-            except Exception:
-                # Fallback to None if GCS access fails
+                url = storage_service.get_signed_url(self.confirmation_face_2_gcs)
+                logger.info(f"Generated signed URL for {self.event_id} face 2: SUCCESS")
+                return url
+            except Exception as e:
+                logger.error(f"Failed to generate signed URL for {self.event_id} face 2: {e}", exc_info=True)
                 return None
 
         return None
@@ -142,13 +160,19 @@ class BoardingEvent(models.Model):
             Signed GCS URL (1-hour expiration) or None if no face image exists.
         """
         if self.confirmation_face_3_gcs:
+            import logging
+
             from .services.storage_service import BoardingEventStorageService
+
+            logger = logging.getLogger(__name__)
 
             try:
                 storage_service = BoardingEventStorageService()
-                return storage_service.get_signed_url(self.confirmation_face_3_gcs)
-            except Exception:
-                # Fallback to None if GCS access fails
+                url = storage_service.get_signed_url(self.confirmation_face_3_gcs)
+                logger.info(f"Generated signed URL for {self.event_id} face 3: SUCCESS")
+                return url
+            except Exception as e:
+                logger.error(f"Failed to generate signed URL for {self.event_id} face 3: {e}", exc_info=True)
                 return None
 
         return None

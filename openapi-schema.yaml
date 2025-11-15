@@ -3389,8 +3389,12 @@ components:
           format: date-time
           readOnly: true
           description: When this record was created in database
+        confirmation_face_urls:
+          type: string
+          readOnly: true
       required:
       - confidence_score
+      - confirmation_face_urls
       - created_at
       - event_id
       - kiosk_id
@@ -3479,6 +3483,12 @@ components:
         event_type:
           type: string
           description: Event type (boarding/pickup/dropoff)
+        confirmation_face_urls:
+          type: array
+          items:
+            type: string
+          description: List of signed URLs for confirmation faces (flexible - 1 to
+            N photos)
       required:
       - event_id
       - event_type
@@ -4551,6 +4561,9 @@ components:
           format: date-time
           readOnly: true
           description: When this record was created in database
+        confirmation_face_urls:
+          type: string
+          readOnly: true
     PatchedBus:
       type: object
       description: Serializer for buses
