@@ -24,10 +24,15 @@ class GroupSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """
+    User serializer - Authentication layer only.
+
+    For parent approval status, see ParentSerializer (domain layer).
+    """
+
     groups: Any = serializers.StringRelatedField(many=True, read_only=True)
     group_names = serializers.SerializerMethodField()
     parent_id = serializers.UUIDField(source="parent.parent_id", read_only=True, allow_null=True)
-    approved_by_username = serializers.CharField(source="approved_by.username", read_only=True, allow_null=True)
 
     class Meta:
         model = User
@@ -42,9 +47,6 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "parent_id",
-            "approval_status",
-            "approved_by_username",
-            "approved_at",
         ]
         read_only_fields = [
             "user_id",
@@ -52,9 +54,6 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "parent_id",
-            "approval_status",
-            "approved_by_username",
-            "approved_at",
         ]
         extra_kwargs = {"password": {"write_only": True}}
 

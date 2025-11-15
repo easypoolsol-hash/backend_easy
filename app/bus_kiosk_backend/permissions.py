@@ -107,12 +107,12 @@ class IsApprovedParent(BasePermission):
             return False
 
         # 3. Check linked Parent profile (domain entity)
-        if not hasattr(request.user, "parent_profile") or not request.user.parent_profile:
+        if not hasattr(request.user, "parent") or not request.user.parent:
             logger.warning(f"IsApprovedParent DENIED: user={request.user.username} has no linked Parent profile")
             return False
 
         # 4. Check approval status on Parent (authorization layer)
-        parent = request.user.parent_profile
+        parent = request.user.parent
         if parent.approval_status != "approved":
             logger.warning(f"IsApprovedParent DENIED: user={request.user.username} parent_approval_status={parent.approval_status}")
             return False

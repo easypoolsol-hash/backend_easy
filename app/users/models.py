@@ -57,10 +57,12 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     """
-    Extended user model for the bus kiosk system.
+    Extended user model for the bus kiosk system (Authentication Layer).
 
-    Uses Django's built-in Groups for RBAC (battery-included approach).
-    Groups are managed via django.contrib.auth.models.Group.
+    Google-style architecture:
+    - User = Authentication identity (who you are)
+    - Parent/Teacher = Domain roles (what you do) - separate models
+    - Groups = Authorization (what you can access) - Django's built-in RBAC
 
     Available groups (created via management command):
     - Super Administrator: Full system access
@@ -69,12 +71,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     - Parent: View own children and bus tracking
     - New User: No permissions (default for Firebase-authenticated users)
     """
-
-    APPROVAL_STATUS_CHOICES = [
-        ("pending", "Pending Approval"),
-        ("approved", "Approved"),
-        ("rejected", "Rejected"),
-    ]
 
     # UUID primary key - auto-generates for all users (Firebase, manual, any source)
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -88,35 +84,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_login = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-
-    # Parent approval system fields
-    parent = models.ForeignKey(
-        "students.Parent",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="user_account",
-        help_text="Link to Parent record if this user is a parent",
-    )
-    approval_status = models.CharField(
-        max_length=20,
-        choices=APPROVAL_STATUS_CHOICES,
-        default="pending",
-        help_text="Approval status for parent users",
-    )
-    approved_by = models.ForeignKey(
-        "self",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="approved_users",
-        help_text="Admin who approved this parent user",
-    )
-    approved_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Timestamp when parent was approved",
-    )
 
     objects = UserManager()
 
@@ -133,8 +100,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         indexes = [
             models.Index(fields=["email"], name="idx_users_email"),
             models.Index(fields=["username"], name="idx_users_username"),
-            models.Index(fields=["parent"], name="idx_users_parent"),
-            models.Index(fields=["approval_status"], name="idx_users_approval_status"),
         ]
 
     def __str__(self):

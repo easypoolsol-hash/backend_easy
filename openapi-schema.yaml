@@ -4950,6 +4950,10 @@ components:
           readOnly: true
     PatchedUser:
       type: object
+      description: |-
+        User serializer - Authentication layer only.
+
+        For parent approval status, see ParentSerializer (domain layer).
       properties:
         user_id:
           type: string
@@ -4990,30 +4994,6 @@ components:
           format: uuid
           readOnly: true
           nullable: true
-        approval_status:
-          enum:
-          - pending
-          - approved
-          - rejected
-          type: string
-          x-spec-enum-id: 970a114d38fbbcd9
-          readOnly: true
-          description: |-
-            Approval status for parent users
-
-            * `pending` - Pending Approval
-            * `approved` - Approved
-            * `rejected` - Rejected
-        approved_by_username:
-          type: string
-          readOnly: true
-          nullable: true
-        approved_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-          description: Timestamp when parent was approved
     Route:
       type: object
       description: Serializer for bus routes with polyline support
@@ -5501,6 +5481,10 @@ components:
       - student_details
     User:
       type: object
+      description: |-
+        User serializer - Authentication layer only.
+
+        For parent approval status, see ParentSerializer (domain layer).
       properties:
         user_id:
           type: string
@@ -5541,34 +5525,7 @@ components:
           format: uuid
           readOnly: true
           nullable: true
-        approval_status:
-          enum:
-          - pending
-          - approved
-          - rejected
-          type: string
-          x-spec-enum-id: 970a114d38fbbcd9
-          readOnly: true
-          description: |-
-            Approval status for parent users
-
-            * `pending` - Pending Approval
-            * `approved` - Approved
-            * `rejected` - Rejected
-        approved_by_username:
-          type: string
-          readOnly: true
-          nullable: true
-        approved_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-          description: Timestamp when parent was approved
       required:
-      - approval_status
-      - approved_at
-      - approved_by_username
       - created_at
       - email
       - group_names
