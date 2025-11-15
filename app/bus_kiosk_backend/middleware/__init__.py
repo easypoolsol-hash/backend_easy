@@ -116,9 +116,10 @@ class SecurityHeadersMiddleware:
         # Build img-src directive with environment-specific GCS bucket
         img_sources = "'self' data: https://maps.gstatic.com https://maps.googleapis.com"
         if gcs_bucket:
-            # Add bucket-specific URL with wildcard for paths and signed URL query params
-            # CSP requires wildcard to match URLs with paths like: /bucket/path/file.jpg?params
-            img_sources += f" https://storage.googleapis.com/{gcs_bucket}/*"
+            # Add bucket-specific URL with trailing slash for prefix matching
+            # CSP ignores query parameters, so signed URLs automatically match
+            # Trailing slash enables prefix match for all paths: bucket/path/file.jpg?params
+            img_sources += f" https://storage.googleapis.com/{gcs_bucket}/"
 
         self.csp_policy = (
             "default-src 'self'; "
