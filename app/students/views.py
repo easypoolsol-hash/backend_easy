@@ -231,7 +231,7 @@ class ParentMeViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def profile(self, request):
         """GET /api/v1/parents/me/profile/ - Get my parent profile"""
-        parent = request.user.parent
+        parent = getattr(request.user, "parent_profile", None)
         if not parent:
             return Response(
                 {"error": "Parent record not found"},
@@ -248,7 +248,7 @@ class ParentMeViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def children(self, request):
         """GET /api/v1/parents/me/children/ - Get my children"""
-        parent = request.user.parent
+        parent = getattr(request.user, "parent_profile", None)
         if not parent:
             return Response(
                 {"error": "Parent record not found"},
@@ -281,7 +281,7 @@ class ParentMeViewSet(viewsets.ViewSet):
         """GET /api/v1/parents/me/buses/ - Get all buses for my children"""
         from buses.serializers import BusSerializer
 
-        parent = request.user.parent
+        parent = getattr(request.user, "parent_profile", None)
         if not parent:
             return Response(
                 {"error": "Parent record not found"},
@@ -321,7 +321,7 @@ class ParentMeViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"], url_path=r"buses/(?P<bus_id>[^/.]+)/location")
     def bus_location(self, request, bus_id=None):
         """GET /api/v1/parents/me/buses/{bus_id}/location/ - Get bus location"""
-        parent = request.user.parent
+        parent = getattr(request.user, "parent_profile", None)
         if not parent:
             return Response(
                 {"error": "Parent record not found"},
@@ -353,6 +353,56 @@ class ParentMeViewSet(viewsets.ViewSet):
                 },
             }
         )
+
+    @extend_schema(
+        responses={
+            200: {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "bus_id": {"type": "string"},
+                        "license_plate": {"type": "string"},
+                        "latitude": {"type": "number"},
+                        "longitude": {"type": "number"},
+                        "last_updated": {"type": "string"},
+                    },
+                },
+            }
+        },
+        description="Get real-time locations for all buses assigned to my children",
+    )
+    @action(detail=False, methods=["get"], url_path="bus-locations")
+    def bus_locations(self, request):
+        """GET /api/v1/parents/me/bus-locations/ - Get all bus locations for my children's buses"""
+        parent = getattr(request.user, "parent_profile", None)
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get all students for this parent
+        student_parents = StudentParent.objects.filter(parent=parent).select_related("student")
+        student_ids = [sp.student.student_id for sp in student_parents]
+
+        # Get unique buses for these students
+        buses = Bus.objects.filter(students__student_id__in=student_ids).distinct()
+
+        # Return bus locations (placeholder - integrate with real-time tracking system)
+        bus_locations = []
+        for bus in buses:
+            bus_locations.append(
+                {
+                    "bus_id": str(bus.bus_id),
+                    "license_plate": bus.license_plate,
+                    "latitude": 28.6139,  # Placeholder - integrate with GPS tracking
+                    "longitude": 77.2090,
+                    "last_updated": "2025-11-15T00:00:00Z",
+                }
+            )
+
+        return Response(bus_locations)
 
 
 class StudentParentViewSet(viewsets.ModelViewSet):

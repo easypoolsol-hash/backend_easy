@@ -1805,6 +1805,35 @@ paths:
               schema:
                 $ref: '#/components/schemas/Parent'
           description: ''
+  /api/v1/parents/me/bus-locations/:
+    get:
+      operationId: api_v1_parents_me_bus_locations_retrieve
+      description: Get real-time locations for all buses assigned to my children
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    bus_id:
+                      type: string
+                    license_plate:
+                      type: string
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    last_updated:
+                      type: string
+          description: ''
   /api/v1/parents/me/buses/:
     get:
       operationId: api_v1_parents_me_buses_retrieve
