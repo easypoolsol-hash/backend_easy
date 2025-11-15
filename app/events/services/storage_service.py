@@ -109,16 +109,28 @@ class BoardingEventStorageService:
 
         Note:
             On Cloud Run, this uses the IAM signBlob API (no service account key needed).
-            The Cloud Run service account must have iam.serviceAccounts.signBlob permission.
+            Requires: IAM Service Account Credentials API enabled + Token Creator role.
         """
+        from google import auth
+        from google.auth.transport import requests
+
         blob = self.bucket.blob(gcs_path)
 
-        # Generate signed URL valid for specified duration
-        # Uses IAM-based signing (no service account key file needed)
+        # Get default credentials (works on Cloud Run, GCE, local with GOOGLE_APPLICATION_CREDENTIALS)
+        credentials, project_id = auth.default()
+
+        # Refresh credentials to obtain access token (required for signing)
+        auth_request = requests.Request()
+        credentials.refresh(auth_request)
+
+        # Generate signed URL using IAM signBlob API
+        # Requires both service_account_email and access_token for Cloud Run
         signed_url = blob.generate_signed_url(
             version="v4",
             expiration=timedelta(minutes=expiration_minutes),
             method="GET",
+            service_account_email=credentials.service_account_email,
+            access_token=credentials.token,
         )
 
         return signed_url
