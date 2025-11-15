@@ -3619,9 +3619,9 @@ components:
           format: uuid
           readOnly: true
           description: UUID primary key
-        license_plate:
+        bus_number:
           type: string
-          description: Vehicle license plate number
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
           maxLength: 20
         capacity:
           type: integer
@@ -3655,8 +3655,8 @@ components:
           description: When this bus record was last updated
       required:
       - bus_id
+      - bus_number
       - created_at
-      - license_plate
       - updated_at
     BusLocation:
       type: object

@@ -26,7 +26,7 @@ class BusBasicSerializer(serializers.ModelSerializer):
         model = Bus
         fields = [
             "bus_id",
-            "license_plate",
+            "bus_number",
             "capacity",
             "status",
             "created_at",

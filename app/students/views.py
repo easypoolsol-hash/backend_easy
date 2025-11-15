@@ -399,7 +399,7 @@ class ParentMeViewSet(viewsets.ViewSet):
         student_ids = [sp.student.student_id for sp in student_parents]
 
         # Security Layer 2: Get ONLY buses assigned to these children (not all buses)
-        buses = Bus.objects.filter(students__student_id__in=student_ids).distinct()
+        buses = Bus.objects.filter(assigned_students__student_id__in=student_ids).distinct()
 
         # Return bus locations with real GPS data
         bus_locations = []
