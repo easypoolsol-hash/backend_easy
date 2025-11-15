@@ -22,22 +22,11 @@ class BoardingEventAdmin(admin.ModelAdmin):
     ]
 
     def get_queryset(self, request):
-        """Optimize queryset to include GCS fields for thumbnail display"""
+        """Optimize queryset with student prefetch for thumbnail display"""
         qs = super().get_queryset(request)
-        # Ensure GCS path fields are loaded (needed for thumbnails)
-        qs = qs.select_related('student').only(
-            'event_id',
-            'student_id',
-            'kiosk_id',
-            'confidence_score',
-            'timestamp',
-            'bus_route',
-            'model_version',
-            'confirmation_face_1_gcs',
-            'confirmation_face_2_gcs',
-            'confirmation_face_3_gcs',
-        )
-        return qs
+        # Prefetch student data for reference photo thumbnails
+        return qs.select_related("student")
+
     list_filter = [
         "timestamp",
         "kiosk_id",
@@ -116,55 +105,72 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 'title="No photo available">No Photo</div>'
             )
 
-    @display(description="Confirmation Faces")
     def get_confirmation_faces_thumbnails(self, obj):
         """Display 3 confirmation face thumbnails inline"""
         import logging
+
+        from django.utils.html import format_html
+        from django.utils.safestring import mark_safe
+
         logger = logging.getLogger(__name__)
 
-        faces_html = []
-        gcs_paths_found = []
+        faces_html_parts = []
+        gcs_paths = []
 
         for i in range(1, 4):
             # Check if GCS path exists
             gcs_path = getattr(obj, f"confirmation_face_{i}_gcs", None)
-            gcs_paths_found.append(gcs_path or "None")
-
             if gcs_path:
+                gcs_paths.append(gcs_path)
+
                 # Generate signed URL
-                face_url = getattr(obj, f"confirmation_face_{i}_url", None)
-                if face_url:
-                    faces_html.append(
-                        f'<a href="{face_url}" target="_blank">'
-                        f'<img src="{face_url}" style="width:50px;height:50px;object-fit:cover;'
-                        f'border:2px solid #007bff;border-radius:4px;margin-right:4px;" '
-                        f'title="Face {i}: {gcs_path} (click to enlarge)" '
-                        f'onerror="this.style.display=\'none\'"/>'
-                        f"</a>"
+                try:
+                    face_url = getattr(obj, f"confirmation_face_{i}_url", None)
+                    if face_url:
+                        faces_html_parts.append(
+                            format_html(
+                                '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
+                                '<img src="{}" width="50" height="50" '
+                                'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
+                                'alt="Face {}" title="Click to enlarge"/>'
+                                "</a>",
+                                face_url,
+                                face_url,
+                                i,
+                            )
+                        )
+                    else:
+                        # URL generation failed
+                        faces_html_parts.append(
+                            format_html(
+                                '<div style="width:50px;height:50px;background:#ffebee;'
+                                "border:2px solid #f44336;border-radius:4px;margin-right:4px;"
+                                "display:inline-block;text-align:center;line-height:50px;"
+                                'font-size:10px;color:#c62828;" '
+                                'title="Error generating URL">ERR</div>'
+                            )
+                        )
+                except Exception as e:
+                    logger.error(f"Error getting face {i} URL for event {obj.event_id}: {e}")
+                    faces_html_parts.append(
+                        format_html(
+                            '<div style="width:50px;height:50px;background:#ffebee;'
+                            "border:2px solid #f44336;border-radius:4px;margin-right:4px;"
+                            "display:inline-block;text-align:center;line-height:50px;"
+                            'font-size:10px;color:#c62828;">ERR</div>'
+                        )
                     )
-                else:
-                    # GCS path exists but URL generation failed
-                    faces_html.append(
-                        f'<div style="width:50px;height:50px;background:#ffebee;'
-                        f"border:2px solid #f44336;border-radius:4px;"
-                        f"display:inline-flex;align-items:center;justify-content:center;"
-                        f'font-size:10px;color:#c62828;margin-right:4px;" '
-                        f'title="Error: {gcs_path}">ERR</div>'
-                    )
-            else:
-                # No photo uploaded for this slot - show gray box
-                faces_html.append(
-                    f'<div style="width:50px;height:50px;background:#f8f9fa;'
-                    f"border:1px solid #dee2e6;border-radius:4px;"
-                    f"display:inline-flex;align-items:center;justify-content:center;"
-                    f'font-size:10px;color:#adb5bd;margin-right:4px;display:inline-block;" '
-                    f'title="No photo uploaded">-</div>'
-                )
 
-        # Log what we found for debugging
-        logger.info(f"Event {obj.event_id}: GCS paths = {gcs_paths_found}")
+        # Log GCS paths for debugging
+        logger.info(f"Event {obj.event_id}: GCS paths = {gcs_paths}")
 
-        return format_html("".join(faces_html))
+        if not faces_html_parts:
+            return format_html('<span style="color:#999;">-</span>')
+
+        # Combine all HTML parts
+        return mark_safe("".join(str(part) for part in faces_html_parts))
+
+    get_confirmation_faces_thumbnails.short_description = "Confirmation Faces"  # type: ignore[attr-defined]
 
     @display(description="Verification Images")
     def get_confirmation_faces_display(self, obj):
