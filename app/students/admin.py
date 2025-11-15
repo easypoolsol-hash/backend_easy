@@ -538,7 +538,7 @@ class ParentAdmin(admin.ModelAdmin):
     ]
     list_filter = ["approval_status", "created_at"]
     search_fields = ["parent_id", "phone", "email", "user__username", "user__email"]  # Enable autocomplete search
-    readonly_fields = ["parent_id", "created_at", "updated_at", "approved_at"]
+    readonly_fields = ["parent_id", "created_at", "updated_at", "approved_by", "approved_at"]
     inlines = [ParentStudentsInline]  # Show linked students
     actions = ["approve_parents", "reject_parents"]
 
@@ -600,6 +600,23 @@ class ParentAdmin(admin.ModelAdmin):
             return format_html('<span style="color: red; font-weight: bold;">✗ Rejected</span>')
         else:
             return format_html('<span style="color: orange; font-weight: bold;">⏳ Pending</span>')
+
+    def save_model(self, request, obj, form, change):
+        """Auto-populate approved_by with logged-in admin when approving"""
+        from django.utils import timezone
+
+        # Check if approval_status changed to 'approved'
+        if change:  # Only for existing objects
+            old_obj = Parent.objects.get(pk=obj.pk)
+            if old_obj.approval_status != "approved" and obj.approval_status == "approved":
+                # Auto-populate approved_by with logged-in admin
+                obj.approved_by = request.user
+                obj.approved_at = timezone.now()
+        elif obj.approval_status == "approved":  # New object created as approved
+            obj.approved_by = request.user
+            obj.approved_at = timezone.now()
+
+        super().save_model(request, obj, form, change)
 
     @admin.action(description="Approve selected parents")
     def approve_parents(self, request, queryset):
