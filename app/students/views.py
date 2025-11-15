@@ -89,13 +89,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         if grade:
             queryset = queryset.filter(grade=grade)
 
-        # Search by name (fuzzy search on encrypted field -
-        # limited functionality)
+        # Search by name, student ID, or grade (fuzzy search)
         search = self.request.query_params.get("search")
         if search:
-            # Note: This is a basic search - in production you'd want
-            # full-text search
-            queryset = queryset.filter(Q(name__icontains=search) | Q(grade__icontains=search))
+            # Search across multiple fields: name, school_student_id, grade
+            queryset = queryset.filter(Q(name__icontains=search) | Q(school_student_id__icontains=search) | Q(grade__icontains=search))
 
         return queryset
 
