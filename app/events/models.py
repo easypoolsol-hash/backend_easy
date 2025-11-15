@@ -7,6 +7,11 @@ import ulid
 
 from students.models import Student
 
+# Configuration: Number of confirmation face photos
+# Adjust this to change how many photos are stored (1-5 recommended)
+# If changed, also update database migration to add/remove fields
+MAX_CONFIRMATION_FACES = 3
+
 
 class BoardingEvent(models.Model):
     """

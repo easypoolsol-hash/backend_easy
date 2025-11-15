@@ -17,7 +17,7 @@ from .dashboard_serializers import (
     DashboardStatsSerializer,
     DashboardStudentsResponseSerializer,
 )
-from .models import BoardingEvent
+from .models import MAX_CONFIRMATION_FACES, BoardingEvent
 
 
 class DashboardStatsAPIView(APIView):
@@ -164,6 +164,9 @@ class DashboardStudentsAPIView(APIView):
                     "timestamp": event.timestamp,
                     "kiosk_id": event.kiosk_id,
                     "event_type": event.metadata.get("event_type", "boarding"),
+                    "confirmation_face_urls": [
+                        url for i in range(1, MAX_CONFIRMATION_FACES + 1) if (url := getattr(event, f"confirmation_face_{i}_url", None))
+                    ],
                 }
                 for event in student.todays_events
             ]

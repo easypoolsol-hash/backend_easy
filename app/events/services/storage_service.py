@@ -18,6 +18,8 @@ import os
 
 from google.cloud import storage
 
+from ..models import MAX_CONFIRMATION_FACES
+
 
 class BoardingEventStorageService:
     """Service for managing boarding event confirmation face images in Google Cloud Storage.
@@ -69,11 +71,12 @@ class BoardingEventStorageService:
             The GCS path of the uploaded image (e.g., "boarding_events/01HQXYZ123/face_1.jpg").
 
         Raises:
-            ValueError: If face_number is not 1, 2, or 3.
+            ValueError: If face_number is out of range (1 to MAX_CONFIRMATION_FACES).
             google.api_core.exceptions.GoogleAPIError: If upload fails.
         """
-        if face_number not in [1, 2, 3]:
-            raise ValueError(f"face_number must be 1, 2, or 3, got {face_number}")
+        valid_range = list(range(1, MAX_CONFIRMATION_FACES + 1))
+        if face_number not in valid_range:
+            raise ValueError(f"face_number must be in {valid_range}, got {face_number}")
 
         # Google Cloud Storage path format: boarding_events/{event_id}/face_{number}.jpg
         gcs_path = f"boarding_events/{event_id}/face_{face_number}.jpg"
@@ -150,9 +153,9 @@ class BoardingEventStorageService:
 
         Note:
             This is used when a boarding event is deleted (super admin only).
-            Deletes all 3 confirmation face images if they exist.
+            Deletes all confirmation face images (uses MAX_CONFIRMATION_FACES config).
         """
-        for face_number in [1, 2, 3]:
+        for face_number in range(1, MAX_CONFIRMATION_FACES + 1):
             gcs_path = f"boarding_events/{event_id}/face_{face_number}.jpg"
             blob = self.bucket.blob(gcs_path)
 

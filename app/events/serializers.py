@@ -2,11 +2,14 @@ import base64
 
 from rest_framework import serializers
 
-from .models import AttendanceRecord, BoardingEvent
+from .models import MAX_CONFIRMATION_FACES, AttendanceRecord, BoardingEvent
 
 
 class BoardingEventSerializer(serializers.ModelSerializer):
     """Serializer for boarding events"""
+
+    # Dynamic list of confirmation face URLs (flexible - works with any number of photos)
+    confirmation_face_urls = serializers.SerializerMethodField()
 
     class Meta:
         model = BoardingEvent
@@ -23,8 +26,23 @@ class BoardingEventSerializer(serializers.ModelSerializer):
             "model_version",
             "metadata",
             "created_at",
+            "confirmation_face_urls",
         ]
         read_only_fields = ["event_id", "created_at"]
+
+    def get_confirmation_face_urls(self, obj):
+        """Get all available confirmation face URLs dynamically.
+
+        Returns list of signed URLs for all confirmation faces that exist.
+        Easily adjustable via MAX_CONFIRMATION_FACES constant.
+        """
+        urls = []
+        # Dynamically get all confirmation face URLs (uses MAX_CONFIRMATION_FACES config)
+        for i in range(1, MAX_CONFIRMATION_FACES + 1):
+            url = getattr(obj, f"confirmation_face_{i}_url", None)
+            if url:
+                urls.append(url)
+        return urls
 
     def validate_confidence_score(self, value):
         """Validate confidence score is between 0 and 1"""
@@ -36,14 +54,14 @@ class BoardingEventSerializer(serializers.ModelSerializer):
 class BoardingEventCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating boarding events (kiosk-facing)"""
 
-    # List of base64-encoded confirmation face images (flexible: 1-3 faces)
+    # List of base64-encoded confirmation face images (flexible: adjustable via MAX_CONFIRMATION_FACES)
     confirmation_faces_base64 = serializers.ListField(
         child=serializers.CharField(allow_blank=False),
         required=False,
         write_only=True,
         allow_empty=True,
-        max_length=3,  # Max 3 faces to match database storage
-        help_text="Array of base64-encoded confirmation faces (112x112 JPEG). Send up to 3 consecutive frames.",
+        max_length=MAX_CONFIRMATION_FACES,  # Flexible: uses MAX_CONFIRMATION_FACES config
+        help_text=f"Array of base64-encoded confirmation faces (112x112 JPEG). Send up to {MAX_CONFIRMATION_FACES} consecutive frames.",
     )
 
     class Meta:
@@ -101,8 +119,8 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
             try:
                 storage_service = BoardingEventStorageService()
 
-                # Upload each face and store GCS path
-                for idx, face_base64 in enumerate(confirmation_faces_base64[:3], start=1):
+                # Upload each face and store GCS path (uses MAX_CONFIRMATION_FACES config)
+                for idx, face_base64 in enumerate(confirmation_faces_base64[:MAX_CONFIRMATION_FACES], start=1):
                     try:
                         # Decode base64 image
                         image_bytes = base64.b64decode(face_base64)
@@ -124,14 +142,9 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
                         boarding_event.delete()
                         raise serializers.ValidationError({"confirmation_faces_base64": f"Failed to process face {idx}: {e!s}"}) from None
 
-                # Save GCS paths to database
-                boarding_event.save(
-                    update_fields=[
-                        "confirmation_face_1_gcs",
-                        "confirmation_face_2_gcs",
-                        "confirmation_face_3_gcs",
-                    ]
-                )
+                # Save GCS paths to database (dynamically build field list)
+                update_fields = [f"confirmation_face_{i}_gcs" for i in range(1, MAX_CONFIRMATION_FACES + 1)]
+                boarding_event.save(update_fields=update_fields)
 
             except Exception as e:
                 # Clean up: Delete the boarding event
