@@ -6,7 +6,7 @@ inputs:
     description: 'Environment to deploy (staging, candidate, production)'
     required: true
   image_tag:
-    description: 'Image tag to deploy'
+    description: 'Image tag to deploy (immutable SHA tag recommended)'
     required: true
   workload_identity_provider:
     description: 'GCP Workload Identity Provider'
