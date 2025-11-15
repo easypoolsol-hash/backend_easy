@@ -31,6 +31,21 @@ class BoardingEventAdmin(admin.ModelAdmin):
     date_hierarchy = "timestamp"
     ordering = ["-timestamp"]
 
+    # Add custom actions
+    actions = ["delete_selected_with_gcs_cleanup"]
+
+    @admin.action(description="Delete selected boarding events (with GCS cleanup)")
+    def delete_selected_with_gcs_cleanup(self, request, queryset):
+        """Delete selected boarding events and clean up GCS images.
+
+        This action extends the default delete to also clean up GCS confirmation face images.
+        """
+        count = queryset.count()
+        # Call the built-in delete_queryset which already has GCS cleanup
+        self.delete_queryset(request, queryset)
+
+        self.message_user(request, f"Successfully deleted {count} boarding events and cleaned up GCS images.")
+
     fieldsets = (
         ("Event Info", {"fields": ("event_id", "student", "kiosk_id", "timestamp")}),
         (

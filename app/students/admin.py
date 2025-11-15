@@ -80,7 +80,15 @@ class ParentAdminForm(forms.ModelForm):
 
     class Meta:
         model = Parent
-        fields = ["plaintext_name", "plaintext_phone", "plaintext_email"]
+        fields = [
+            "user",
+            "plaintext_name",
+            "plaintext_phone",
+            "plaintext_email",
+            "approval_status",
+            "approved_by",
+            "approved_at",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -500,12 +508,28 @@ class ParentAdmin(admin.ModelAdmin):
         "get_name",
         "get_phone",
         "get_email",
+        "get_user",
+        "approval_status_display",
         "get_students_count",
         "created_at",
     ]
-    search_fields = ["parent_id", "phone", "email"]  # Enable autocomplete search
-    readonly_fields = ["parent_id", "created_at"]
+    list_filter = ["approval_status", "created_at"]
+    search_fields = ["parent_id", "phone", "email", "user__username", "user__email"]  # Enable autocomplete search
+    readonly_fields = ["parent_id", "created_at", "updated_at", "approved_at"]
     inlines = [ParentStudentsInline]  # Show linked students
+    actions = ["approve_parents", "reject_parents"]
+
+    fieldsets = (
+        ("Basic Information", {"fields": ("parent_id", "user", "plaintext_name", "plaintext_email", "plaintext_phone")}),
+        ("Approval Status", {"fields": ("approval_status", "approved_by", "approved_at")}),
+        (
+            "Timestamps",
+            {
+                "fields": ("created_at", "updated_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
 
     @display(description="Students")
     def get_students_count(self, obj):
@@ -534,6 +558,53 @@ class ParentAdmin(admin.ModelAdmin):
             return obj.encrypted_email
         except Exception:
             return obj.email
+
+    @display(description="User Account")
+    def get_user(self, obj):
+        if obj.user:
+            return format_html(
+                '<a href="/admin/users/user/{}/change/">{}</a>',
+                obj.user.user_id,
+                obj.user.username,
+            )
+        return format_html('<span style="color: red;">No user linked</span>')
+
+    @display(description="Status")
+    def approval_status_display(self, obj):
+        if obj.approval_status == "approved":
+            return format_html('<span style="color: green; font-weight: bold;">✓ Approved</span>')
+        elif obj.approval_status == "rejected":
+            return format_html('<span style="color: red; font-weight: bold;">✗ Rejected</span>')
+        else:
+            return format_html('<span style="color: orange; font-weight: bold;">⏳ Pending</span>')
+
+    @admin.action(description="Approve selected parents")
+    def approve_parents(self, request, queryset):
+        """Bulk approve parents"""
+        approved_count = 0
+        for parent in queryset:
+            try:
+                parent.approve(request.user)
+                approved_count += 1
+            except ValueError as e:
+                messages.error(request, f"Failed to approve {parent}: {e}")
+
+        if approved_count > 0:
+            messages.success(request, f"✓ Successfully approved {approved_count} parent(s)")
+
+    @admin.action(description="Reject selected parents")
+    def reject_parents(self, request, queryset):
+        """Bulk reject parents"""
+        rejected_count = 0
+        for parent in queryset:
+            try:
+                parent.reject(request.user)
+                rejected_count += 1
+            except Exception as e:
+                messages.error(request, f"Failed to reject {parent}: {e}")
+
+        if rejected_count > 0:
+            messages.success(request, f"✗ Rejected {rejected_count} parent(s)")
 
 
 # StudentParent admin removed - use inline in Student admin instead

@@ -205,7 +205,12 @@ class StudentPhoto(models.Model):
 
 
 class Parent(models.Model):
-    """Parent model with encrypted PII
+    """Parent model with encrypted PII and approval workflow
+
+    Google-style Architecture:
+    - Parent is the domain entity (authorization layer)
+    - User is authentication only (identity layer)
+    - Approval status lives on Parent, not User
 
     Industry Standard Pattern:
     - Validate plaintext BEFORE encryption
@@ -213,12 +218,29 @@ class Parent(models.Model):
     - Use hash indexes for encrypted field lookups
     """
 
+    APPROVAL_STATUS_CHOICES = [
+        ("pending", "Pending Approval"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
     # Validation constants (Fortune 500 standard)
     PHONE_REGEX = r"^(\+91)?\d{10}$"  # Optional +91 followed by exactly 10 digits
     EMAIL_MAX_LENGTH = 254  # RFC 5321 standard
     NAME_MAX_LENGTH = 100  # Reasonable human name limit
 
     parent_id: models.UUIDField = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Link to User account (authentication layer)
+    user: models.OneToOneField = models.OneToOneField(
+        "users.User",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="parent_profile",
+        help_text="Linked user account for this parent",
+    )
+
     phone: models.TextField = models.TextField(
         unique=True,
         help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)",
@@ -228,17 +250,46 @@ class Parent(models.Model):
         help_text="Encrypted email address (plaintext validated per RFC 5321)",
     )
     name: models.TextField = models.TextField(help_text="Encrypted name (plaintext validated max 100 chars)")
+
+    # Approval workflow fields (domain/authorization layer)
+    approval_status: models.CharField = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default="pending",
+        help_text="Approval status for parent access",
+    )
+    approved_by: models.ForeignKey = models.ForeignKey(  # type: ignore[misc]
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_parents",
+        help_text="Admin who approved this parent",
+    )
+    approved_at: models.DateTimeField = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when parent was approved",
+    )
+
     created_at: models.DateTimeField = models.DateTimeField(default=timezone.now)
+    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "parents"
         indexes = [
             models.Index(fields=["phone"], name="idx_parents_phone"),
             models.Index(fields=["email"], name="idx_parents_email"),
+            models.Index(fields=["user"], name="idx_parents_user"),
+            models.Index(fields=["approval_status"], name="idx_parents_approval_status"),
         ]
 
     def __str__(self):
-        return f"Parent {self.parent_id}"
+        try:
+            name = self.encrypted_name
+            return f"{name} (Parent)"
+        except Exception:  # nosec B110
+            return f"Parent {self.parent_id}"
 
     def clean(self):
         """Validate plaintext data BEFORE encryption (Fortune 500 pattern)"""
@@ -360,6 +411,48 @@ class Parent(models.Model):
     def get_students(self):
         """Get all students for this parent"""
         return Student.objects.filter(student_parents__parent=self)
+
+    def approve(self, approved_by_user):
+        """
+        Approve this parent for access.
+        Assigns Parent group to linked user and updates approval status.
+        """
+        if not self.user:
+            raise ValueError("Cannot approve parent without linked User account")
+
+        from django.contrib.auth.models import Group
+
+        # Remove New User group from user
+        new_user_group = Group.objects.filter(name="New User").first()
+        if new_user_group:
+            self.user.groups.remove(new_user_group)
+
+        # Add Parent group to user
+        parent_group, _ = Group.objects.get_or_create(name="Parent")
+        self.user.groups.add(parent_group)
+
+        # Update approval fields
+        self.approval_status = "approved"
+        self.approved_by = approved_by_user
+        self.approved_at = timezone.now()
+        self.save()
+
+    def reject(self, rejected_by_user):
+        """Reject this parent's access request"""
+        self.approval_status = "rejected"
+        self.approved_by = rejected_by_user
+        self.approved_at = timezone.now()
+        self.save()
+
+    @property
+    def is_approved(self):
+        """Check if parent is approved"""
+        return self.approval_status == "approved"
+
+    @property
+    def is_pending(self):
+        """Check if parent is pending approval"""
+        return self.approval_status == "pending"
 
 
 class StudentParent(models.Model):

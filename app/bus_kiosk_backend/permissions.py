@@ -71,19 +71,24 @@ class IsApprovedParent(BasePermission):
     """
     Permission: Allow ONLY approved parent users (deny-by-default IAM principle).
 
+    Google-style architecture:
+    - User is authentication layer (identity)
+    - Parent is domain layer (authorization)
+    - Approval status lives on Parent, not User
+
     Uses Django's built-in Groups and custom approval system.
     Deny-by-default means: If NOT an approved parent → Denied.
 
     ALLOWED (Explicit):
     - Authenticated users in "Parent" group
-    - With approval_status == "approved"
-    - With linked Parent record
+    - With linked Parent profile
+    - With Parent.approval_status == "approved"
 
     DENIED (Everything Else):
     - Unauthenticated requests
     - Users without "Parent" group
-    - Users with approval_status == "pending" or "rejected"
-    - Users without linked Parent record
+    - Users without linked Parent profile
+    - Users with Parent.approval_status == "pending" or "rejected"
     - Any other case
 
     IAM Principle: Deny by default, grant explicitly via approval.
@@ -101,14 +106,15 @@ class IsApprovedParent(BasePermission):
             logger.warning(f"IsApprovedParent DENIED: user={request.user.username} not in Parent group")
             return False
 
-        # 3. Check approval status
-        if request.user.approval_status != "approved":
-            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} approval_status={request.user.approval_status}")
+        # 3. Check linked Parent profile (domain entity)
+        if not hasattr(request.user, "parent_profile") or not request.user.parent_profile:
+            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} has no linked Parent profile")
             return False
 
-        # 4. Check linked Parent record
-        if not request.user.parent:
-            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} has no linked Parent record")
+        # 4. Check approval status on Parent (authorization layer)
+        parent = request.user.parent_profile
+        if parent.approval_status != "approved":
+            logger.warning(f"IsApprovedParent DENIED: user={request.user.username} parent_approval_status={parent.approval_status}")
             return False
 
         return True
