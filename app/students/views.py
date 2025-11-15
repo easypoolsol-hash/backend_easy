@@ -362,19 +362,31 @@ class ParentMeViewSet(viewsets.ViewSet):
                     "type": "object",
                     "properties": {
                         "bus_id": {"type": "string"},
-                        "license_plate": {"type": "string"},
+                        "bus_number": {"type": "string"},
                         "latitude": {"type": "number"},
                         "longitude": {"type": "number"},
+                        "speed": {"type": "number"},
+                        "heading": {"type": "number"},
                         "last_updated": {"type": "string"},
                     },
                 },
             }
         },
-        description="Get real-time locations for all buses assigned to my children",
+        description="Get real-time locations for all buses assigned to my children (row-level security enforced)",
     )
     @action(detail=False, methods=["get"], url_path="bus-locations")
     def bus_locations(self, request):
-        """GET /api/v1/parents/me/bus-locations/ - Get all bus locations for my children's buses"""
+        """
+        GET /api/v1/parents/me/bus-locations/ - Get all bus locations for my children's buses
+
+        Security (Row-Level):
+        - Parents can ONLY see buses assigned to their children
+        - Returns bus_number (NOT license_plate - parents don't need PII)
+        - Backend enforces all filtering (zero-trust)
+        """
+
+        from kiosks.models import BusLocation
+
         parent = getattr(request.user, "parent_profile", None)
         if not parent:
             return Response(
@@ -382,25 +394,47 @@ class ParentMeViewSet(viewsets.ViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Get all students for this parent
+        # Security Layer 1: Get ONLY this parent's children
         student_parents = StudentParent.objects.filter(parent=parent).select_related("student")
         student_ids = [sp.student.student_id for sp in student_parents]
 
-        # Get unique buses for these students
+        # Security Layer 2: Get ONLY buses assigned to these children (not all buses)
         buses = Bus.objects.filter(students__student_id__in=student_ids).distinct()
 
-        # Return bus locations (placeholder - integrate with real-time tracking system)
+        # Return bus locations with real GPS data
         bus_locations = []
         for bus in buses:
-            bus_locations.append(
-                {
-                    "bus_id": str(bus.bus_id),
-                    "license_plate": bus.license_plate,
-                    "latitude": 28.6139,  # Placeholder - integrate with GPS tracking
-                    "longitude": 77.2090,
-                    "last_updated": "2025-11-15T00:00:00Z",
-                }
-            )
+            # Get latest location for this bus (via kiosk)
+            latest_location = None
+            if hasattr(bus, "kiosk") and bus.kiosk:
+                latest_location = BusLocation.objects.filter(kiosk=bus.kiosk).order_by("-timestamp").first()
+
+            if latest_location:
+                # Return REAL location data
+                bus_locations.append(
+                    {
+                        "bus_id": str(bus.bus_id),
+                        "bus_number": bus.bus_number,  # Use bus_number (not license_plate)
+                        "latitude": latest_location.latitude,
+                        "longitude": latest_location.longitude,
+                        "speed": latest_location.speed if latest_location.speed else 0.0,
+                        "heading": latest_location.heading if latest_location.heading else 0.0,
+                        "last_updated": latest_location.timestamp.isoformat(),
+                    }
+                )
+            else:
+                # Bus has no location data yet (kiosk hasn't sent updates)
+                bus_locations.append(
+                    {
+                        "bus_id": str(bus.bus_id),
+                        "bus_number": bus.bus_number,
+                        "latitude": None,  # No location available
+                        "longitude": None,
+                        "speed": None,
+                        "heading": None,
+                        "last_updated": None,
+                    }
+                )
 
         return Response(bus_locations)
 

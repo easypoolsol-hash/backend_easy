@@ -1808,7 +1808,8 @@ paths:
   /api/v1/parents/me/bus-locations/:
     get:
       operationId: api_v1_parents_me_bus_locations_retrieve
-      description: Get real-time locations for all buses assigned to my children
+      description: Get real-time locations for all buses assigned to my children (row-level
+        security enforced)
       tags:
       - api
       security:
@@ -1825,11 +1826,15 @@ paths:
                   properties:
                     bus_id:
                       type: string
-                    license_plate:
+                    bus_number:
                       type: string
                     latitude:
                       type: number
                     longitude:
+                      type: number
+                    speed:
+                      type: number
+                    heading:
                       type: number
                     last_updated:
                       type: string
