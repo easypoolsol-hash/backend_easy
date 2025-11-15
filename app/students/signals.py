@@ -14,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import Parent, StudentPhoto
+from .models import StudentPhoto
 
 if TYPE_CHECKING:
     from users.models import User as UserType
@@ -71,58 +71,7 @@ def process_student_photo_embedding(
         logger.info("Photo uploaded, embedding generation failed")
 
 
-@receiver(post_save, sender=User)
-def auto_create_parent_for_new_user(
-    sender: type["UserType"],  # type: ignore[misc]
-    instance: "UserType",  # type: ignore[misc]
-    created: bool,
-    **kwargs: Any,
-) -> None:
-    """
-    Auto-create Parent record when a new User signs in.
-
-    Flow (Google-style self-service):
-    1. User signs in with Google (Firebase)
-    2. User record auto-created in database
-    3. User gets "New User" group (no permissions)
-    4. This signal auto-creates linked Parent record
-    5. Parent gets approval_status='pending'
-    6. Admin fills PII, links children, approves
-    7. Parent gets access to app
-
-    Note: PII fields left empty for security - admin fills during approval.
-    """
-    if not created:
-        return
-
-    # Only create Parent for users in "New User" or "Parent" group
-    is_parent_user = instance.groups.filter(name__in=["New User", "Parent"]).exists()
-    if not is_parent_user:
-        logger.debug(f"Skipping Parent creation for non-parent user {instance.username}")
-        return
-
-    # Check if parent profile already exists
-    if hasattr(instance, "parent_profile") and instance.parent_profile:
-        logger.info(f"Parent profile already exists for user {instance.username}")
-        return
-
-    # Auto-create Parent record with empty PII (admin fills later)
-    try:
-        # Use dummy encrypted values for PII fields (admin will update)
-        # We need to set them to avoid unique constraint issues
-        import uuid
-
-        temp_suffix = uuid.uuid4().hex[:8]
-        parent = Parent(
-            user=instance,
-            approval_status="pending",
-        )
-        # Set temporary encrypted values for PII
-        parent.encrypted_email = f"pending-{temp_suffix}@example.com"
-        parent.encrypted_phone = f"+91{temp_suffix[:10].zfill(10)}"
-        parent.encrypted_name = f"Pending User {instance.username}"
-        parent.save()
-
-        logger.info(f"✅ Auto-created Parent record for user {instance.username} (approval pending)")
-    except Exception as e:  # nosec B110
-        logger.error(f"❌ Failed to auto-create Parent for user {instance.username}: {e}")
+# REMOVED: Auto-create parent signal
+# Parents are now created explicitly via /api/v1/parents/register/ endpoint
+# Called from parent_easy app after Firebase login.
+# This ensures only users from parent app get Parent records.

@@ -153,6 +153,54 @@ class ParentViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    @extend_schema(
+        request=None,
+        responses={
+            201: ParentSerializer,
+            200: ParentSerializer,
+        },
+        description="Register as a parent (called from parent_easy app after Firebase login)",
+    )
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
+    def register(self, request):
+        """
+        POST /api/v1/parents/register/ - Register as a parent
+
+        Called from parent_easy app after user signs in with Firebase.
+        Creates a Parent record linked to the authenticated User.
+
+        If parent already exists, returns existing parent (idempotent).
+        """
+        import logging
+        import uuid
+
+        logger = logging.getLogger(__name__)
+        user = request.user
+
+        # Check if parent already exists for this user
+        try:
+            parent = Parent.objects.get(user=user)
+            logger.info(f"Parent already exists for user {user.username}")
+            return Response(ParentSerializer(parent).data, status=status.HTTP_200_OK)
+        except Parent.DoesNotExist:
+            pass
+
+        # Create new parent record with temporary encrypted values
+        temp_suffix = uuid.uuid4().hex[:8]
+        parent = Parent(
+            user=user,
+            approval_status="pending",
+        )
+        # Set temporary encrypted values for PII (admin will update during approval)
+        parent.encrypted_email = f"pending-{temp_suffix}@example.com"
+        parent.encrypted_phone = f"+91{temp_suffix[:10].zfill(10)}"
+        parent.encrypted_name = f"Pending User {user.username}"
+        parent.save()
+
+        logger.info(f"✅ Registered new parent for user {user.username} via parent_easy app")
+
+        return Response(ParentSerializer(parent).data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=["get"])
     def students(self, request, pk=None):
         parent = self.get_object()

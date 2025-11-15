@@ -1896,6 +1896,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/Parent'
           description: ''
+  /api/v1/parents/register/:
+    post:
+      operationId: api_v1_parents_register_create
+      description: Register as a parent (called from parent_easy app after Firebase
+        login)
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
   /api/v1/routes/:
     get:
       operationId: api_v1_routes_list
