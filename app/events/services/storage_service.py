@@ -117,7 +117,7 @@ class BoardingEventStorageService:
         blob = self.bucket.blob(gcs_path)
 
         # Get default credentials (works on Cloud Run, GCE, local with GOOGLE_APPLICATION_CREDENTIALS)
-        credentials, project_id = auth.default()
+        credentials, _project_id = auth.default()
 
         # Refresh credentials to obtain access token (required for signing)
         auth_request = requests.Request()
