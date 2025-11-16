@@ -222,6 +222,7 @@ def bus_locations_api(request):
                         "status": bus.get_status_display(),
                         "kiosk_id": kiosk.kiosk_id,
                         "bus_name": bus.license_plate,
+                        "bus_number": bus.bus_number,  # School-assigned bus number (e.g., BUS-001)
                         "last_update": location.timestamp.isoformat(),
                         "speed": location.speed,
                         "heading": location.heading,
