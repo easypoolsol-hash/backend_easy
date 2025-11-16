@@ -63,6 +63,16 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
         max_length=MAX_CONFIRMATION_FACES,  # Flexible: uses MAX_CONFIRMATION_FACES config
         help_text=f"Array of base64-encoded confirmation faces (112x112 JPEG). Send up to {MAX_CONFIRMATION_FACES} consecutive frames.",
     )
+    # GPS coordinates as [latitude, longitude] list (write-only, converted to lat/lon fields)
+    gps_coords = serializers.ListField(
+        child=serializers.FloatField(),
+        required=False,
+        write_only=True,
+        allow_null=True,
+        min_length=2,
+        max_length=2,
+        help_text="GPS coordinates as [latitude, longitude]. Optional - boarding events can be created without location.",
+    )
 
     class Meta:
         model = BoardingEvent
@@ -80,6 +90,26 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
             "confirmation_faces_base64",
         ]
         read_only_fields = ["event_id"]
+
+    def validate_gps_coords(self, value):
+        """Validate GPS coordinates are within valid ranges."""
+        if value is None:
+            return value
+
+        if len(value) != 2:
+            raise serializers.ValidationError("GPS coordinates must be [latitude, longitude]")
+
+        latitude, longitude = value
+
+        # Validate latitude range (-90 to 90)
+        if not (-90.0 <= latitude <= 90.0):
+            raise serializers.ValidationError(f"Latitude must be between -90 and 90, got {latitude}")
+
+        # Validate longitude range (-180 to 180)
+        if not (-180.0 <= longitude <= 180.0):
+            raise serializers.ValidationError(f"Longitude must be between -180 and 180, got {longitude}")
+
+        return value
 
     def create(self, validated_data):
         """Create boarding event with confirmation faces stored in Google Cloud Storage.
@@ -108,6 +138,12 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
 
         # Extract confirmation faces (don't add to BoardingEvent yet)
         confirmation_faces_base64 = validated_data.pop("confirmation_faces_base64", [])
+
+        # Extract and convert GPS coordinates to latitude/longitude fields
+        gps_coords = validated_data.pop("gps_coords", None)
+        if gps_coords:
+            validated_data["latitude"] = gps_coords[0]
+            validated_data["longitude"] = gps_coords[1]
 
         # Create the boarding event first (generates ULID)
         boarding_event = BoardingEvent.objects.create(**validated_data)
