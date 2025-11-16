@@ -143,7 +143,6 @@ class BoardingReportService:
                     students_dict[student_id] = {
                         "student": student,
                         "timestamps": [event.timestamp],  # List of all timestamps
-                        "bus_number": getattr(student.assigned_bus, "bus_number", "N/A") if student.assigned_bus else "N/A",
                     }
 
                 # Store bus object for getting registered count
