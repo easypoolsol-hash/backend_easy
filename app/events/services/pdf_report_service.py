@@ -94,13 +94,13 @@ class BoardingReportService:
 
     @staticmethod
     def _group_students_by_bus(events: QuerySet[BoardingEvent]) -> dict[str, Any]:
-        """Group events by bus and show ALL events (including duplicates).
+        """Group events by bus with one row per student showing all scan times.
 
         Args:
             events: QuerySet of BoardingEvent objects
 
         Returns:
-            Dictionary mapping bus info to event data with registered count
+            Dictionary mapping bus info to student data with all timestamps and registered count
         """
         buses_data: dict[str, Any] = {}
 
@@ -125,22 +125,26 @@ class BoardingReportService:
             else:
                 events_by_bus["Unknown Bus"].append(event)
 
-        # For each bus, show ALL events (including multiple scans of same student)
+        # For each bus, consolidate to one row per student with all timestamps
         for bus_key, bus_events in events_by_bus.items():
-            # Convert events to display format (show ALL events)
-            events_list = []
+            # Group events by student and collect all timestamps
+            students_dict: dict[Any, dict[str, Any]] = {}
             bus_obj = None
 
             for event in bus_events:
                 student = event.student
+                student_id = student.pk
 
-                events_list.append(
-                    {
+                # If student already exists, add timestamp to list
+                if student_id in students_dict:
+                    students_dict[student_id]["timestamps"].append(event.timestamp)
+                else:
+                    # Create new entry with first timestamp
+                    students_dict[student_id] = {
                         "student": student,
-                        "timestamp": event.timestamp,
+                        "timestamps": [event.timestamp],  # List of all timestamps
                         "bus_number": getattr(student.assigned_bus, "bus_number", "N/A") if student.assigned_bus else "N/A",
                     }
-                )
 
                 # Store bus object for getting registered count
                 if student.assigned_bus and not bus_obj:
@@ -155,7 +159,7 @@ class BoardingReportService:
                     registered_count = students_manager.count()
 
             buses_data[bus_key] = {
-                "students": events_list,  # Keep name as "students" for template compatibility
+                "students": list(students_dict.values()),
                 "registered_count": registered_count,
             }
 
