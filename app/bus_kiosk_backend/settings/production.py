@@ -45,6 +45,13 @@ if not ALLOWED_HOSTS:
 _cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
 CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
 
+# Failsafe: Always include the correct production URL even if env var is misconfigured
+if "https://app.easypool.in" not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append("https://app.easypool.in")
+
+# Production: Cache preflight requests for better performance
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
 # Production CSRF - from environment ONLY (no hardcoded defaults)
 # Terraform/Cloud Run injects trusted origins
 _csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")

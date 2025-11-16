@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from bus_kiosk_backend.core.authentication import FirebaseAuthentication
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 from kiosks.permissions import IsKiosk
 from students.models import Student
 
@@ -38,7 +39,7 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 
     queryset = BoardingEvent.objects.select_related("student").order_by("-timestamp")
     authentication_classes = [FirebaseAuthentication]
-    permission_classes = [IsAuthenticated]  # Changed: Allow any authenticated user
+    permission_classes = [IsSchoolAdmin]  # Default: school admin only
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kiosk_id", "student", "timestamp", "bus_route"]
 
@@ -49,14 +50,14 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Relaxed permissions:
+        Permission policy:
         - Kiosks can CREATE boarding events
-        - Any authenticated user can LIST/RETRIEVE/UPDATE/DELETE
+        - School admins can LIST/RETRIEVE/UPDATE/DELETE
         """
         if self.action in ["create", "bulk_create"]:
             return [IsKiosk()]
         # All other actions (list, retrieve, update, delete, recent)
-        return [IsAuthenticated()]
+        return [IsSchoolAdmin()]
 
     def get_queryset(self):
         """Filter queryset based on user role"""
@@ -109,7 +110,7 @@ class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = AttendanceRecord.objects.select_related("student").order_by("-date")
     serializer_class = AttendanceRecordSerializer
-    permission_classes = [IsAuthenticated]  # Changed: Allow any authenticated user
+    permission_classes = [IsSchoolAdmin]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["student", "date", "status"]
 

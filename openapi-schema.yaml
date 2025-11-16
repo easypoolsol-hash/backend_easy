@@ -3412,11 +3412,12 @@ components:
           items:
             type: number
             format: double
-          minLength: 2
-          maxLength: 2
+          writeOnly: true
           nullable: true
-          description: Return GPS coordinates as a tuple for compatibility
-          readOnly: true
+          description: GPS coordinates as [latitude, longitude]. Optional - boarding
+            events can be created without location.
+          maxItems: 2
+          minItems: 2
         bus_route:
           type: string
           description: Bus route identifier
@@ -3441,7 +3442,6 @@ components:
       required:
       - confidence_score
       - event_id
-      - gps_coords
       - kiosk_id
       - model_version
       - student

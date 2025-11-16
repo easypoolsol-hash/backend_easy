@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.contrib.admin import display
+from django.http import HttpResponse
 from django.utils.html import format_html
 
 from .models import AttendanceRecord, BoardingEvent
+from .services.pdf_report_service import BoardingReportService
 
 
 @admin.register(BoardingEvent)
@@ -17,14 +19,17 @@ class BoardingEventAdmin(admin.ModelAdmin):
         "kiosk_id",
         "confidence_score",
         "timestamp",
-        "bus_route",
+        "get_bus_route",
+        "get_location",
         "model_version",
     ]
 
     def get_queryset(self, request):
-        """Optimize queryset with student prefetch for thumbnail display"""
+        """Optimize queryset with kiosk/bus prefetch for immutable historical data"""
         qs = super().get_queryset(request)
-        # Prefetch student data for reference photo thumbnails
+        # Prefetch student for name/photo, but get bus from kiosk (not student assignment)
+        # Initialize per-request kiosk cache (avoid N+1 queries)
+        self._kiosk_cache = {}
         return qs.select_related("student")
 
     list_filter = [
@@ -39,7 +44,25 @@ class BoardingEventAdmin(admin.ModelAdmin):
     ordering = ["-timestamp"]
 
     # Add custom actions
-    actions = ["delete_selected_with_gcs_cleanup"]
+    actions = ["delete_selected_with_gcs_cleanup", "download_boarding_report"]
+
+    @admin.action(description="Download Boarding Report (PDF)")
+    def download_boarding_report(self, request, queryset):
+        """Generate and download PDF boarding report from selected events.
+
+        This action generates a professional PDF report with summary statistics
+        and detailed boarding event information. The PDF is generated on-the-fly
+        with no file storage.
+        """
+        # Generate PDF using the report service
+        pdf_buffer, filename = BoardingReportService.generate_report(queryset)
+
+        # Return PDF as HTTP response (download)
+        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        # Note: No success message needed - the download itself confirms success
+
+        return response
 
     @admin.action(description="Delete selected boarding events (with GCS cleanup)")
     def delete_selected_with_gcs_cleanup(self, request, queryset):
@@ -80,6 +103,41 @@ class BoardingEventAdmin(admin.ModelAdmin):
         except Exception:
             # If decryption fails, return the student ID
             return f"Student {obj.student.student_id}"
+    
+    @display(description="Bus/Route")
+    def get_bus_route(self, obj):
+        """Display bus/route from kiosk (immutable historical data)"""
+        try:
+            # Initialize cache if not exists (safety check)
+            if not hasattr(self, '_kiosk_cache'):
+                self._kiosk_cache = {}
+            
+            # Use cache to avoid N+1 queries (kiosk_id is CharField, not ForeignKey)
+            if obj.kiosk_id not in self._kiosk_cache:
+                from kiosks.models import Kiosk
+                try:
+                    self._kiosk_cache[obj.kiosk_id] = Kiosk.objects.select_related('bus', 'bus__route').get(kiosk_id=obj.kiosk_id)
+                except Kiosk.DoesNotExist:
+                    self._kiosk_cache[obj.kiosk_id] = None
+            
+            kiosk = self._kiosk_cache[obj.kiosk_id]
+            if kiosk and kiosk.bus:
+                bus = kiosk.bus
+                if bus.route:
+                    return f"{bus.bus_number}: {bus.route.name}"
+                return f"{bus.bus_number}: No Route"
+            # Fallback to bus_route field
+            return obj.bus_route if obj.bus_route else "-"
+        except Exception:
+            # Fallback to bus_route field if any error
+            return obj.bus_route if obj.bus_route else "-"
+    
+    @display(description="Location")
+    def get_location(self, obj):
+        """Display GPS coordinates"""
+        if obj.latitude is not None and obj.longitude is not None:
+            return f"{obj.latitude:.4f}, {obj.longitude:.4f}"
+        return "-"
 
     @display(description="Reference Photo")
     def get_reference_photo_thumbnail(self, obj):
