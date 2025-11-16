@@ -151,21 +151,6 @@
             background: #fafbfc;
         }
 
-        .confidence-high {
-            color: #28a745;
-            font-weight: bold;
-        }
-
-        .confidence-medium {
-            color: #ffc107;
-            font-weight: bold;
-        }
-
-        .confidence-low {
-            color: #dc3545;
-            font-weight: bold;
-        }
-
         .footer {
             margin-top: 30px;
             padding-top: 15px;
@@ -224,10 +209,6 @@
                 <div class="label">Buses Active</div>
                 <div class="value">{{ stats.unique_buses }}</div>
             </div>
-            <div class="stat-card">
-                <div class="label">Avg Confidence</div>
-                <div class="value">{{ stats.avg_confidence }}%</div>
-            </div>
         </div>
     </div>
 
@@ -242,12 +223,10 @@
                 <thead>
                     <tr>
                         <th style="width: 5%;">#</th>
-                        <th style="width: 20%;">Student Name</th>
-                        <th style="width: 15%;">Student ID</th>
-                        <th style="width: 18%;">Timestamp</th>
-                        <th style="width: 15%;">Kiosk ID</th>
-                        <th style="width: 12%;">Confidence</th>
-                        <th style="width: 15%;">Model Version</th>
+                        <th style="width: 30%;">Student Name</th>
+                        <th style="width: 20%;">Student ID</th>
+                        <th style="width: 20%;">Bus Number</th>
+                        <th style="width: 25%;">Timestamp</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -256,22 +235,14 @@
                         <td>{{ forloop.counter }}</td>
                         <td>{{ event.student.encrypted_name }}</td>
                         <td>{{ event.student.school_student_id }}</td>
-                        <td>{{ event.timestamp|date:"h:i A" }}</td>
-                        <td>{{ event.kiosk_id|default:"N/A" }}</td>
                         <td>
-                            {% if event.confidence_score %}
-                                {% if event.confidence_score >= 90 %}
-                                <span class="confidence-high">{{ event.confidence_score }}%</span>
-                                {% elif event.confidence_score >= 70 %}
-                                <span class="confidence-medium">{{ event.confidence_score }}%</span>
-                                {% else %}
-                                <span class="confidence-low">{{ event.confidence_score }}%</span>
-                                {% endif %}
+                            {% if event.student.assigned_bus %}
+                                {{ event.student.assigned_bus.bus_number|default:"N/A" }}
                             {% else %}
-                                <span style="color: #adb5bd;">N/A</span>
+                                N/A
                             {% endif %}
                         </td>
-                        <td>{{ event.model_version|default:"N/A" }}</td>
+                        <td>{{ event.timestamp|date:"h:i A" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

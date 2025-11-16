@@ -114,16 +114,22 @@ class BoardingReportService:
         events_by_bus = defaultdict(list)
 
         for event in events:
-            # Determine bus identifier
-            if event.bus_route:
-                bus_key = event.bus_route
-            else:
-                # Mypy type narrowing: check if bus exists and has license_plate
-                assigned_bus = event.student.assigned_bus
-                if assigned_bus and hasattr(assigned_bus, "license_plate") and assigned_bus.license_plate:  # type: ignore[attr-defined]
-                    bus_key = f"Bus {assigned_bus.license_plate}"  # type: ignore[attr-defined]
+            # Determine bus identifier using bus number and route name
+            assigned_bus = event.student.assigned_bus
+
+            if assigned_bus:
+                # Use bus number and route name for better readability
+                bus_number = getattr(assigned_bus, "bus_number", None)
+                route = getattr(assigned_bus, "route", None)
+
+                if bus_number and route and hasattr(route, "name"):
+                    bus_key = f"Bus {bus_number} - {route.name}"  # type: ignore[attr-defined]
+                elif bus_number:
+                    bus_key = f"Bus {bus_number}"
                 else:
                     bus_key = "Unknown Bus"
+            else:
+                bus_key = "Unknown Bus"
 
             events_by_bus[bus_key].append(event)
 
