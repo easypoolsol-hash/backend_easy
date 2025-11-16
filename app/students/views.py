@@ -1,6 +1,8 @@
 import time
 
 from django.db.models import Q
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -89,13 +91,11 @@ class StudentViewSet(viewsets.ModelViewSet):
         if grade:
             queryset = queryset.filter(grade=grade)
 
-        # Search by name (fuzzy search on encrypted field -
-        # limited functionality)
+        # Search by name, student ID, or grade (fuzzy search)
         search = self.request.query_params.get("search")
         if search:
-            # Note: This is a basic search - in production you'd want
-            # full-text search
-            queryset = queryset.filter(Q(name__icontains=search) | Q(grade__icontains=search))
+            # Search across multiple fields: name, school_student_id, grade
+            queryset = queryset.filter(Q(name__icontains=search) | Q(school_student_id__icontains=search) | Q(grade__icontains=search))
 
         return queryset
 
@@ -316,9 +316,10 @@ class ParentMeViewSet(viewsets.ViewSet):
                 },
             }
         },
-        description="Get real-time location for a specific bus (only buses for my children)",
+        description="Get real-time location for a specific bus (only buses for my children). Cached for 30 seconds.",
     )
     @action(detail=False, methods=["get"], url_path=r"buses/(?P<bus_id>[^/.]+)/location")
+    @method_decorator(cache_page(30))  # Cache for 30 seconds to protect database from polling load
     def bus_location(self, request, bus_id=None):
         """GET /api/v1/parents/me/buses/{bus_id}/location/ - Get bus location"""
         parent = getattr(request.user, "parent_profile", None)
@@ -372,9 +373,10 @@ class ParentMeViewSet(viewsets.ViewSet):
                 },
             }
         },
-        description="Get real-time locations for all buses assigned to my children (row-level security enforced)",
+        description="Get real-time locations for all buses assigned to my children (row-level security enforced). Cached for 30 seconds.",
     )
     @action(detail=False, methods=["get"], url_path="bus-locations")
+    @method_decorator(cache_page(30))  # Cache for 30 seconds to protect database from polling load
     def bus_locations(self, request):
         """
         GET /api/v1/parents/me/bus-locations/ - Get all bus locations for my children's buses

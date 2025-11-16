@@ -103,79 +103,132 @@ class BoardingEvent(models.Model):
 
     @property
     def confirmation_face_1_url(self) -> str | None:
-        """Get signed GCS URL for first confirmation face.
+        """Get signed GCS URL for first confirmation face (cached).
+
+        Uses Redis cache to avoid regenerating URLs on every request.
+        Cache duration: 55 minutes (matches signed URL expiration).
 
         Returns:
             Signed GCS URL (1-hour expiration) or None if no face image exists.
         """
-        if self.confirmation_face_1_gcs:
-            import logging
+        if not self.confirmation_face_1_gcs:
+            return None
 
-            from .services.storage_service import BoardingEventStorageService
+        import logging
 
-            logger = logging.getLogger(__name__)
+        from django.core.cache import cache
 
-            try:
-                storage_service = BoardingEventStorageService()
-                url = storage_service.get_signed_url(self.confirmation_face_1_gcs)
-                logger.info(f"Generated signed URL for {self.event_id} face 1: SUCCESS")
-                return url
-            except Exception as e:
-                # Log the error for debugging
-                logger.error(f"Failed to generate signed URL for {self.event_id} face 1: {e}", exc_info=True)
-                return None
+        from .services.storage_service import BoardingEventStorageService
 
-        return None
+        logger = logging.getLogger(__name__)
+
+        # Try to get cached URL first (Google best practice: cache signed URLs)
+        cache_key = f"boarding_event_face_{self.event_id}_1"
+        cached_url = cache.get(cache_key)
+
+        if cached_url:
+            logger.debug(f"Using cached signed URL for {self.event_id} face 1")
+            return cached_url
+
+        # Generate new signed URL if not cached
+        try:
+            storage_service = BoardingEventStorageService()
+            url = storage_service.get_signed_url(self.confirmation_face_1_gcs)
+
+            # Cache URL for 55 minutes (slightly less than 60-min expiration for safety)
+            cache.set(cache_key, url, timeout=55 * 60)
+
+            logger.info(f"Generated and cached signed URL for {self.event_id} face 1: SUCCESS")
+            return url
+        except Exception as e:
+            logger.error(f"Failed to generate signed URL for {self.event_id} face 1: {e}", exc_info=True)
+            return None
 
     @property
     def confirmation_face_2_url(self) -> str | None:
-        """Get signed GCS URL for second confirmation face.
+        """Get signed GCS URL for second confirmation face (cached).
+
+        Uses Redis cache to avoid regenerating URLs on every request.
+        Cache duration: 55 minutes (matches signed URL expiration).
 
         Returns:
             Signed GCS URL (1-hour expiration) or None if no face image exists.
         """
-        if self.confirmation_face_2_gcs:
-            import logging
+        if not self.confirmation_face_2_gcs:
+            return None
 
-            from .services.storage_service import BoardingEventStorageService
+        import logging
 
-            logger = logging.getLogger(__name__)
+        from django.core.cache import cache
 
-            try:
-                storage_service = BoardingEventStorageService()
-                url = storage_service.get_signed_url(self.confirmation_face_2_gcs)
-                logger.info(f"Generated signed URL for {self.event_id} face 2: SUCCESS")
-                return url
-            except Exception as e:
-                logger.error(f"Failed to generate signed URL for {self.event_id} face 2: {e}", exc_info=True)
-                return None
+        from .services.storage_service import BoardingEventStorageService
 
-        return None
+        logger = logging.getLogger(__name__)
+
+        # Try to get cached URL first (Google best practice: cache signed URLs)
+        cache_key = f"boarding_event_face_{self.event_id}_2"
+        cached_url = cache.get(cache_key)
+
+        if cached_url:
+            logger.debug(f"Using cached signed URL for {self.event_id} face 2")
+            return cached_url
+
+        # Generate new signed URL if not cached
+        try:
+            storage_service = BoardingEventStorageService()
+            url = storage_service.get_signed_url(self.confirmation_face_2_gcs)
+
+            # Cache URL for 55 minutes (slightly less than 60-min expiration for safety)
+            cache.set(cache_key, url, timeout=55 * 60)
+
+            logger.info(f"Generated and cached signed URL for {self.event_id} face 2: SUCCESS")
+            return url
+        except Exception as e:
+            logger.error(f"Failed to generate signed URL for {self.event_id} face 2: {e}", exc_info=True)
+            return None
 
     @property
     def confirmation_face_3_url(self) -> str | None:
-        """Get signed GCS URL for third confirmation face.
+        """Get signed GCS URL for third confirmation face (cached).
+
+        Uses Redis cache to avoid regenerating URLs on every request.
+        Cache duration: 55 minutes (matches signed URL expiration).
 
         Returns:
             Signed GCS URL (1-hour expiration) or None if no face image exists.
         """
-        if self.confirmation_face_3_gcs:
-            import logging
+        if not self.confirmation_face_3_gcs:
+            return None
 
-            from .services.storage_service import BoardingEventStorageService
+        import logging
 
-            logger = logging.getLogger(__name__)
+        from django.core.cache import cache
 
-            try:
-                storage_service = BoardingEventStorageService()
-                url = storage_service.get_signed_url(self.confirmation_face_3_gcs)
-                logger.info(f"Generated signed URL for {self.event_id} face 3: SUCCESS")
-                return url
-            except Exception as e:
-                logger.error(f"Failed to generate signed URL for {self.event_id} face 3: {e}", exc_info=True)
-                return None
+        from .services.storage_service import BoardingEventStorageService
 
-        return None
+        logger = logging.getLogger(__name__)
+
+        # Try to get cached URL first (Google best practice: cache signed URLs)
+        cache_key = f"boarding_event_face_{self.event_id}_3"
+        cached_url = cache.get(cache_key)
+
+        if cached_url:
+            logger.debug(f"Using cached signed URL for {self.event_id} face 3")
+            return cached_url
+
+        # Generate new signed URL if not cached
+        try:
+            storage_service = BoardingEventStorageService()
+            url = storage_service.get_signed_url(self.confirmation_face_3_gcs)
+
+            # Cache URL for 55 minutes (slightly less than 60-min expiration for safety)
+            cache.set(cache_key, url, timeout=55 * 60)
+
+            logger.info(f"Generated and cached signed URL for {self.event_id} face 3: SUCCESS")
+            return url
+        except Exception as e:
+            logger.error(f"Failed to generate signed URL for {self.event_id} face 3: {e}", exc_info=True)
+            return None
 
     def __str__(self) -> str:
         return f"BoardingEvent({self.event_id[:8]}...): {self.student} at {self.timestamp}"

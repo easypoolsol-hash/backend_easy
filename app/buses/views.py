@@ -2,6 +2,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
@@ -186,12 +187,15 @@ class BusViewSet(viewsets.ModelViewSet):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@cache_page(30)  # Cache for 30 seconds to protect database from polling load
 def bus_locations_api(request):
     """
     Bus locations API for school dashboard (any authenticated user).
 
     Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
     Accessible by any authenticated user.
+
+    Cached for 30 seconds to protect database (100 buses x polling = high load).
     """
     # Get latest GPS location for each bus
     from kiosks.models import BusLocation
@@ -228,115 +232,126 @@ def bus_locations_api(request):
     return JsonResponse({"type": "FeatureCollection", "features": bus_locations})
 
 
-@extend_schema(
-    responses={
-        200: inline_serializer(
-            name="ParentBusLocationResponse",
-            fields={
-                "type": serializers.CharField(default="Feature"),
-                "geometry": serializers.DictField(
-                    help_text="GeoJSON Point geometry with bus location",
-                ),
-                "properties": serializers.DictField(
-                    help_text="Bus details including bus_id, name, status, etc.",
-                ),
-            },
-        ),
-    },
-    operation_id="parent_bus_location_api",
-    description="""
-    Returns real-time bus location for the parent's child's assigned bus only.
-
-    Security: Parents can ONLY see their own child's bus location, not other buses.
-
-    **Response Format:**
-    GeoJSON Feature with Point geometry for the bus location.
-
-    Returns 404 if:
-    - Parent has no students assigned
-    - Student has no bus assigned
-    - No recent location data available
-    """,
-    tags=["Buses"],
-)
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def parent_bus_location_api(request):
-    """
-    Parent-specific bus location API.
-
-    Returns location for ONLY the bus that the parent's child is assigned to.
-    This provides privacy and security - parents cannot see other buses.
-    """
-    from kiosks.models import BusLocation
-    from students.models import Parent
-
-    # Get authenticated user's parent record
-    # Assuming request.user has a related parent record or we use email/phone to match
-    try:
-        # Try to find parent by Firebase email
-        user_email = request.user.email if hasattr(request.user, "email") else None
-
-        if not user_email:
-            return Response({"error": "Unable to identify parent account"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Find parent by email (encrypted field)
-        parent = None
-        for p in Parent.objects.all():
-            if p.encrypted_email == user_email:
-                parent = p
-                break
-
-        if not parent:
-            return Response({"error": "Parent account not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Get parent's students
-        students = parent.get_students()
-
-        if not students.exists():
-            return Response({"error": "No students assigned to this parent"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Get first student's assigned bus (assuming one child per parent for now)
-        student = students.first()
-
-        if not student.assigned_bus:
-            return Response({"error": "Student has no bus assigned"}, status=status.HTTP_404_NOT_FOUND)
-
-        bus = student.assigned_bus
-
-        # Get latest location for this bus
-        kiosk = getattr(bus, "kiosk", None)
-
-        if not kiosk:
-            return Response({"error": "Bus has no active kiosk device"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Get most recent location
-        latest_location = BusLocation.objects.filter(kiosk=kiosk).order_by("-timestamp").first()
-
-        if not latest_location:
-            return Response({"error": "No location data available for this bus"}, status=status.HTTP_404_NOT_FOUND)
-
-        # Return GeoJSON Feature
-        return JsonResponse(
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [latest_location.longitude, latest_location.latitude]},
-                "properties": {
-                    "id": kiosk.kiosk_id,
-                    "bus_id": str(bus.bus_id),
-                    "bus_number": bus.bus_number,
-                    "name": bus.license_plate,
-                    "status": bus.get_status_display(),
-                    "last_update": latest_location.timestamp.isoformat(),
-                    "speed": latest_location.speed,
-                    "heading": latest_location.heading,
-                    "accuracy": latest_location.accuracy,
-                },
-            }
-        )
-
-    except Exception as e:
-        return Response({"error": f"Failed to retrieve bus location: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# ============================================================================
+# DEPRECATED: Wrong Parent Bus Location API
+# ============================================================================
+# This API was incorrectly implemented and is NOT used by parent_easy app.
+# The correct parent APIs are:
+#   - /api/v1/parents/me/bus-locations/ (students/views.py - ParentMeViewSet.bus_locations)
+#   - /api/v1/users/parent/my-buses/ (users/views.py - parent_bus_locations)
+#
+# Commented out for potential future use if needed, but should NOT be used.
+# ============================================================================
+#
+# @extend_schema(
+#     responses={
+#         200: inline_serializer(
+#             name="ParentBusLocationResponse",
+#             fields={
+#                 "type": serializers.CharField(default="Feature"),
+#                 "geometry": serializers.DictField(
+#                     help_text="GeoJSON Point geometry with bus location",
+#                 ),
+#                 "properties": serializers.DictField(
+#                     help_text="Bus details including bus_id, name, status, etc.",
+#                 ),
+#             },
+#         ),
+#     },
+#     operation_id="parent_bus_location_api",
+#     description="""
+#     Returns real-time bus location for the parent's child's assigned bus only.
+#
+#     Security: Parents can ONLY see their own child's bus location, not other buses.
+#
+#     **Response Format:**
+#     GeoJSON Feature with Point geometry for the bus location.
+#
+#     Returns 404 if:
+#     - Parent has no students assigned
+#     - Student has no bus assigned
+#     - No recent location data available
+#     """,
+#     tags=["Buses"],
+# )
+# @api_view(["GET"])
+# @permission_classes([IsAuthenticated])
+# def parent_bus_location_api(request):
+#     """
+#     Parent-specific bus location API.
+#
+#     Returns location for ONLY the bus that the parent's child is assigned to.
+#     This provides privacy and security - parents cannot see other buses.
+#     """
+#     from kiosks.models import BusLocation
+#     from students.models import Parent
+#
+#     # Get authenticated user's parent record
+#     # Assuming request.user has a related parent record or we use email/phone to match
+#     try:
+#         # Try to find parent by Firebase email
+#         user_email = request.user.email if hasattr(request.user, "email") else None
+#
+#         if not user_email:
+#             return Response({"error": "Unable to identify parent account"}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         # Find parent by email (encrypted field)
+#         parent = None
+#         for p in Parent.objects.all():
+#             if p.encrypted_email == user_email:
+#                 parent = p
+#                 break
+#
+#         if not parent:
+#             return Response({"error": "Parent account not found"}, status=status.HTTP_404_NOT_FOUND)
+#
+#         # Get parent's students
+#         students = parent.get_students()
+#
+#         if not students.exists():
+#             return Response({"error": "No students assigned to this parent"}, status=status.HTTP_404_NOT_FOUND)
+#
+#         # Get first student's assigned bus (assuming one child per parent for now)
+#         student = students.first()
+#
+#         if not student.assigned_bus:
+#             return Response({"error": "Student has no bus assigned"}, status=status.HTTP_404_NOT_FOUND)
+#
+#         bus = student.assigned_bus
+#
+#         # Get latest location for this bus
+#         kiosk = getattr(bus, "kiosk", None)
+#
+#         if not kiosk:
+#             return Response({"error": "Bus has no active kiosk device"}, status=status.HTTP_404_NOT_FOUND)
+#
+#         # Get most recent location
+#         latest_location = BusLocation.objects.filter(kiosk=kiosk).order_by("-timestamp").first()
+#
+#         if not latest_location:
+#             return Response({"error": "No location data available for this bus"}, status=status.HTTP_404_NOT_FOUND)
+#
+#         # Return GeoJSON Feature
+#         return JsonResponse(
+#             {
+#                 "type": "Feature",
+#                 "geometry": {"type": "Point", "coordinates": [latest_location.longitude, latest_location.latitude]},
+#                 "properties": {
+#                     "id": kiosk.kiosk_id,
+#                     "bus_id": str(bus.bus_id),
+#                     "bus_number": bus.bus_number,
+#                     "name": bus.license_plate,
+#                     "status": bus.get_status_display(),
+#                     "last_update": latest_location.timestamp.isoformat(),
+#                     "speed": latest_location.speed,
+#                     "heading": latest_location.heading,
+#                     "accuracy": latest_location.accuracy,
+#                 },
+#             }
+#         )
+#
+#     except Exception as e:
+#         return Response({"error": f"Failed to retrieve bus location: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
