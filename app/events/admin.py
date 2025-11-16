@@ -25,10 +25,12 @@ class BoardingEventAdmin(admin.ModelAdmin):
     ]
 
     def get_queryset(self, request):
-        """Optimize queryset with student prefetch for thumbnail display"""
+        """Optimize queryset with kiosk/bus prefetch for immutable historical data"""
         qs = super().get_queryset(request)
-        # Prefetch student data with bus and route for efficient display
-        return qs.select_related("student", "student__assigned_bus", "student__assigned_bus__route")
+        # Prefetch student for name/photo, but get bus from kiosk (not student assignment)
+        # Initialize per-request kiosk cache (avoid N+1 queries)
+        self._kiosk_cache = {}
+        return qs.select_related("student")
 
     list_filter = [
         "timestamp",
@@ -104,16 +106,30 @@ class BoardingEventAdmin(admin.ModelAdmin):
     
     @display(description="Bus/Route")
     def get_bus_route(self, obj):
-        """Display student's assigned bus and route"""
+        """Display bus/route from kiosk (immutable historical data)"""
         try:
-            if obj.student.assigned_bus:
-                bus = obj.student.assigned_bus
+            # Initialize cache if not exists (safety check)
+            if not hasattr(self, '_kiosk_cache'):
+                self._kiosk_cache = {}
+            
+            # Use cache to avoid N+1 queries (kiosk_id is CharField, not ForeignKey)
+            if obj.kiosk_id not in self._kiosk_cache:
+                from kiosks.models import Kiosk
+                try:
+                    self._kiosk_cache[obj.kiosk_id] = Kiosk.objects.select_related('bus', 'bus__route').get(kiosk_id=obj.kiosk_id)
+                except Kiosk.DoesNotExist:
+                    self._kiosk_cache[obj.kiosk_id] = None
+            
+            kiosk = self._kiosk_cache[obj.kiosk_id]
+            if kiosk and kiosk.bus:
+                bus = kiosk.bus
                 if bus.route:
                     return f"{bus.bus_number}: {bus.route.name}"
                 return f"{bus.bus_number}: No Route"
-            return "No Bus Assigned"
+            # Fallback to bus_route field
+            return obj.bus_route if obj.bus_route else "-"
         except Exception:
-            # Fallback to bus_route field if relationship fails
+            # Fallback to bus_route field if any error
             return obj.bus_route if obj.bus_route else "-"
     
     @display(description="Location")
