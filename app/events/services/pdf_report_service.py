@@ -138,10 +138,11 @@ class BoardingReportService:
 
             for event in bus_events:
                 student = event.student
+                student_id: Any  # Type hint for dictionary key (can be UUID or str)
 
                 # Skip unknown face events (student is None)
                 if student is None:
-                    # Use event_id as key for unknown faces
+                    # Use event_id as key for unknown faces (each unknown face gets separate row)
                     student_id = f"unknown_{event.event_id}"
                     students_dict[student_id] = {
                         "student": None,
@@ -150,6 +151,7 @@ class BoardingReportService:
                     }
                     continue
 
+                # Known student - use student PK as key
                 student_id = student.pk
 
                 # If student already exists, add timestamp to list
