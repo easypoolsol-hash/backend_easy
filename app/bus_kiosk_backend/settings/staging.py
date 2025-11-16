@@ -31,11 +31,40 @@ _cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if _cors_origins_env:
     CORS_ALLOWED_ORIGINS = _cors_origins_env.split(",")
 else:
-    # Default: Allow staging frontend
+    # Default: Allow staging frontend only
     CORS_ALLOWED_ORIGINS = [
         "https://stage.easypool.in",
-        "https://easypool-30af3--staging-*.web.app",
     ]
+
+# Override: CORS origin regexes for Firebase hosting dynamic URLs
+import re  # noqa: E402
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://easypool-30af3--staging-.*\.web\.app$",  # Firebase hosting staging previews
+]
+
+# Override: Allow all CORS headers (required for preflight requests)
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# Override: Allow all HTTP methods
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
 
 # Override: CSRF trusted origins (staging-specific)
 _csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
