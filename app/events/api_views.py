@@ -6,9 +6,10 @@ from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from bus_kiosk_backend.permissions import IsSchoolAdmin
 
 from buses.models import Bus
 from students.models import Student
@@ -26,10 +27,10 @@ class DashboardStatsAPIView(APIView):
     dashboard.
     Cached for 10 seconds in Redis for performance.
 
-    PERMISSION: IsAuthenticated (any authenticated user)
+    PERMISSION: IsSchoolAdmin (school administrators only)
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSchoolAdmin]
     serializer_class = DashboardStatsSerializer
 
     @extend_schema(
@@ -75,18 +76,18 @@ class DashboardStatsAPIView(APIView):
 
 class DashboardStudentsAPIView(APIView):
     """
-    Dashboard students activity API - Returns list of students who
-    boarded on a specific date with all their boarding events.
+    Dashboard students activity API - Returns list of ALL students
+    with their bus assignments and boarding activity.
 
-    PERMISSION: IsAuthenticated (any authenticated user)
+    PERMISSION: IsSchoolAdmin (school administrators only)
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSchoolAdmin]
     serializer_class = DashboardStudentsResponseSerializer
 
     @extend_schema(
-        summary="Get students with boarding events",
-        description=("Returns paginated list of students who boarded TODAY with all their events"),
+        summary="Get all students with bus assignments",
+        description=("Returns paginated list of ALL students with their bus assignments and today's boarding events (if any)"),
         parameters=[
             OpenApiParameter(
                 name="limit",
@@ -106,8 +107,8 @@ class DashboardStudentsAPIView(APIView):
         responses={200: DashboardStudentsResponseSerializer},
     )
     def get(self, request):
-        """Get students with boarding events for today only."""
-        # Always use today (no date parameter)
+        """Get ALL students with their bus assignments and today's boarding events."""
+        # Always use today for boarding events
         target_date = timezone.now().date()
 
         # Pagination params
@@ -120,9 +121,9 @@ class DashboardStudentsAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get students who have boarding events on this date
+        # Get ALL students (not just those with events today)
         students_query = (
-            Student.objects.filter(boarding_events__timestamp__date=target_date)
+            Student.objects.all()
             .select_related("assigned_bus__route")
             .prefetch_related(
                 Prefetch(
@@ -137,7 +138,7 @@ class DashboardStudentsAPIView(APIView):
                     filter=Q(boarding_events__timestamp__date=target_date),
                 )
             )
-            .distinct()
+            .order_by("grade", "encrypted_name")  # Sort by grade, then name
         )
 
         # Get total count
