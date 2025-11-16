@@ -7,9 +7,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from bus_kiosk_backend.permissions import IsSchoolAdmin
 from students.models import Student
 
 from .models import Bus, Route
@@ -22,7 +22,7 @@ class RouteViewSet(viewsets.ModelViewSet):
 
     queryset = Route.objects.prefetch_related("buses", "route_stops__bus_stop", "route_waypoints__waypoint").order_by("name")
     serializer_class = RouteSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["is_active"]
 
@@ -61,7 +61,7 @@ class BusViewSet(viewsets.ModelViewSet):
 
     queryset = Bus.objects.select_related("route").prefetch_related("assigned_students").order_by("license_plate")
     serializer_class = BusSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["route", "status", "device_id"]
 
@@ -186,14 +186,14 @@ class BusViewSet(viewsets.ModelViewSet):
     tags=["Buses"],
 )
 @api_view(["GET"])
-@permission_classes([IsSchoolAdmin])
+@permission_classes([IsAuthenticated])
 @cache_page(30)  # Cache for 30 seconds to protect database from polling load
 def bus_locations_api(request):
     """
-    Bus locations API for school dashboard (school administrators only).
+    Bus locations API for school dashboard (any authenticated user).
 
     Returns real-time bus locations for ALL buses in the fleet as GeoJSON.
-    Accessible by school administrators only.
+    Accessible by any authenticated user.
 
     Cached for 30 seconds to protect database (100 buses x polling = high load).
     """

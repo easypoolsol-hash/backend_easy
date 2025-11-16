@@ -6,10 +6,11 @@ from django.views.decorators.cache import cache_page
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from bus_kiosk_backend.permissions import IsApprovedParent, IsSchoolAdmin
+from bus_kiosk_backend.permissions import IsApprovedParent
 from buses.models import Bus
 
 from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
@@ -37,7 +38,7 @@ from .tasks import process_student_attendance
 class SchoolViewSet(viewsets.ModelViewSet):
     queryset = School.objects.all()
     serializer_class = SchoolSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
 
 
 # BusViewSet REMOVED - Use buses.views.BusViewSet instead
@@ -51,7 +52,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
 class StudentViewSet(viewsets.ModelViewSet):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         """Use lightweight serializer for list, full serializer for detail"""
@@ -140,7 +141,7 @@ class ParentViewSet(viewsets.ModelViewSet):
 
     queryset = Parent.objects.all()
     serializer_class = ParentSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -443,7 +444,7 @@ class ParentMeViewSet(viewsets.ViewSet):
 class StudentParentViewSet(viewsets.ModelViewSet):
     queryset = StudentParent.objects.all()
     serializer_class = StudentParentSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = StudentParent.objects.select_related("student", "parent")
@@ -481,7 +482,7 @@ class StudentParentViewSet(viewsets.ModelViewSet):
 class StudentPhotoViewSet(viewsets.ModelViewSet):
     queryset = StudentPhoto.objects.all()
     serializer_class = StudentPhotoSerializer
-    permission_classes = [IsSchoolAdmin]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = StudentPhoto.objects.select_related("student")
