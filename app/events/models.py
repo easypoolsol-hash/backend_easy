@@ -29,8 +29,10 @@ class BoardingEvent(models.Model):
     student = models.ForeignKey(
         Student,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name="boarding_events",
-        help_text="Student who boarded the bus",
+        help_text="Student who boarded the bus (null for unidentified faces)",
     )
     kiosk_id = models.CharField(max_length=100, help_text="Kiosk device identifier")
     confidence_score = models.FloatField(

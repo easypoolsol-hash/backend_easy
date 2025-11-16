@@ -10,6 +10,8 @@ class BoardingEventSerializer(serializers.ModelSerializer):
 
     # Dynamic list of confirmation face URLs (flexible - works with any number of photos)
     confirmation_face_urls = serializers.SerializerMethodField()
+    # Flag to identify unknown/unidentified faces
+    is_unknown_face = serializers.SerializerMethodField()
 
     class Meta:
         model = BoardingEvent
@@ -27,6 +29,7 @@ class BoardingEventSerializer(serializers.ModelSerializer):
             "metadata",
             "created_at",
             "confirmation_face_urls",
+            "is_unknown_face",
         ]
         read_only_fields = ["event_id", "created_at"]
 
@@ -43,6 +46,10 @@ class BoardingEventSerializer(serializers.ModelSerializer):
             if url:
                 urls.append(url)
         return urls
+
+    def get_is_unknown_face(self, obj):
+        """Check if this is an unknown/unidentified face event."""
+        return obj.student is None
 
     def validate_confidence_score(self, value):
         """Validate confidence score is between 0 and 1"""
@@ -128,6 +135,14 @@ class BoardingEventCreateSerializer(serializers.ModelSerializer):
         Raises:
             serializers.ValidationError: If base64 decoding or GCS upload fails.
         """
+        # Handle unknown face events: Convert "UNKNOWN" student ID to None
+        # Kiosk sends "UNKNOWN" for unidentified faces due to interface constraints
+        student = validated_data.get("student")
+        if student is not None and hasattr(student, "school_student_id") and student.school_student_id == "UNKNOWN":
+            validated_data["student"] = None
+        elif isinstance(student, str) and student == "UNKNOWN":
+            validated_data["student"] = None
+
         # Ensure metadata has default event_type if not provided
         if "metadata" not in validated_data or not validated_data["metadata"]:
             validated_data["metadata"] = {}
