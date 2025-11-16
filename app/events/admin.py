@@ -19,15 +19,16 @@ class BoardingEventAdmin(admin.ModelAdmin):
         "kiosk_id",
         "confidence_score",
         "timestamp",
-        "bus_route",
+        "get_bus_route",
+        "get_location",
         "model_version",
     ]
 
     def get_queryset(self, request):
         """Optimize queryset with student prefetch for thumbnail display"""
         qs = super().get_queryset(request)
-        # Prefetch student data for reference photo thumbnails
-        return qs.select_related("student")
+        # Prefetch student data with bus and route for efficient display
+        return qs.select_related("student", "student__assigned_bus", "student__assigned_bus__route")
 
     list_filter = [
         "timestamp",
@@ -100,6 +101,27 @@ class BoardingEventAdmin(admin.ModelAdmin):
         except Exception:
             # If decryption fails, return the student ID
             return f"Student {obj.student.student_id}"
+    
+    @display(description="Bus/Route")
+    def get_bus_route(self, obj):
+        """Display student's assigned bus and route"""
+        try:
+            if obj.student.assigned_bus:
+                bus = obj.student.assigned_bus
+                if bus.route:
+                    return f"{bus.bus_number}: {bus.route.name}"
+                return f"{bus.bus_number}: No Route"
+            return "No Bus Assigned"
+        except Exception:
+            # Fallback to bus_route field if relationship fails
+            return obj.bus_route if obj.bus_route else "-"
+    
+    @display(description="Location")
+    def get_location(self, obj):
+        """Display GPS coordinates"""
+        if obj.latitude is not None and obj.longitude is not None:
+            return f"{obj.latitude:.4f}, {obj.longitude:.4f}"
+        return "-"
 
     @display(description="Reference Photo")
     def get_reference_photo_thumbnail(self, obj):
