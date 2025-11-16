@@ -1,10 +1,29 @@
 from django.contrib import admin
-from django.contrib.admin import display
+from django.contrib.admin import display, SimpleListFilter
 from django.http import HttpResponse
 from django.utils.html import format_html
 
 from .models import AttendanceRecord, BoardingEvent
 from .services.pdf_report_service import BoardingReportService
+
+
+class UnknownFaceFilter(SimpleListFilter):
+    """Filter for unknown/unidentified faces"""
+    title = 'Face Type'
+    parameter_name = 'face_type'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('known', 'Known Students'),
+            ('unknown', 'Unknown Faces'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'known':
+            return queryset.filter(student__isnull=False)
+        if self.value() == 'unknown':
+            return queryset.filter(student__isnull=True)
+        return queryset
 
 
 @admin.register(BoardingEvent)
@@ -13,6 +32,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     list_display = [
         "event_id_short",
+        "is_unknown_face_display",
         "get_reference_photo_thumbnail",
         "get_confirmation_faces_thumbnails",
         "get_student_name",
@@ -33,6 +53,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
         return qs.select_related("student")
 
     list_filter = [
+        UnknownFaceFilter,
         "timestamp",
         "kiosk_id",
         "model_version",
@@ -95,9 +116,16 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     readonly_fields = ["event_id", "created_at", "get_confirmation_faces_display"]
 
+    @display(description="Unknown", boolean=True)
+    def is_unknown_face_display(self, obj):
+        """Display whether this is an unknown face event"""
+        return obj.student is None
+
     @display(description="Student Name")
     def get_student_name(self, obj):
-        """Display decrypted student name"""
+        """Display decrypted student name or 'Unknown' for unidentified faces"""
+        if obj.student is None:
+            return format_html('<span style="color:#dc3545;font-weight:bold;">UNKNOWN</span>')
         try:
             return obj.student.encrypted_name
         except Exception:
@@ -141,7 +169,16 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     @display(description="Reference Photo")
     def get_reference_photo_thumbnail(self, obj):
-        """Display student's reference photo thumbnail"""
+        """Display student's reference photo thumbnail (N/A for unknown faces)"""
+        if obj.student is None:
+            return format_html(
+                '<div style="width:50px;height:50px;background:#fff3cd;'
+                "border:2px solid #ffc107;border-radius:4px;"
+                "display:flex;align-items:center;justify-content:center;"
+                'font-size:10px;color:#856404;" '
+                'title="Unknown face - no reference photo">Unknown</div>'
+            )
+
         ref_photo = obj.student.get_reference_photo()
 
         if ref_photo and ref_photo.photo_url:
@@ -201,23 +238,31 @@ class BoardingEventAdmin(admin.ModelAdmin):
     @display(description="Verification Images")
     def get_confirmation_faces_display(self, obj):
         """Display confirmation faces in detail view with reference photo"""
-        ref_photo = obj.student.get_reference_photo()
         html_parts = []
 
-        # Reference photo
-        html_parts.append('<div style="margin-bottom:20px;">')
-        html_parts.append('<h4 style="margin-bottom:10px;">Student Reference Photo</h4>')
-        if ref_photo and ref_photo.photo_url:
-            html_parts.append(
-                f'<a href="{ref_photo.photo_url}" target="_blank">'
-                f'<img src="{ref_photo.photo_url}" style="width:150px;height:150px;object-fit:cover;'
-                f'border:3px solid #28a745;border-radius:8px;" '
-                f'title="Click to enlarge"/>'
-                f"</a>"
-            )
+        # Reference photo (skip for unknown faces)
+        if obj.student is not None:
+            ref_photo = obj.student.get_reference_photo()
+            html_parts.append('<div style="margin-bottom:20px;">')
+            html_parts.append('<h4 style="margin-bottom:10px;">Student Reference Photo</h4>')
+            if ref_photo and ref_photo.photo_url:
+                html_parts.append(
+                    f'<a href="{ref_photo.photo_url}" target="_blank">'
+                    f'<img src="{ref_photo.photo_url}" style="width:150px;height:150px;object-fit:cover;'
+                    f'border:3px solid #28a745;border-radius:8px;" '
+                    f'title="Click to enlarge"/>'
+                    f"</a>"
+                )
+            else:
+                html_parts.append("<p>No reference photo available</p>")
+            html_parts.append("</div>")
         else:
-            html_parts.append("<p>No reference photo available</p>")
-        html_parts.append("</div>")
+            html_parts.append('<div style="margin-bottom:20px;">')
+            html_parts.append('<h4 style="margin-bottom:10px;color:#dc3545;">Unknown Face Event</h4>')
+            html_parts.append('<p style="background:#fff3cd;padding:10px;border:2px solid #ffc107;border-radius:4px;">'
+                            'This boarding event was created for an unidentified face. '
+                            'No student reference photo available.</p>')
+            html_parts.append("</div>")
 
         # Confirmation faces
         html_parts.append("<div>")
