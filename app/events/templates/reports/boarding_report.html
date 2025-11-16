@@ -79,7 +79,7 @@
 
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(2, 1fr);
             gap: 15px;
         }
 
@@ -186,10 +186,6 @@
                 <td>Date Range:</td>
                 <td>{{ date_range.display }}</td>
             </tr>
-            <tr>
-                <td>Total Events:</td>
-                <td>{{ total_events }}</td>
-            </tr>
         </table>
     </div>
 
@@ -202,10 +198,6 @@
                 <div class="value">{{ stats.total_events }}</div>
             </div>
             <div class="stat-card">
-                <div class="label">Unique Students</div>
-                <div class="value">{{ stats.unique_students }}</div>
-            </div>
-            <div class="stat-card">
                 <div class="label">Buses Active</div>
                 <div class="value">{{ stats.unique_buses }}</div>
             </div>
@@ -213,36 +205,30 @@
     </div>
 
     <!-- Boarding Events by Bus -->
-    {% if events_by_bus %}
-        {% for bus_route, events in events_by_bus.items %}
+    {% if students_by_bus %}
+        {% for bus_route, bus_data in students_by_bus.items %}
         <div class="bus-section">
             <div class="bus-header">
-                {{ bus_route }} ({{ events|length }} event{{ events|length|pluralize }})
+                {{ bus_route }} - Total Registered: {{ bus_data.registered_count }} | Scanned: {{ bus_data.students|length }}
             </div>
             <table class="events-table">
                 <thead>
                     <tr>
                         <th style="width: 5%;">#</th>
-                        <th style="width: 30%;">Student Name</th>
-                        <th style="width: 20%;">Student ID</th>
-                        <th style="width: 20%;">Bus Number</th>
-                        <th style="width: 25%;">Timestamp</th>
+                        <th style="width: 35%;">Student Name</th>
+                        <th style="width: 25%;">Student ID</th>
+                        <th style="width: 15%;">Bus Number</th>
+                        <th style="width: 20%;">Timestamp</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for event in events %}
+                    {% for student_data in bus_data.students %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
-                        <td>{{ event.student.encrypted_name }}</td>
-                        <td>{{ event.student.school_student_id }}</td>
-                        <td>
-                            {% if event.student.assigned_bus %}
-                                {{ event.student.assigned_bus.bus_number|default:"N/A" }}
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </td>
-                        <td>{{ event.timestamp|date:"h:i A" }}</td>
+                        <td>{{ student_data.student.encrypted_name }}</td>
+                        <td>{{ student_data.student.school_student_id }}</td>
+                        <td>{{ student_data.bus_number }}</td>
+                        <td>{{ student_data.timestamp|date:"h:i A" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

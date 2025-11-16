@@ -6,6 +6,7 @@ Generates professional boarding reports with summary statistics and detailed eve
 
 from collections import defaultdict
 from io import BytesIO
+from typing import Any
 
 from django.db.models import QuerySet
 from django.template.loader import render_to_string
@@ -45,8 +46,8 @@ class BoardingReportService:
         # Calculate summary statistics
         stats = BoardingReportService._calculate_statistics(events)
 
-        # Group events by bus/route for organized display
-        events_by_bus = BoardingReportService._group_events_by_bus(events)
+        # Group students by bus (one row per student)
+        students_by_bus = BoardingReportService._group_students_by_bus(events)
 
         # Determine date range for filename
         date_range = BoardingReportService._get_date_range(events)
@@ -59,8 +60,7 @@ class BoardingReportService:
                 "generated_at": timezone.now(),
                 "date_range": date_range,
                 "stats": stats,
-                "events_by_bus": events_by_bus,
-                "total_events": events.count(),
+                "students_by_bus": students_by_bus,
             },
         )
 
@@ -75,7 +75,7 @@ class BoardingReportService:
         return pdf_buffer, filename
 
     @staticmethod
-    def _calculate_statistics(events: QuerySet[BoardingEvent]) -> dict:
+    def _calculate_statistics(events: QuerySet[BoardingEvent]) -> dict[str, Any]:
         """Calculate summary statistics from events.
 
         Args:
@@ -84,41 +84,33 @@ class BoardingReportService:
         Returns:
             Dictionary with summary statistics
         """
-        # Unique students who boarded
-        unique_students = events.values("student").distinct().count()
-
         # Unique buses involved
         unique_buses = events.exclude(bus_route__isnull=True).exclude(bus_route="").values("bus_route").distinct().count()
 
-        # Average confidence score
-        confidence_scores = [event.confidence_score for event in events if event.confidence_score is not None]
-        avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0
-
         return {
             "total_events": events.count(),
-            "unique_students": unique_students,
             "unique_buses": unique_buses,
-            "avg_confidence": round(avg_confidence, 2),
         }
 
     @staticmethod
-    def _group_events_by_bus(events: QuerySet[BoardingEvent]) -> dict:
-        """Group events by bus route for organized display.
+    def _group_students_by_bus(events: QuerySet[BoardingEvent]) -> dict[str, Any]:
+        """Group students by bus (one row per student, not per event).
 
         Args:
             events: QuerySet of BoardingEvent objects
 
         Returns:
-            Dictionary mapping bus routes to lists of events
+            Dictionary mapping bus info to student data with registered count
         """
-        events_by_bus = defaultdict(list)
+        buses_data: dict[str, Any] = {}
+
+        # Group events by bus first
+        events_by_bus: dict[str, list[BoardingEvent]] = defaultdict(list)
 
         for event in events:
-            # Determine bus identifier using bus number and route name
             assigned_bus = event.student.assigned_bus
 
             if assigned_bus:
-                # Use bus number and route name for better readability
                 bus_number = getattr(assigned_bus, "bus_number", None)
                 route = getattr(assigned_bus, "route", None)
 
@@ -128,16 +120,50 @@ class BoardingReportService:
                     bus_key = f"Bus {bus_number}"
                 else:
                     bus_key = "Unknown Bus"
-            else:
-                bus_key = "Unknown Bus"
 
-            events_by_bus[bus_key].append(event)
+                events_by_bus[bus_key].append(event)
+            else:
+                events_by_bus["Unknown Bus"].append(event)
+
+        # For each bus, consolidate to one row per student
+        for bus_key, bus_events in events_by_bus.items():
+            # Group events by student (keep last event per student)
+            students_dict: dict[Any, dict[str, Any]] = {}
+            bus_obj = None
+
+            for event in bus_events:
+                student = event.student
+                student_id = student.pk  # Use pk instead of id for better type safety
+
+                # Keep the last event for this student (assuming sorted by timestamp)
+                students_dict[student_id] = {
+                    "student": student,
+                    "timestamp": event.timestamp,
+                    "bus_number": getattr(student.assigned_bus, "bus_number", "N/A") if student.assigned_bus else "N/A",
+                }
+
+                # Store bus object for getting registered count
+                if student.assigned_bus and not bus_obj:
+                    bus_obj = student.assigned_bus
+
+            # Get total registered students for this bus
+            registered_count: int = 0
+            if bus_obj:
+                # Access related_name from Bus model and get count
+                students_manager = getattr(bus_obj, "students", None)
+                if students_manager is not None:
+                    registered_count = students_manager.count()
+
+            buses_data[bus_key] = {
+                "students": list(students_dict.values()),
+                "registered_count": registered_count,
+            }
 
         # Sort by bus name
-        return dict(sorted(events_by_bus.items()))
+        return dict(sorted(buses_data.items()))
 
     @staticmethod
-    def _get_date_range(events: QuerySet[BoardingEvent]) -> dict:
+    def _get_date_range(events: QuerySet[BoardingEvent]) -> dict[str, Any]:
         """Get date range from events queryset.
 
         Args:
@@ -170,7 +196,7 @@ class BoardingReportService:
         }
 
     @staticmethod
-    def _generate_filename(date_range: dict) -> str:
+    def _generate_filename(date_range: dict[str, Any]) -> str:
         """Generate PDF filename from date range.
 
         Args:
