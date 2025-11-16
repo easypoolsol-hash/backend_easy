@@ -97,6 +97,9 @@ dependencies = [
     # Google Maps Integration
     "polyline>=2.0.0,<3.0",  # Google polyline encoding/decoding
     "googlemaps>=4.10.0,<5.0",  # Google Maps API client (geocoding, directions)
+
+    # PDF Generation
+    "weasyprint>=60.0,<63.0",  # HTML to PDF conversion (industry standard)
 ]
 
 [tool.setuptools]

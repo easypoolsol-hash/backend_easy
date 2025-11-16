@@ -1,8 +1,10 @@
 from django.contrib import admin
 from django.contrib.admin import display
+from django.http import HttpResponse
 from django.utils.html import format_html
 
 from .models import AttendanceRecord, BoardingEvent
+from .services.pdf_report_service import BoardingReportService
 
 
 @admin.register(BoardingEvent)
@@ -39,7 +41,27 @@ class BoardingEventAdmin(admin.ModelAdmin):
     ordering = ["-timestamp"]
 
     # Add custom actions
-    actions = ["delete_selected_with_gcs_cleanup"]
+    actions = ["delete_selected_with_gcs_cleanup", "download_boarding_report"]
+
+    @admin.action(description="Download Boarding Report (PDF)")
+    def download_boarding_report(self, request, queryset):
+        """Generate and download PDF boarding report from selected events.
+
+        This action generates a professional PDF report with summary statistics
+        and detailed boarding event information. The PDF is generated on-the-fly
+        with no file storage.
+        """
+        # Generate PDF using the report service
+        pdf_buffer, filename = BoardingReportService.generate_report(queryset)
+
+        # Return PDF as HTTP response (download)
+        response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+        # Add message to admin
+        self.message_user(request, f"Boarding report generated successfully: {filename}")
+
+        return response
 
     @admin.action(description="Delete selected boarding events (with GCS cleanup)")
     def delete_selected_with_gcs_cleanup(self, request, queryset):
