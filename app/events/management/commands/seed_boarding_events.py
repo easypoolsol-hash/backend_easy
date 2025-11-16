@@ -126,10 +126,14 @@ class Command(BaseCommand):
         recent_events = BoardingEvent.objects.order_by("-timestamp")[:5]
         for event in recent_events:
             # Note: student name is encrypted, backend will decrypt for API response
-            student_id_str = str(event.student.student_id)
+            if event.student is None:
+                student_display = "UNKNOWN FACE"
+            else:
+                student_id_str = str(event.student.student_id)
+                student_display = f"Student {student_id_str[:8]}..."
             self.stdout.write(
                 f"  {event.timestamp.strftime('%Y-%m-%d %H:%M')} - "
-                f"Student {student_id_str[:8]}... - "
+                f"{student_display} - "
                 f"Confidence: {event.confidence_score:.2f} - "
                 f"Kiosk: {event.kiosk_id}"
             )

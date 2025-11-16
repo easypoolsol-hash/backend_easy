@@ -108,6 +108,11 @@ class BoardingReportService:
         events_by_bus: dict[str, list[BoardingEvent]] = defaultdict(list)
 
         for event in events:
+            # Skip unknown face events (student is None)
+            if event.student is None:
+                events_by_bus["Unknown Face"].append(event)
+                continue
+
             assigned_bus = event.student.assigned_bus
 
             if assigned_bus:
@@ -133,6 +138,18 @@ class BoardingReportService:
 
             for event in bus_events:
                 student = event.student
+
+                # Skip unknown face events (student is None)
+                if student is None:
+                    # Use event_id as key for unknown faces
+                    student_id = f"unknown_{event.event_id}"
+                    students_dict[student_id] = {
+                        "student": None,
+                        "timestamps": [event.timestamp],
+                        "is_unknown": True,
+                    }
+                    continue
+
                 student_id = student.pk
 
                 # If student already exists, add timestamp to list
