@@ -94,13 +94,13 @@ class BoardingReportService:
 
     @staticmethod
     def _group_students_by_bus(events: QuerySet[BoardingEvent]) -> dict[str, Any]:
-        """Group students by bus (one row per student, not per event).
+        """Group events by bus and show ALL events (including duplicates).
 
         Args:
             events: QuerySet of BoardingEvent objects
 
         Returns:
-            Dictionary mapping bus info to student data with registered count
+            Dictionary mapping bus info to event data with registered count
         """
         buses_data: dict[str, Any] = {}
 
@@ -125,22 +125,22 @@ class BoardingReportService:
             else:
                 events_by_bus["Unknown Bus"].append(event)
 
-        # For each bus, consolidate to one row per student
+        # For each bus, show ALL events (including multiple scans of same student)
         for bus_key, bus_events in events_by_bus.items():
-            # Group events by student (keep last event per student)
-            students_dict: dict[Any, dict[str, Any]] = {}
+            # Convert events to display format (show ALL events)
+            events_list = []
             bus_obj = None
 
             for event in bus_events:
                 student = event.student
-                student_id = student.pk  # Use pk instead of id for better type safety
 
-                # Keep the last event for this student (assuming sorted by timestamp)
-                students_dict[student_id] = {
-                    "student": student,
-                    "timestamp": event.timestamp,
-                    "bus_number": getattr(student.assigned_bus, "bus_number", "N/A") if student.assigned_bus else "N/A",
-                }
+                events_list.append(
+                    {
+                        "student": student,
+                        "timestamp": event.timestamp,
+                        "bus_number": getattr(student.assigned_bus, "bus_number", "N/A") if student.assigned_bus else "N/A",
+                    }
+                )
 
                 # Store bus object for getting registered count
                 if student.assigned_bus and not bus_obj:
@@ -149,13 +149,13 @@ class BoardingReportService:
             # Get total registered students for this bus
             registered_count: int = 0
             if bus_obj:
-                # Access related_name from Bus model and get count
-                students_manager = getattr(bus_obj, "students", None)
+                # Access related_name from Bus model: "assigned_students"
+                students_manager = getattr(bus_obj, "assigned_students", None)
                 if students_manager is not None:
                     registered_count = students_manager.count()
 
             buses_data[bus_key] = {
-                "students": list(students_dict.values()),
+                "students": events_list,  # Keep name as "students" for template compatibility
                 "registered_count": registered_count,
             }
 
