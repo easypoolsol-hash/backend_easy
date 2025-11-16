@@ -29,7 +29,11 @@ ALLOWED_HOSTS = _allowed_hosts_env.split(",")
 # Override: CORS origins (staging-specific)
 _cors_origins_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if _cors_origins_env:
-    CORS_ALLOWED_ORIGINS = _cors_origins_env.split(",")
+    # Parse from environment variable
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",")]
+    # Always include the correct staging URL as failsafe
+    if "https://stage.easypool.in" not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append("https://stage.easypool.in")
 else:
     # Default: Allow staging frontend only
     CORS_ALLOWED_ORIGINS = [
