@@ -57,9 +57,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
         # Return PDF as HTTP response (download)
         response = HttpResponse(pdf_buffer.read(), content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
-
-        # Add message to admin
-        self.message_user(request, f"Boarding report generated successfully: {filename}")
+        # Note: No success message needed - the download itself confirms success
 
         return response
 
