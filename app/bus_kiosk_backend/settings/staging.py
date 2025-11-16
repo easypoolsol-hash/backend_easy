@@ -66,6 +66,9 @@ CORS_ALLOW_METHODS = [
     "PUT",
 ]
 
+# Override: Cache preflight requests for better performance
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
 # Override: CSRF trusted origins (staging-specific)
 _csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if _csrf_origins_env:
