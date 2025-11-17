@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.contrib.admin import display, SimpleListFilter
+from django.contrib.admin import SimpleListFilter, display
 from django.http import HttpResponse
 from django.utils.html import format_html
 
@@ -9,19 +9,20 @@ from .services.pdf_report_service import BoardingReportService
 
 class UnknownFaceFilter(SimpleListFilter):
     """Filter for unknown/unidentified faces"""
-    title = 'Face Type'
-    parameter_name = 'face_type'
+
+    title = "Face Type"
+    parameter_name = "face_type"
 
     def lookups(self, request, model_admin):
         return (
-            ('known', 'Known Students'),
-            ('unknown', 'Unknown Faces'),
+            ("known", "Known Students"),
+            ("unknown", "Unknown Faces"),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == 'known':
+        if self.value() == "known":
             return queryset.filter(student__isnull=False)
-        if self.value() == 'unknown':
+        if self.value() == "unknown":
             return queryset.filter(student__isnull=True)
         return queryset
 
@@ -131,23 +132,24 @@ class BoardingEventAdmin(admin.ModelAdmin):
         except Exception:
             # If decryption fails, return the student ID
             return f"Student {obj.student.student_id}"
-    
+
     @display(description="Bus/Route")
     def get_bus_route(self, obj):
         """Display bus/route from kiosk (immutable historical data)"""
         try:
             # Initialize cache if not exists (safety check)
-            if not hasattr(self, '_kiosk_cache'):
+            if not hasattr(self, "_kiosk_cache"):
                 self._kiosk_cache = {}
-            
+
             # Use cache to avoid N+1 queries (kiosk_id is CharField, not ForeignKey)
             if obj.kiosk_id not in self._kiosk_cache:
                 from kiosks.models import Kiosk
+
                 try:
-                    self._kiosk_cache[obj.kiosk_id] = Kiosk.objects.select_related('bus', 'bus__route').get(kiosk_id=obj.kiosk_id)
+                    self._kiosk_cache[obj.kiosk_id] = Kiosk.objects.select_related("bus", "bus__route").get(kiosk_id=obj.kiosk_id)
                 except Kiosk.DoesNotExist:
                     self._kiosk_cache[obj.kiosk_id] = None
-            
+
             kiosk = self._kiosk_cache[obj.kiosk_id]
             if kiosk and kiosk.bus:
                 bus = kiosk.bus
@@ -159,7 +161,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
         except Exception:
             # Fallback to bus_route field if any error
             return obj.bus_route if obj.bus_route else "-"
-    
+
     @display(description="Location")
     def get_location(self, obj):
         """Display GPS coordinates"""
@@ -201,25 +203,30 @@ class BoardingEventAdmin(admin.ModelAdmin):
             )
 
     def get_confirmation_faces_thumbnails(self, obj):
-        """Display 3 confirmation face thumbnails inline"""
+        """Display 3 confirmation face thumbnails inline with lazy loading"""
         from django.utils.html import format_html
         from django.utils.safestring import mark_safe
 
         html_parts = []
+        has_images = False
 
         for i in range(1, 4):
             # Check if GCS path exists
             gcs_path = getattr(obj, f"confirmation_face_{i}_gcs", None)
             if gcs_path:
+                has_images = True
                 # Generate signed URL
                 face_url = getattr(obj, f"confirmation_face_{i}_url", None)
                 if face_url:
+                    # Use lazy loading with placeholder
                     html_parts.append(
                         format_html(
                             '<a href="{}" target="_blank" style="display:inline-block;margin-right:4px;">'
-                            '<img src="{}" width="50" height="50" '
-                            'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;" '
-                            'title="Confirmation face {}"/>'
+                            '<img data-src="{}" width="50" height="50" '
+                            'style="object-fit:cover;border:2px solid #007bff;border-radius:4px;background:#e9ecef;" '
+                            'class="lazy-load-img" '
+                            'title="Confirmation face {}" '
+                            'alt="Loading..."/>'
                             "</a>",
                             face_url,
                             face_url,
@@ -227,11 +234,45 @@ class BoardingEventAdmin(admin.ModelAdmin):
                         )
                     )
 
-        if not html_parts:
+        if not has_images:
             return format_html('<span style="color:#999;">-</span>')
 
-        # Combine safe HTML parts using mark_safe
-        return mark_safe("".join(html_parts))
+        # Add lazy loading script (only once per page)
+        lazy_script = """
+        <script>
+        (function() {
+            if (window.lazyLoadInitialized) return;
+            window.lazyLoadInitialized = true;
+
+            function lazyLoad() {
+                const images = document.querySelectorAll('img.lazy-load-img[data-src]');
+
+                const imageObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = entry.target;
+                            img.src = img.dataset.src;
+                            img.removeAttribute('data-src');
+                            img.classList.remove('lazy-load-img');
+                            observer.unobserve(img);
+                        }
+                    });
+                });
+
+                images.forEach(img => imageObserver.observe(img));
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', lazyLoad);
+            } else {
+                lazyLoad();
+            }
+        })();
+        </script>
+        """
+
+        # Combine HTML parts with lazy loading script
+        return mark_safe("".join(html_parts) + lazy_script)
 
     get_confirmation_faces_thumbnails.short_description = "Confirmation Faces"  # type: ignore[attr-defined]
 
@@ -259,9 +300,11 @@ class BoardingEventAdmin(admin.ModelAdmin):
         else:
             html_parts.append('<div style="margin-bottom:20px;">')
             html_parts.append('<h4 style="margin-bottom:10px;color:#dc3545;">Unknown Face Event</h4>')
-            html_parts.append('<p style="background:#fff3cd;padding:10px;border:2px solid #ffc107;border-radius:4px;">'
-                            'This boarding event was created for an unidentified face. '
-                            'No student reference photo available.</p>')
+            html_parts.append(
+                '<p style="background:#fff3cd;padding:10px;border:2px solid #ffc107;border-radius:4px;">'
+                "This boarding event was created for an unidentified face. "
+                "No student reference photo available.</p>"
+            )
             html_parts.append("</div>")
 
         # Confirmation faces

@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
+
 from django.db import transaction
 from django.db.models import Max
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, inline_serializer
@@ -231,6 +234,122 @@ def bus_locations_api(request):
             )
 
     return JsonResponse({"type": "FeatureCollection", "features": bus_locations})
+
+
+@extend_schema(
+    responses={
+        200: inline_serializer(
+            name="BusLocationHistoryResponse",
+            fields={
+                "type": serializers.CharField(default="FeatureCollection"),
+                "features": serializers.ListField(
+                    child=serializers.DictField(),
+                    help_text="Array of GeoJSON Feature objects with historical bus locations",
+                ),
+            },
+        ),
+    },
+    operation_id="bus_locations_history_api",
+    description="""
+    Returns historical bus locations for a specific bus on a specific date as GeoJSON.
+
+    Accessible by school administrators only.
+
+    **Query Parameters:**
+    - bus_id: Bus number (required, e.g., "BUS-001")
+    - date: Date in YYYY-MM-DD format (required, max 7 days in the past)
+
+    **Response Format:**
+    GeoJSON FeatureCollection with Point geometries for each location record.
+
+    Each feature includes properties:
+    - id: Location record ID
+    - bus_number: Bus identifier
+    - bus_name: Bus license plate
+    - timestamp: When the location was recorded
+    - speed: Speed at that moment (km/h)
+    - heading: Direction heading (degrees)
+    - accuracy: GPS accuracy (meters)
+    """,
+    tags=["Buses"],
+)
+@api_view(["GET"])
+@permission_classes([IsSchoolAdmin])
+def bus_locations_history_api(request):
+    """
+    Historical bus locations API for playback feature (school administrators only).
+
+    Returns all location records for a specific bus on a specific date.
+    No caching - historical data doesn't change.
+    """
+    from kiosks.models import BusLocation
+
+    # Get query parameters
+    bus_id = request.GET.get("bus_id")
+    date_str = request.GET.get("date")
+
+    # Validate required parameters
+    if not bus_id:
+        return Response({"error": "bus_id parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not date_str:
+        return Response({"error": "date parameter is required (YYYY-MM-DD format)"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Parse and validate date
+    try:
+        requested_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate date range (max 7 days in the past)
+    today = timezone.now().date()
+    max_past_date = today - timedelta(days=7)
+
+    if requested_date > today:
+        return Response({"error": "Cannot request future dates"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if requested_date < max_past_date:
+        return Response({"error": "Can only retrieve history up to 7 days in the past"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get start and end of the requested day (timezone-aware)
+    start_time = timezone.make_aware(datetime.combine(requested_date, datetime.min.time()))
+    end_time = timezone.make_aware(datetime.combine(requested_date, datetime.max.time()))
+
+    # Query historical locations
+    locations = (
+        BusLocation.objects.filter(kiosk__bus__bus_number=bus_id, timestamp__gte=start_time, timestamp__lte=end_time)
+        .select_related("kiosk__bus")
+        .order_by("timestamp")
+    )
+
+    if not locations.exists():
+        return JsonResponse({"type": "FeatureCollection", "features": []})
+
+    # Build GeoJSON features
+    features = []
+    for location in locations:
+        kiosk = location.kiosk
+        bus = kiosk.bus if kiosk else None
+
+        if bus:
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [location.longitude, location.latitude]},
+                    "properties": {
+                        "id": location.location_id,
+                        "bus_number": bus.bus_number,
+                        "bus_name": bus.license_plate,
+                        "kiosk_id": kiosk.kiosk_id,
+                        "timestamp": location.timestamp.isoformat(),
+                        "speed": location.speed,
+                        "heading": location.heading,
+                        "accuracy": location.accuracy,
+                    },
+                }
+            )
+
+    return JsonResponse({"type": "FeatureCollection", "features": features})
 
 
 # ============================================================================
