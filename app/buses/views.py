@@ -227,6 +227,8 @@ def bus_locations_api(request):
                         "kiosk_id": kiosk.kiosk_id,
                         "bus_name": bus.license_plate,
                         "bus_number": bus.bus_number,  # School-assigned bus number (e.g., BUS-001)
+                        "route_id": str(bus.route.route_id) if bus.route else None,
+                        "route_name": bus.route.name if bus.route else None,
                         "last_update": location.timestamp.isoformat(),
                         "speed": location.speed,
                         "heading": location.heading,
@@ -353,6 +355,8 @@ def bus_locations_history_api(request):
                         "id": location.location_id,
                         "bus_number": bus.bus_number,
                         "bus_name": bus.license_plate,
+                        "route_id": str(bus.route.route_id) if bus.route else None,
+                        "route_name": bus.route.name if bus.route else None,
                         "kiosk_id": kiosk.kiosk_id,
                         "timestamp": location.timestamp.isoformat(),
                         "speed": location.speed,
