@@ -314,15 +314,15 @@ def bus_locations_history_api(request):
     except ValueError:
         return Response({"error": "Invalid date format. Use YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validate date range (max 7 days in the past)
+    # Validate date range (today and up to 7 days in the past)
     today = timezone.now().date()
     max_past_date = today - timedelta(days=7)
 
     if requested_date > today:
-        return Response({"error": "Cannot request future dates"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": f"Cannot request future dates. Today is {today}"}, status=status.HTTP_400_BAD_REQUEST)
 
     if requested_date < max_past_date:
-        return Response({"error": "Can only retrieve history up to 7 days in the past"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": f"Can only retrieve history from {max_past_date} to {today}"}, status=status.HTTP_400_BAD_REQUEST)
 
     # Get start and end of the requested day (timezone-aware)
     start_time = timezone.make_aware(datetime.combine(requested_date, datetime.min.time()))
