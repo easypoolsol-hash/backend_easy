@@ -56,7 +56,7 @@ class BusLocationService:
             )
 
             # 2. Write to PostgreSQL (permanent storage)
-            bus = Bus.objects.get(bus_number=bus_id)
+            bus = Bus.objects.get(bus_id=bus_id)
             kiosk = bus.kiosk
             BusLocation.objects.create(
                 kiosk=kiosk,
@@ -120,4 +120,4 @@ class BusLocationService:
         Returns:
             QuerySet of BusLocation objects
         """
-        return BusLocation.objects.filter(kiosk__bus__bus_number=bus_id, timestamp__gte=start_time, timestamp__lte=end_time).order_by("timestamp")
+        return BusLocation.objects.filter(kiosk__bus__bus_id=bus_id, timestamp__gte=start_time, timestamp__lte=end_time).order_by("timestamp")
