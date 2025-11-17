@@ -273,7 +273,7 @@ class Bus(models.Model):
     @property
     def utilization_percentage(self):
         """Return bus utilization as percentage"""
-        if self.capacity > 0:
+        if self.capacity is not None and self.capacity > 0:
             return (self.assigned_students_count / self.capacity) * 100
         return 0
 
