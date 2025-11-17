@@ -7,7 +7,8 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.cache import cache_page
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -250,14 +251,26 @@ def bus_locations_api(request):
         ),
     },
     operation_id="bus_locations_history_api",
+    parameters=[
+        OpenApiParameter(
+            name="bus_uuid",
+            type=OpenApiTypes.UUID,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Bus UUID (primary key)",
+        ),
+        OpenApiParameter(
+            name="date",
+            type=OpenApiTypes.DATE,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Date in YYYY-MM-DD format (max 7 days in the past)",
+        ),
+    ],
     description="""
     Returns historical bus locations for a specific bus on a specific date as GeoJSON.
 
     Accessible by school administrators only.
-
-    **Query Parameters:**
-    - bus_id: Bus number (required, e.g., "BUS-001")
-    - date: Date in YYYY-MM-DD format (required, max 7 days in the past)
 
     **Response Format:**
     GeoJSON FeatureCollection with Point geometries for each location record.
@@ -285,12 +298,12 @@ def bus_locations_history_api(request):
     from kiosks.models import BusLocation
 
     # Get query parameters
-    bus_id = request.GET.get("bus_id")
+    bus_uuid = request.GET.get("bus_uuid")
     date_str = request.GET.get("date")
 
     # Validate required parameters
-    if not bus_id:
-        return Response({"error": "bus_id parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+    if not bus_uuid:
+        return Response({"error": "bus_uuid parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     if not date_str:
         return Response({"error": "date parameter is required (YYYY-MM-DD format)"}, status=status.HTTP_400_BAD_REQUEST)
@@ -317,7 +330,7 @@ def bus_locations_history_api(request):
 
     # Query historical locations
     locations = (
-        BusLocation.objects.filter(kiosk__bus__bus_number=bus_id, timestamp__gte=start_time, timestamp__lte=end_time)
+        BusLocation.objects.filter(kiosk__bus__bus_id=bus_uuid, timestamp__gte=start_time, timestamp__lte=end_time)
         .select_related("kiosk__bus")
         .order_by("timestamp")
     )
