@@ -1466,14 +1466,27 @@ paths:
       operationId: bus_locations_history_api
       description: "\n    Returns historical bus locations for a specific bus on a\
         \ specific date as GeoJSON.\n\n    Accessible by school administrators only.\n\
-        \n    **Query Parameters:**\n    - bus_id: Bus number (required, e.g., \"\
-        BUS-001\")\n    - date: Date in YYYY-MM-DD format (required, max 7 days in\
-        \ the past)\n\n    **Response Format:**\n    GeoJSON FeatureCollection with\
-        \ Point geometries for each location record.\n\n    Each feature includes\
-        \ properties:\n    - id: Location record ID\n    - bus_number: Bus identifier\n\
-        \    - bus_name: Bus license plate\n    - timestamp: When the location was\
-        \ recorded\n    - speed: Speed at that moment (km/h)\n    - heading: Direction\
-        \ heading (degrees)\n    - accuracy: GPS accuracy (meters)\n    "
+        \n    **Response Format:**\n    GeoJSON FeatureCollection with Point geometries\
+        \ for each location record.\n\n    Each feature includes properties:\n   \
+        \ - id: Location record ID\n    - bus_number: Bus identifier\n    - bus_name:\
+        \ Bus license plate\n    - timestamp: When the location was recorded\n   \
+        \ - speed: Speed at that moment (km/h)\n    - heading: Direction heading (degrees)\n\
+        \    - accuracy: GPS accuracy (meters)\n    "
+      parameters:
+      - in: query
+        name: bus_uuid
+        schema:
+          type: string
+          format: uuid
+        description: Bus UUID (primary key)
+        required: true
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Date in YYYY-MM-DD format (max 7 days in the past)
+        required: true
       tags:
       - Buses
       security:
