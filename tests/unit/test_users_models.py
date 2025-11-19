@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.utils import timezone
 import pytest
 
+from students.models import Parent
 from tests.factories import UserFactory
 from users.models import APIKey, AuditLog
 
@@ -89,3 +90,56 @@ class TestAuditLogModel:
 
         assert audit_log.user is None
         assert str(audit_log).startswith("DELETE student by None")
+
+
+@pytest.mark.django_db
+class TestParentAutoCreationSignal:
+    """Test auto-creation of Parent record when User is created"""
+
+    def test_parent_auto_created_on_user_creation(self):
+        """Test that Parent record is auto-created when new User is created"""
+        # Create a new user (simulating Firebase signup)
+        user = User.objects.create_user(username="testparent", email="testparent@example.com", password="testpass123")
+
+        # Check that Parent was auto-created
+        assert Parent.objects.filter(user=user).exists()
+
+        parent = Parent.objects.get(user=user)
+        assert parent.approval_status == "pending"
+        assert parent.user == user
+        assert "pending-" in parent.encrypted_email
+        assert "+91" in parent.encrypted_phone
+        assert "Pending User" in parent.encrypted_name
+
+    def test_parent_not_created_on_user_update(self):
+        """Test that Parent is not created again on user update"""
+        # Create user
+        user = User.objects.create_user(username="updatetest", email="updatetest@example.com", password="testpass123")
+
+        # Get the auto-created parent
+        parent = Parent.objects.get(user=user)
+        parent_id = parent.parent_id
+
+        # Update user
+        user.email = "newemail@example.com"
+        user.save()
+
+        # Should still have only one parent with same ID
+        assert Parent.objects.filter(user=user).count() == 1
+        assert Parent.objects.get(user=user).parent_id == parent_id
+
+    def test_signal_is_idempotent(self):
+        """Test that signal doesn't create duplicate Parents"""
+        # Create user with UserFactory (which might trigger signal)
+        user = UserFactory()
+
+        # Count parents
+        initial_count = Parent.objects.filter(user=user).count()
+
+        # Update user (should not create another parent)
+        user.email = "newemail@example.com"
+        user.save()
+
+        # Count should be same
+        final_count = Parent.objects.filter(user=user).count()
+        assert initial_count == final_count

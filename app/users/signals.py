@@ -14,8 +14,10 @@ Usage:
 """
 
 import logging
+import uuid
 
 from django.contrib.auth.signals import user_logged_in
+from django.db.models.signals import post_save
 from django.dispatch import Signal, receiver
 from django.utils import timezone
 
@@ -110,3 +112,51 @@ def update_last_login_on_token_auth(sender, user, request=None, auth_method="tok
         logger.info(f"{auth_method.capitalize()} auth: {user.username} ({user.email}) - last_login updated")
     else:
         logger.debug(f"{auth_method.capitalize()} auth: {user.username} - last_login throttled (recent)")
+
+
+@receiver(post_save, sender="users.User")
+def auto_create_parent_for_new_user(sender, instance, created, **kwargs):
+    """
+    Auto-create Parent record when new User is created via Firebase login.
+
+    Industry Standard Pattern (Google-style auto-creation):
+    - User created via Firebase authentication → Parent record auto-created
+    - Parent starts with 'pending' approval status
+    - Admin approves by changing User's group from "New User" to "Parent"
+    - Single source of truth: Backend handles creation, not frontend
+
+    This eliminates the need for manual Parent record creation in Django admin.
+    """
+    if not created:
+        # Only run for new users, not updates
+        return
+
+    # Import inside function to avoid circular imports
+    from students.models import Parent
+
+    # Check if Parent already exists (idempotent)
+    if Parent.objects.filter(user=instance).exists():
+        logger.debug(f"Parent record already exists for user {instance.username}")
+        return
+
+    # Create Parent with temporary encrypted values
+    # Admin will update these during approval process
+    temp_suffix = uuid.uuid4().hex[:8]
+    # Generate valid 10-digit phone number from UUID
+    temp_phone_digits = str(uuid.uuid4().int)[:10].zfill(10)
+
+    try:
+        parent = Parent(
+            user=instance,
+            approval_status="pending",
+        )
+        # Set encrypted PII fields (required by model)
+        parent.encrypted_email = f"pending-{temp_suffix}@example.com"
+        parent.encrypted_phone = f"+91{temp_phone_digits}"
+        parent.encrypted_name = f"Pending User {instance.username}"
+        parent.save()
+
+        logger.info(f"✅ Auto-created Parent record for new user: {instance.username} (parent_id: {parent.parent_id}, status: pending)")
+    except Exception as e:
+        logger.error(f"❌ Failed to auto-create Parent for user {instance.username}: {e!s}")
+        # Don't raise exception - allow user creation to succeed even if Parent creation fails
