@@ -103,6 +103,8 @@ AUTH_USER_MODEL = "users.User"
 # REST Framework configuration
 REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        # Cloud Tasks auth must be first - handles GCP internal requests
+        "bus_kiosk_backend.core.authentication.CloudTasksAuthentication",
         "bus_kiosk_backend.core.authentication.FirebaseAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],

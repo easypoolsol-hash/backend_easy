@@ -1600,7 +1600,6 @@ paths:
       tags:
       - api
       security:
-      - cookieAuth: []
       - Bearer: []
       responses:
         '200':

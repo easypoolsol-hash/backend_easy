@@ -24,6 +24,7 @@ from factory.django import DjangoModelFactory
 
 from buses.models import Bus, Route, RouteWaypoint, Waypoint
 from kiosks.models import Kiosk
+from notifications.models import FCMToken, Notification, NotificationPreference
 from students.models import (
     FaceEmbeddingMetadata,
     FaceEnrollment,
@@ -54,7 +55,7 @@ class RouteFactory(DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Test Route {n}")
     description = ""
-    is_active = True
+    created_at = factory.LazyFunction(timezone.now)
     encoded_polyline = ""
 
 
@@ -251,7 +252,7 @@ class UserFactory(DjangoModelFactory):
     # user_id auto-generates as UUID via model default
     username = factory.Sequence(lambda n: f"testuser{n}")
     email = factory.Sequence(lambda n: f"user{n}@test.com")
-    is_active = True
+    created_at = factory.LazyFunction(timezone.now)
 
     @factory.post_generation
     def groups(self, create, extracted, **kwargs):
@@ -359,3 +360,82 @@ class FaceEnrollmentFactory(DjangoModelFactory):
     )
 
     submitted_at = factory.LazyFunction(timezone.now)
+
+
+class FCMTokenFactory(DjangoModelFactory):
+    """
+    Factory for creating FCM tokens for push notifications
+
+    Usage:
+        # Create token for existing parent
+        token = FCMTokenFactory(parent=parent)
+
+        # Create with specific token string
+        token = FCMTokenFactory(token="custom_fcm_token_123")
+    """
+
+    class Meta:
+        model = FCMToken
+
+    parent = factory.SubFactory(ParentFactory)
+    token = factory.Sequence(lambda n: f"fcm_test_token_{n}")
+    platform = "android"  # Model uses platform, not device_type
+    is_active = True
+
+
+class NotificationFactory(DjangoModelFactory):
+    """
+    Factory for creating test notifications
+
+    Usage:
+        # Create pending notification
+        notification = NotificationFactory()
+
+        # Create sent notification
+        notification = NotificationFactory(status="sent")
+
+        # Create for specific parent
+        notification = NotificationFactory(parent=parent)
+    """
+
+    class Meta:
+        model = Notification
+
+    parent = factory.SubFactory(ParentFactory)
+    student = factory.SubFactory(StudentFactory)
+    notification_type = "boarding"
+    title = factory.Sequence(lambda n: f"Test Notification {n}")
+    body = "Your child boarded the bus"
+    data = {"event_type": "boarding"}  # Simple default
+    status = "pending"
+    retry_count = 0
+    error_message = ""
+    created_at = factory.LazyFunction(timezone.now)
+
+
+class NotificationPreferenceFactory(DjangoModelFactory):
+    """
+    Factory for creating notification preferences
+
+    Usage:
+        # Create default preferences
+        prefs = NotificationPreferenceFactory(parent=parent)
+
+        # Create with quiet hours enabled
+        prefs = NotificationPreferenceFactory(
+            parent=parent,
+            quiet_hours_enabled=True
+        )
+    """
+
+    class Meta:
+        model = NotificationPreference
+
+    parent = factory.SubFactory(ParentFactory)
+    boarding = True
+    deboarding = True
+    eta = True
+    pickup_reminder = True
+    drop_reminder = True
+    announcements = True
+    quiet_hours_enabled = False
