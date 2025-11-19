@@ -11,6 +11,7 @@ from django.utils.html import format_html
 
 from .models import (
     FaceEmbeddingMetadata,
+    FaceEnrollment,
     Parent,
     School,
     Student,
@@ -673,3 +674,177 @@ class FaceEmbeddingMetadataAdmin(admin.ModelAdmin):
     @display(description="Student")
     def get_student(self, obj):
         return obj.student_photo.student
+
+
+@admin.register(FaceEnrollment)
+class FaceEnrollmentAdmin(admin.ModelAdmin):
+    """
+    Admin interface for reviewing parent-submitted face enrollments.
+
+    Admins can:
+    - View pending enrollments
+    - See photo thumbnails
+    - Approve (moves photos to StudentPhoto)
+    - Reject enrollment
+    """
+
+    list_display = [
+        "enrollment_id",
+        "get_student_name",
+        "get_parent_name",
+        "photo_count",
+        "status_badge",
+        "submitted_at",
+        "reviewed_by",
+    ]
+    list_filter = ["status", "submitted_at"]
+    search_fields = [
+        "student__name",
+        "parent__name",
+        "enrollment_id",
+    ]
+    readonly_fields = [
+        "enrollment_id",
+        "student",
+        "parent",
+        "photo_thumbnails",
+        "photo_count",
+        "submitted_at",
+        "reviewed_by",
+        "reviewed_at",
+        "device_info",
+    ]
+    fields = [
+        "enrollment_id",
+        "status",
+        "student",
+        "parent",
+        "photo_thumbnails",
+        "photo_count",
+        "submitted_at",
+        "reviewed_by",
+        "reviewed_at",
+        "device_info",
+    ]
+
+    actions = ["approve_enrollments", "reject_enrollments"]
+
+    def get_queryset(self, request):
+        """Optimize queries with select_related"""
+        return super().get_queryset(request).select_related(
+            "student",
+            "parent",
+            "reviewed_by"
+        )
+
+    @display(description="Student")
+    def get_student_name(self, obj):
+        return obj.student.encrypted_name
+
+    @display(description="Parent")
+    def get_parent_name(self, obj):
+        return obj.parent.encrypted_name
+
+    @display(description="Status")
+    def status_badge(self, obj):
+        """Show colored status badge"""
+        colors = {
+            "pending_approval": "#FFA500",  # Orange
+            "approved": "#28A745",  # Green
+            "rejected": "#DC3545",  # Red
+        }
+        color = colors.get(obj.status, "#6C757D")
+        return format_html(
+            '<span style="background-color: {}; color: white; '
+            'padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+
+    @display(description="Photos")
+    def photo_thumbnails(self, obj):
+        """Display photo thumbnails in admin"""
+        import base64
+
+        if not obj.photos_data:
+            return "No photos"
+
+        thumbnails = []
+        for idx, photo_data in enumerate(obj.photos_data):
+            # Get base64 data
+            data = photo_data.get("data", "")
+            content_type = photo_data.get("content_type", "image/jpeg")
+
+            # Create data URL for img tag
+            data_url = f"data:{content_type};base64,{data}"
+
+            thumbnails.append(
+                f'<img src="{data_url}" '
+                f'style="width: 150px; height: 150px; object-fit: cover; '
+                f'margin: 5px; border: 1px solid #ddd;" '
+                f'title="Photo {idx + 1}"/>'
+            )
+
+        return format_html("".join(thumbnails))
+
+    @admin.action(description="Approve selected enrollments")
+    def approve_enrollments(self, request, queryset):
+        """Approve selected face enrollments"""
+        pending = queryset.filter(status="pending_approval")
+        count = 0
+
+        for enrollment in pending:
+            try:
+                enrollment.approve(request.user)
+                # Delete enrollment after approval (photos moved to StudentPhoto)
+                enrollment.delete()
+                count += 1
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Failed to approve enrollment {enrollment.enrollment_id}: {e}",
+                    level=messages.ERROR
+                )
+
+        if count > 0:
+            self.message_user(
+                request,
+                f"Successfully approved {count} enrollment(s)",
+                level=messages.SUCCESS
+            )
+
+    @admin.action(description="Reject selected enrollments")
+    def reject_enrollments(self, request, queryset):
+        """Reject selected face enrollments"""
+        pending = queryset.filter(status="pending_approval")
+        count = 0
+
+        for enrollment in pending:
+            try:
+                enrollment.reject(request.user)
+                count += 1
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Failed to reject enrollment {enrollment.enrollment_id}: {e}",
+                    level=messages.ERROR
+                )
+
+        if count > 0:
+            self.message_user(
+                request,
+                f"Successfully rejected {count} enrollment(s)",
+                level=messages.SUCCESS
+            )
+
+    def has_add_permission(self, request):
+        """Prevent manual creation (only created via API)"""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Allow viewing but prevent editing"""
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        """Allow deletion of rejected enrollments"""
+        return True

@@ -14,6 +14,7 @@ from bus_kiosk_backend.permissions import IsApprovedParent, IsSchoolAdmin
 from buses.models import Bus
 
 from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
+    FaceEnrollment,
     Parent,
     School,
     Student,
@@ -23,6 +24,9 @@ from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
 from .serializers import (
     # FaceEmbeddingMetadataSerializer removed - no API endpoint needed
     # BusSerializer removed - Use buses.serializers.BusSerializer instead
+    FaceEnrollmentConfigSerializer,
+    FaceEnrollmentStatusSerializer,
+    FaceEnrollmentSubmissionSerializer,
     ParentSerializer,
     SchoolSerializer,
     StudentListSerializer,
@@ -439,6 +443,144 @@ class ParentMeViewSet(viewsets.ViewSet):
                 )
 
         return Response(bus_locations)
+
+    @extend_schema(
+        request=FaceEnrollmentSubmissionSerializer,
+        responses={201: FaceEnrollmentStatusSerializer},
+        description="Submit face enrollment photos for child",
+    )
+    @action(detail=True, methods=["post"], url_path="face-enrollment/submit")
+    def submit_face_enrollment(self, request, pk=None):
+        """
+        POST /api/v1/parents/me/children/{student_id}/face-enrollment/submit/
+
+        Submit face enrollment photos for a child.
+        Parent app auto-captures 3-5 photos and submits as base64-encoded array.
+        """
+        parent = getattr(request.user, "parent_profile", None)
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Verify student_id (pk) is valid
+        try:
+            student = Student.objects.get(student_id=pk)
+        except Student.DoesNotExist:
+            return Response(
+                {"error": "Student not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Security: Verify parent-student relationship
+        if not StudentParent.objects.filter(parent=parent, student=student).exists():
+            return Response(
+                {"error": "You are not authorized to submit enrollment for this student"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Check if enrollment already exists
+        existing_enrollment = FaceEnrollment.objects.filter(
+            student=student,
+            parent=parent,
+            status="pending_approval"
+        ).first()
+
+        if existing_enrollment:
+            return Response(
+                {
+                    "error": "Enrollment already submitted",
+                    "enrollment_id": str(existing_enrollment.enrollment_id),
+                    "status": existing_enrollment.status
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Validate and create enrollment
+        serializer = FaceEnrollmentSubmissionSerializer(data=request.data)
+        if serializer.is_valid():
+            enrollment = serializer.save(student=student, parent=parent)
+            response_serializer = FaceEnrollmentStatusSerializer(enrollment)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        responses={200: FaceEnrollmentStatusSerializer},
+        description="Check face enrollment status for child",
+    )
+    @action(detail=True, methods=["get"], url_path="face-enrollment/status")
+    def face_enrollment_status(self, request, pk=None):
+        """
+        GET /api/v1/parents/me/children/{student_id}/face-enrollment/status/
+
+        Check if face enrollment exists and its status.
+        """
+        parent = getattr(request.user, "parent_profile", None)
+        if not parent:
+            return Response(
+                {"error": "Parent record not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Verify student_id (pk) is valid
+        try:
+            student = Student.objects.get(student_id=pk)
+        except Student.DoesNotExist:
+            return Response(
+                {"error": "Student not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Security: Verify parent-student relationship
+        if not StudentParent.objects.filter(parent=parent, student=student).exists():
+            return Response(
+                {"error": "You are not authorized to view this student's enrollment status"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Get latest enrollment (most recent)
+        enrollment = FaceEnrollment.objects.filter(
+            student=student,
+            parent=parent
+        ).order_by("-submitted_at").first()
+
+        if not enrollment:
+            return Response(
+                {"status": "no_enrollment", "message": "No enrollment found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = FaceEnrollmentStatusSerializer(enrollment)
+        return Response(serializer.data)
+
+
+class FaceEnrollmentConfigView(APIView):
+    """
+    Public endpoint to get face enrollment configuration.
+
+    Parent app uses this to configure auto-capture behavior.
+    """
+
+    permission_classes = []  # Public endpoint
+
+    @extend_schema(
+        responses={200: FaceEnrollmentConfigSerializer},
+        description="Get face enrollment configuration settings",
+    )
+    def get(self, request):
+        """GET /api/v1/face-enrollment/config/ - Get enrollment config"""
+        from django.conf import settings
+
+        config_data = {
+            "min_photos": settings.FACE_ENROLLMENT_MIN_PHOTOS,
+            "max_photos": settings.FACE_ENROLLMENT_MAX_PHOTOS,
+            "max_photo_size_mb": settings.FACE_ENROLLMENT_PHOTO_MAX_SIZE_MB,
+        }
+
+        serializer = FaceEnrollmentConfigSerializer(config_data)
+        return Response(serializer.data)
 
 
 class StudentParentViewSet(viewsets.ModelViewSet):
