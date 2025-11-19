@@ -168,21 +168,30 @@ class NotificationProcessView(APIView):
         POST /api/v1/notifications/process/
         Called by Cloud Tasks.
         """
-        serializer = NotificationProcessSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            serializer = NotificationProcessSerializer(data=request.data)
+            if not serializer.is_valid():
+                logger.error(f"Invalid notification data: {serializer.errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        notification_id = serializer.validated_data["notification_id"]
+            notification_id = serializer.validated_data["notification_id"]
 
-        # Request is authenticated as CloudTasksUser
-        # Cloud Run IAM has already validated the OIDC token
-        logger.info(f"Processing notification {notification_id} from task={request.user.task_name}")
+            # Request is authenticated as CloudTasksUser
+            # Cloud Run IAM has already validated the OIDC token
+            logger.info(f"Processing notification {notification_id} from task={request.user.task_name}")
 
-        success = get_notification_service().process_notification(notification_id)
+            success = get_notification_service().process_notification(notification_id)
 
-        if success:
-            return Response({"status": "sent"})
-        else:
-            # Return 200 to prevent Cloud Tasks from retrying on permanent failures
-            # The notification status is updated in the database
-            return Response({"status": "failed"})
+            if success:
+                logger.info(f"Notification {notification_id} sent successfully")
+                return Response({"status": "sent"})
+            else:
+                logger.warning(f"Notification {notification_id} failed to send")
+                # Return 200 to prevent Cloud Tasks from retrying on permanent failures
+                # The notification status is updated in the database
+                return Response({"status": "failed"})
+
+        except Exception as e:
+            logger.error(f"Unexpected error processing notification: {e}", exc_info=True)
+            # Return 500 to trigger Cloud Tasks retry for transient errors
+            return Response({"error": "Internal server error processing notification"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
