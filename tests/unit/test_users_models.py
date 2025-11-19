@@ -109,8 +109,9 @@ class TestParentAutoCreationSignal:
         assert parent.user == user
         # Email should be real email from Firebase
         assert parent.encrypted_email == "testparent@example.com"
-        # Phone is temporary (admin will update later)
-        assert "+91" in parent.encrypted_phone
+        # Phone is unique placeholder (DB requires unique) - admin will update
+        assert parent.encrypted_phone.startswith("+91")
+        assert len(parent.encrypted_phone) == 13  # +91 + 10 digits
         # Name should be username (no first/last name set)
         assert parent.encrypted_name == "testparent"
 
@@ -162,4 +163,6 @@ class TestParentAutoCreationSignal:
         parent = Parent.objects.get(user=user)
         assert parent.encrypted_email == "john.doe@gmail.com"
         assert parent.encrypted_name == "John Doe"
-        assert "+91" in parent.encrypted_phone  # Temporary phone
+        # Phone is unique placeholder - Firebase doesn't provide phone
+        assert parent.encrypted_phone.startswith("+91")
+        assert len(parent.encrypted_phone) == 13  # +91 + 10 digits

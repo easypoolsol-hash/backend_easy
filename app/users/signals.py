@@ -140,24 +140,24 @@ def auto_create_parent_for_new_user(sender, instance, created, **kwargs):
         return
 
     # Use real user data from Firebase/Google auth
-    # Only phone needs temporary value since it's not provided by Firebase
-    temp_phone_digits = str(uuid.uuid4().int)[:10].zfill(10)
-
     # Get name from User model (first_name + last_name or username)
     if instance.first_name or instance.last_name:
         full_name = f"{instance.first_name} {instance.last_name}".strip()
     else:
         full_name = instance.username
 
+    # Generate unique temporary phone (DB requires unique values)
+    # Format: +91{first 10 digits of UUID} - clearly fake, but unique
+    temp_phone = f"+91{str(uuid.uuid4().int)[:10].zfill(10)}"
+
     try:
         parent = Parent(
             user=instance,
             approval_status="pending",
         )
-        # Set encrypted PII fields
-        # Email and name from Firebase auth, phone is temporary
+        # Set encrypted PII fields using real data from Firebase
         parent.encrypted_email = instance.email or f"no-email-{instance.username}@example.com"
-        parent.encrypted_phone = f"+91{temp_phone_digits}"  # Temporary - admin will update
+        parent.encrypted_phone = temp_phone  # Unique placeholder - admin will update during approval
         parent.encrypted_name = full_name
         parent.save()
 
