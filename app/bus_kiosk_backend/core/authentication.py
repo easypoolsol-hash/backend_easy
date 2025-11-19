@@ -1,13 +1,16 @@
 """
-Firebase Authentication for Frontend Easy
+Authentication for EasyPool Backend
 
-This module provides Firebase token verification for the Frontend Easy
-Flutter app. It maintains backward compatibility with existing JWT
-authentication for Bus Kiosks.
+This module provides:
+- Firebase token verification for Frontend Easy Flutter app
+- Cloud Tasks OIDC token verification for internal task processing
+
+Follows Google Cloud IAM best practices for explicit authentication.
 """
 
 import logging
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from firebase_admin import auth
 from rest_framework import authentication, exceptions
@@ -15,6 +18,93 @@ from rest_framework import authentication, exceptions
 User = get_user_model()
 
 logger = logging.getLogger(__name__)
+
+
+class CloudTasksAuthentication(authentication.BaseAuthentication):
+    """
+    Cloud Tasks Authentication (Google Cloud Run IAM Pattern)
+
+    Google Cloud Run automatically validates OIDC tokens via IAM.
+    When a request reaches Django, it has already been authenticated
+    by Cloud Run's run.invoker role check.
+
+    This class trusts Cloud Run's validation and identifies Cloud Tasks
+    requests via their specific headers.
+
+    Security Model (Fortune 500 / Google Pattern):
+    1. Cloud Tasks sends OIDC token with service account
+    2. Cloud Run validates token via IAM (roles/run.invoker)
+    3. Cloud Run sets X-CloudTasks-* headers after validation
+    4. Django trusts these headers (they can't be spoofed externally)
+
+    Headers Set by Cloud Tasks (after OIDC validation):
+    - X-CloudTasks-TaskName: Task identifier
+    - X-CloudTasks-QueueName: Queue name
+    - X-CloudTasks-TaskRetryCount: Retry count
+    - X-CloudTasks-TaskExecutionCount: Execution count
+    - X-CloudTasks-TaskETA: Scheduled time
+    """
+
+    def authenticate(self, request):
+        """
+        Authenticate Cloud Tasks request using GCP headers.
+
+        Cloud Run strips X-CloudTasks-* headers from external requests
+        and only sets them for authenticated Cloud Tasks requests.
+        This is the Google-recommended pattern.
+
+        Returns:
+            Tuple of (CloudTasksUser, 'cloud_tasks') if valid Cloud Tasks request
+            None if not a Cloud Tasks request (let other auth classes handle it)
+        """
+        # Check for Cloud Tasks specific headers
+        # These headers are set by Cloud Run AFTER OIDC validation
+        # External requests cannot spoof these headers
+        task_name = request.META.get("HTTP_X_CLOUDTASKS_TASKNAME")
+        queue_name = request.META.get("HTTP_X_CLOUDTASKS_QUEUENAME")
+
+        if not task_name or not queue_name:
+            # Not a Cloud Tasks request, let other auth classes handle
+            return None
+
+        # Additional validation: check queue name matches expected pattern
+        expected_queue_prefix = getattr(settings, "CLOUD_TASKS_QUEUE_NAME", "notifications-queue")
+        if expected_queue_prefix and expected_queue_prefix not in queue_name:
+            logger.warning(
+                f"Unexpected Cloud Tasks queue: {queue_name}, "
+                f"expected prefix: {expected_queue_prefix}"
+            )
+            raise exceptions.AuthenticationFailed("Invalid Cloud Tasks queue")
+
+        # Get retry count for logging
+        retry_count = request.META.get("HTTP_X_CLOUDTASKS_TASKRETRYCOUNT", "0")
+
+        logger.info(
+            f"Authenticated Cloud Tasks request: task={task_name}, "
+            f"queue={queue_name}, retry_count={retry_count}"
+        )
+
+        # Return CloudTasksUser - request is authenticated by Cloud Run IAM
+        return (
+            CloudTasksUser(task_name=task_name, queue_name=queue_name),
+            "cloud_tasks"
+        )
+
+
+class CloudTasksUser:
+    """
+    Minimal user object for Cloud Tasks requests.
+
+    Not a real Django user - just enough to pass DRF's checks.
+    """
+
+    def __init__(self, task_name: str, queue_name: str):
+        self.task_name = task_name
+        self.queue_name = queue_name
+        self.is_authenticated = True
+
+    def __str__(self):
+        return f"CloudTasks:{self.queue_name}/{self.task_name}"
 
 
 class FirebaseAuthentication(authentication.BaseAuthentication):

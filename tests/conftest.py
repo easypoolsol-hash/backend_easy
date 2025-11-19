@@ -149,8 +149,11 @@ def approved_parent_client(db):
     user.groups.clear()
     user.groups.add(parent_group)
 
-    # Create approved Parent profile linked to user
-    parent = ParentFactory(user=user, approval_status="approved")
+    # Get the auto-created Parent (from post_save signal) and update it
+    from students.models import Parent
+    parent = Parent.objects.get(user=user)
+    parent.approval_status = "approved"
+    parent.save()
 
     # Create authenticated client
     client = APIClient()
@@ -175,8 +178,11 @@ def unapproved_parent_client(db):
     user.groups.clear()
     user.groups.add(parent_group)
 
-    # Pending approval status
-    parent = ParentFactory(user=user, approval_status="pending")
+    # Get the auto-created Parent (from post_save signal) and update it
+    from students.models import Parent
+    parent = Parent.objects.get(user=user)
+    parent.approval_status = "pending"
+    parent.save()
 
     client = APIClient()
     client.force_authenticate(user=user)

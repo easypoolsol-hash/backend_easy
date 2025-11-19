@@ -2,7 +2,51 @@ import logging
 
 from rest_framework.permissions import BasePermission
 
+from bus_kiosk_backend.core.authentication import CloudTasksUser
+
 logger = logging.getLogger(__name__)
+
+
+class IsCloudTasksRequest(BasePermission):
+    """
+    Permission: Allow ONLY authenticated Cloud Tasks requests.
+
+    Google Cloud IAM Pattern:
+    - Cloud Run validates OIDC token (roles/run.invoker)
+    - CloudTasksAuthentication identifies the request via headers
+    - This permission explicitly allows Cloud Tasks users
+
+    ALLOWED (Explicit):
+    - Requests authenticated as CloudTasksUser
+
+    DENIED (Everything Else):
+    - Regular users (Firebase auth)
+    - Kiosks
+    - Unauthenticated requests
+    - Any other case
+
+    IAM Principle: Deny by default, grant explicitly for internal services.
+    """
+
+    def has_permission(self, request, view):
+        # Check if authenticated as Cloud Tasks
+        if not request.user or not request.user.is_authenticated:
+            logger.warning("IsCloudTasksRequest: Not authenticated")
+            return False
+
+        # Check if it's a CloudTasksUser
+        if not isinstance(request.user, CloudTasksUser):
+            logger.warning(
+                f"IsCloudTasksRequest DENIED: user type={type(request.user).__name__}, "
+                f"expected=CloudTasksUser"
+            )
+            return False
+
+        logger.debug(
+            f"IsCloudTasksRequest ALLOWED: task={request.user.task_name}, "
+            f"queue={request.user.queue_name}"
+        )
+        return True
 
 
 class DenyByDefault(BasePermission):

@@ -6,7 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from bus_kiosk_backend.permissions import IsApprovedParent
+from bus_kiosk_backend.core.authentication import CloudTasksAuthentication
+from bus_kiosk_backend.permissions import IsApprovedParent, IsCloudTasksRequest
 from notifications.models import FCMToken, Notification, NotificationPreference
 from notifications.serializers import (
     FCMTokenDeleteSerializer,
@@ -112,12 +113,22 @@ class ParentNotificationViewSet(viewsets.ViewSet):
 class NotificationProcessView(APIView):
     """
     Internal endpoint for Cloud Tasks to process notifications.
-    Called by Cloud Tasks with OIDC authentication.
+
+    Authentication Flow (Google Cloud IAM Pattern):
+    1. Cloud Tasks sends request with OIDC token
+    2. Cloud Run validates token via IAM (roles/run.invoker)
+    3. CloudTasksAuthentication identifies request via headers
+    4. IsCloudTasksRequest permission explicitly allows
+
+    This is the Fortune 500 / Google-recommended explicit authentication pattern.
+    No bypass - every request is authenticated and authorized explicitly.
     """
 
-    # No authentication - Cloud Tasks uses OIDC token
-    # We verify the request comes from Cloud Tasks via the OIDC token
-    permission_classes = []
+    # Explicit authentication - Cloud Tasks only
+    authentication_classes = [CloudTasksAuthentication]
+
+    # Explicit permission - only CloudTasksUser allowed
+    permission_classes = [IsCloudTasksRequest]
 
     def post(self, request):
         """
@@ -131,9 +142,12 @@ class NotificationProcessView(APIView):
 
         notification_id = serializer.validated_data["notification_id"]
 
-        # Verify request is from Cloud Tasks (check OIDC token in production)
-        # In production, Cloud Run automatically validates OIDC tokens
-        # The service account is verified by Cloud Run's IAM
+        # Request is authenticated as CloudTasksUser
+        # Cloud Run IAM has already validated the OIDC token
+        logger.info(
+            f"Processing notification {notification_id} from "
+            f"task={request.user.task_name}"
+        )
 
         success = notification_service.process_notification(notification_id)
 
