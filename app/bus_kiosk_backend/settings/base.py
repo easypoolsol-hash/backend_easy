@@ -427,3 +427,11 @@ CLOUD_TASKS_SERVICE_ACCOUNT = os.getenv("CLOUD_TASKS_SERVICE_ACCOUNT", "easypool
 
 # Backend URL for Cloud Tasks callbacks
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+# Face Enrollment Configuration
+# Configurable settings for parent face enrollment (auto-capture mode)
+# Parents use camera to scan student face - app auto-captures multiple photos
+# These settings control how many photos are captured per enrollment session
+FACE_ENROLLMENT_MIN_PHOTOS = int(os.getenv("FACE_ENROLLMENT_MIN_PHOTOS", "3"))
+FACE_ENROLLMENT_MAX_PHOTOS = int(os.getenv("FACE_ENROLLMENT_MAX_PHOTOS", "5"))
+FACE_ENROLLMENT_PHOTO_MAX_SIZE_MB = int(os.getenv("FACE_ENROLLMENT_PHOTO_MAX_SIZE_MB", "5"))
