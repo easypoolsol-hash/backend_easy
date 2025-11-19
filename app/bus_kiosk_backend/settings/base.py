@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     "events",
     "kiosks",
     "realtime",  # Real-time WebSocket communication
+    "notifications",  # Push notifications for parents
 ]
 
 # Custom user model
@@ -412,3 +413,17 @@ try:
 except (ImportError, ValueError, KeyError) as e:
     print(f"[FIREBASE] Firebase initialization skipped: {e}")
     pass  # Firebase optional in local/CI environments
+
+# Google Cloud Tasks Configuration for async notifications
+# These are overridden in environment-specific settings
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "easypool-backend")
+GCP_REGION = os.getenv("GCP_REGION", "asia-south1")
+
+# Cloud Tasks queue name (environment-specific)
+CLOUD_TASKS_QUEUE_NAME = os.getenv("CLOUD_TASKS_QUEUE_NAME", "notifications-queue-dev")
+
+# Service account for Cloud Tasks to invoke Cloud Run
+CLOUD_TASKS_SERVICE_ACCOUNT = os.getenv("CLOUD_TASKS_SERVICE_ACCOUNT", "easypool-cloud-run-sa@easypool-backend.iam.gserviceaccount.com")
+
+# Backend URL for Cloud Tasks callbacks
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")

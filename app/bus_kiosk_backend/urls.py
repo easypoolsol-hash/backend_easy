@@ -174,6 +174,7 @@ urlpatterns += [
                 path("", include("buses.urls")),
                 path("", include("kiosks.urls")),
                 path("", include("events.urls")),
+                path("", include("notifications.urls")),  # Parent push notifications
                 # School dashboard API (for Flutter frontend)
                 path("school/api/bus-locations/", bus_locations_api, name="school-bus-locations"),
                 # path("school/", include("school_dashboard.urls")),  # ARCHIVED: Replaced by Flutter
