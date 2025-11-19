@@ -242,11 +242,13 @@ class Parent(models.Model):
     )
 
     phone: models.TextField = models.TextField(
-        unique=True,
+        null=True,
+        blank=True,
         help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)",
     )
     email: models.TextField = models.TextField(
-        unique=True,
+        null=True,
+        blank=True,
         help_text="Encrypted email address (plaintext validated per RFC 5321)",
     )
     name: models.TextField = models.TextField(help_text="Encrypted name (plaintext validated max 100 chars)")

@@ -14,7 +14,6 @@ Usage:
 """
 
 import logging
-import uuid
 
 from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import post_save
@@ -146,18 +145,17 @@ def auto_create_parent_for_new_user(sender, instance, created, **kwargs):
     else:
         full_name = instance.username
 
-    # Generate unique temporary phone (DB requires unique values)
-    # Format: +91{first 10 digits of UUID} - clearly fake, but unique
-    temp_phone = f"+91{str(uuid.uuid4().int)[:10].zfill(10)}"
-
     try:
         parent = Parent(
             user=instance,
             approval_status="pending",
         )
         # Set encrypted PII fields using real data from Firebase
-        parent.encrypted_email = instance.email or f"no-email-{instance.username}@example.com"
-        parent.encrypted_phone = temp_phone  # Unique placeholder - admin will update during approval
+        # Email from Firebase auth (if available)
+        if instance.email:
+            parent.encrypted_email = instance.email
+        # Phone: Not set during auto-creation (admin will add during approval)
+        # Name from Firebase auth
         parent.encrypted_name = full_name
         parent.save()
 
