@@ -70,25 +70,16 @@ class CloudTasksAuthentication(authentication.BaseAuthentication):
         # Additional validation: check queue name matches expected pattern
         expected_queue_prefix = getattr(settings, "CLOUD_TASKS_QUEUE_NAME", "notifications-queue")
         if expected_queue_prefix and expected_queue_prefix not in queue_name:
-            logger.warning(
-                f"Unexpected Cloud Tasks queue: {queue_name}, "
-                f"expected prefix: {expected_queue_prefix}"
-            )
+            logger.warning(f"Unexpected Cloud Tasks queue: {queue_name}, expected prefix: {expected_queue_prefix}")
             raise exceptions.AuthenticationFailed("Invalid Cloud Tasks queue")
 
         # Get retry count for logging
         retry_count = request.META.get("HTTP_X_CLOUDTASKS_TASKRETRYCOUNT", "0")
 
-        logger.info(
-            f"Authenticated Cloud Tasks request: task={task_name}, "
-            f"queue={queue_name}, retry_count={retry_count}"
-        )
+        logger.info(f"Authenticated Cloud Tasks request: task={task_name}, queue={queue_name}, retry_count={retry_count}")
 
         # Return CloudTasksUser - request is authenticated by Cloud Run IAM
-        return (
-            CloudTasksUser(task_name=task_name, queue_name=queue_name),
-            "cloud_tasks"
-        )
+        return (CloudTasksUser(task_name=task_name, queue_name=queue_name), "cloud_tasks")
 
 
 class CloudTasksUser:
@@ -96,15 +87,28 @@ class CloudTasksUser:
     Minimal user object for Cloud Tasks requests.
 
     Not a real Django user - just enough to pass DRF's checks.
+    Implements required Django user interface attributes.
     """
 
     def __init__(self, task_name: str, queue_name: str):
         self.task_name = task_name
         self.queue_name = queue_name
         self.is_authenticated = True
+        self.is_active = True
+        self.is_anonymous = False
+        self.pk = None  # Cloud Tasks user has no database ID
+        self.id = None
 
     def __str__(self):
         return f"CloudTasks:{self.queue_name}/{self.task_name}"
+
+    @property
+    def is_staff(self):
+        return False
+
+    @property
+    def is_superuser(self):
+        return False
 
 
 class FirebaseAuthentication(authentication.BaseAuthentication):
