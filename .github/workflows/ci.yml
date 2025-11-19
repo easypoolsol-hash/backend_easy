@@ -188,9 +188,11 @@ jobs:
       always() &&
       needs.show-path.outputs.environment == 'dev' &&
       needs.build.result == 'success' &&
-      (needs.tests.result == 'success' || needs.tests.result == 'skipped') &&
-      (needs.security.result == 'success' || needs.security.result == 'skipped') &&
-      (needs.smoke.result == 'success' || needs.smoke.result == 'skipped')
+      (needs.show-path.outputs.fast_lane == 'true' || (
+        (needs.tests.result == 'success' || needs.tests.result == 'skipped') &&
+        (needs.security.result == 'success' || needs.security.result == 'skipped') &&
+        (needs.smoke.result == 'success' || needs.smoke.result == 'skipped')
+      ))
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/load-from-cache
