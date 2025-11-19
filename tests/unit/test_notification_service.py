@@ -6,12 +6,11 @@ Uses mocking for external services (Cloud Tasks, FCM).
 Follows Google testing patterns with pytest.param for clear test IDs.
 """
 
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-from datetime import datetime
 import pytest
 
-from notifications.models import Notification
 from notifications.services import NotificationService
 from tests.factories import (
     FCMTokenFactory,
@@ -36,18 +35,17 @@ class TestNotificationService:
         service = NotificationService()
 
         # Act
-        with patch.object(
-            service.cloud_task_service, "queue_notification", return_value=True
-        ):
-            notification = service.create_boarding_notification(
+        with patch.object(service.cloud_task_service, "queue_notification", return_value=True):
+            notifications = service.create_boarding_notification(
                 student=student,
                 event_type="boarding",
                 timestamp=datetime.fromisoformat("2025-11-19T21:30:00+05:30"),
                 bus_route="test-route-123",
             )
 
-        # Assert
-        assert notification is not None
+        # Assert - returns list of notifications (one per parent)
+        assert len(notifications) == 1
+        notification = notifications[0]
         assert notification.status == "queued"
         assert notification.parent == parent
         assert notification.student == student
@@ -64,20 +62,21 @@ class TestNotificationService:
         from notifications.models import NotificationPreference
 
         NotificationPreference.objects.create(
-            parent=parent, boarding=False  # Disabled
+            parent=parent,
+            boarding=False,  # Disabled
         )
 
         service = NotificationService()
 
         # Act
-        notification = service.create_boarding_notification(
+        notifications = service.create_boarding_notification(
             student=student,
             event_type="boarding",
             timestamp=datetime.fromisoformat("2025-11-19T21:30:00+05:30"),
         )
 
-        # Assert
-        assert notification is None  # Not created due to preferences
+        # Assert - returns empty list when preferences disabled
+        assert notifications == []
 
     @pytest.mark.parametrize(
         "initial_status,expected_after_send",
@@ -86,17 +85,13 @@ class TestNotificationService:
             pytest.param("pending", "sent", id="pending_to_sent"),
         ],
     )
-    def test_process_notification_status_transitions(
-        self, initial_status, expected_after_send
-    ):
+    def test_process_notification_status_transitions(self, initial_status, expected_after_send):
         """Process notification updates status to sent"""
         # Arrange
         parent = ParentFactory()
         FCMTokenFactory(parent=parent)  # Parent has FCM token
 
-        notification = NotificationFactory(
-            parent=parent, status=initial_status
-        )
+        notification = NotificationFactory(parent=parent, status=initial_status)
 
         service = NotificationService()
 
@@ -197,9 +192,13 @@ class TestFCMService:
 
         service = FCMService()
 
-        # Act
-        with patch("firebase_admin.messaging.send") as mock_send:
-            mock_send.return_value = "projects/test/messages/123"
+        # Act - mock send_each_for_multicast (what the service actually uses)
+        with patch("firebase_admin.messaging.send_each_for_multicast") as mock_send:
+            mock_response = MagicMock()
+            mock_response.success_count = 1
+            mock_response.failure_count = 0
+            mock_response.responses = []
+            mock_send.return_value = mock_response
             success = service.send_to_parent(parent, notification)
 
         # Assert
@@ -235,7 +234,7 @@ class TestFCMService:
         service = FCMService()
 
         # Act
-        with patch("firebase_admin.messaging.send") as mock_send:
+        with patch("firebase_admin.messaging.send_each_for_multicast") as mock_send:
             mock_send.side_effect = Exception("FCM API error")
             success = service.send_to_parent(parent, notification)
 

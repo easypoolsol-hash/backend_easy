@@ -94,10 +94,10 @@ def publish_boarding_event(sender, instance, created, **kwargs):
     # Send push notifications to parents
     # Runs async via Cloud Tasks to avoid blocking
     try:
-        from notifications.services import notification_service
+        from notifications.services import get_notification_service
 
         event_type = instance.metadata.get("event_type", "boarding")
-        notification_service.create_boarding_notification(
+        get_notification_service().create_boarding_notification(
             student=student,
             event_type=event_type,
             timestamp=instance.timestamp,

@@ -16,7 +16,7 @@ from notifications.serializers import (
     NotificationProcessSerializer,
     NotificationSerializer,
 )
-from notifications.services import notification_service
+from notifications.services import get_notification_service
 
 logger = logging.getLogger(__name__)
 
@@ -144,12 +144,9 @@ class NotificationProcessView(APIView):
 
         # Request is authenticated as CloudTasksUser
         # Cloud Run IAM has already validated the OIDC token
-        logger.info(
-            f"Processing notification {notification_id} from "
-            f"task={request.user.task_name}"
-        )
+        logger.info(f"Processing notification {notification_id} from task={request.user.task_name}")
 
-        success = notification_service.process_notification(notification_id)
+        success = get_notification_service().process_notification(notification_id)
 
         if success:
             return Response({"status": "sent"})
