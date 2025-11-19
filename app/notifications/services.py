@@ -255,7 +255,31 @@ class NotificationService:
             return False
 
 
-# Singleton instances for easy import
-cloud_task_service = CloudTaskService()
-fcm_service = FCMService()
-notification_service = NotificationService()
+# Lazy singleton instances to avoid import-time GCP client creation
+_cloud_task_service = None
+_fcm_service = None
+_notification_service = None
+
+
+def get_cloud_task_service():
+    """Get or create CloudTaskService singleton."""
+    global _cloud_task_service
+    if _cloud_task_service is None:
+        _cloud_task_service = CloudTaskService()
+    return _cloud_task_service
+
+
+def get_fcm_service():
+    """Get or create FCMService singleton."""
+    global _fcm_service
+    if _fcm_service is None:
+        _fcm_service = FCMService()
+    return _fcm_service
+
+
+def get_notification_service():
+    """Get or create NotificationService singleton."""
+    global _notification_service
+    if _notification_service is None:
+        _notification_service = NotificationService()
+    return _notification_service
