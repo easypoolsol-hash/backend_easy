@@ -24,7 +24,6 @@ from .models import (  # FaceEmbeddingMetadata removed - no API endpoint needed
 from .serializers import (
     # FaceEmbeddingMetadataSerializer removed - no API endpoint needed
     # BusSerializer removed - Use buses.serializers.BusSerializer instead
-    FaceEnrollmentConfigSerializer,
     FaceEnrollmentStatusSerializer,
     FaceEnrollmentSubmissionSerializer,
     ParentSerializer,
@@ -481,18 +480,14 @@ class ParentMeViewSet(viewsets.ViewSet):
             )
 
         # Check if enrollment already exists
-        existing_enrollment = FaceEnrollment.objects.filter(
-            student=student,
-            parent=parent,
-            status="pending_approval"
-        ).first()
+        existing_enrollment = FaceEnrollment.objects.filter(student=student, parent=parent, status="pending_approval").first()
 
         if existing_enrollment:
             return Response(
                 {
                     "error": "Enrollment already submitted",
                     "enrollment_id": str(existing_enrollment.enrollment_id),
-                    "status": existing_enrollment.status
+                    "status": existing_enrollment.status,
                 },
                 status=status.HTTP_409_CONFLICT,
             )
@@ -541,10 +536,7 @@ class ParentMeViewSet(viewsets.ViewSet):
             )
 
         # Get latest enrollment (most recent)
-        enrollment = FaceEnrollment.objects.filter(
-            student=student,
-            parent=parent
-        ).order_by("-submitted_at").first()
+        enrollment = FaceEnrollment.objects.filter(student=student, parent=parent).order_by("-submitted_at").first()
 
         if not enrollment:
             return Response(
@@ -553,33 +545,6 @@ class ParentMeViewSet(viewsets.ViewSet):
             )
 
         serializer = FaceEnrollmentStatusSerializer(enrollment)
-        return Response(serializer.data)
-
-
-class FaceEnrollmentConfigView(APIView):
-    """
-    Public endpoint to get face enrollment configuration.
-
-    Parent app uses this to configure auto-capture behavior.
-    """
-
-    permission_classes = []  # Public endpoint
-
-    @extend_schema(
-        responses={200: FaceEnrollmentConfigSerializer},
-        description="Get face enrollment configuration settings",
-    )
-    def get(self, request):
-        """GET /api/v1/face-enrollment/config/ - Get enrollment config"""
-        from django.conf import settings
-
-        config_data = {
-            "min_photos": settings.FACE_ENROLLMENT_MIN_PHOTOS,
-            "max_photos": settings.FACE_ENROLLMENT_MAX_PHOTOS,
-            "max_photo_size_mb": settings.FACE_ENROLLMENT_PHOTO_MAX_SIZE_MB,
-        }
-
-        serializer = FaceEnrollmentConfigSerializer(config_data)
         return Response(serializer.data)
 
 

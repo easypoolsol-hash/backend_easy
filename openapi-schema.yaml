@@ -1837,6 +1837,62 @@ paths:
               schema:
                 $ref: '#/components/schemas/Parent'
           description: ''
+  /api/v1/parents/me/{id}/face-enrollment/status/:
+    get:
+      operationId: api_v1_parents_me_face_enrollment_status_retrieve
+      description: Check face enrollment status for child
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceEnrollmentStatus'
+          description: ''
+  /api/v1/parents/me/{id}/face-enrollment/submit/:
+    post:
+      operationId: api_v1_parents_me_face_enrollment_submit_create
+      description: Submit face enrollment photos for child
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmission'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceEnrollmentStatus'
+          description: ''
   /api/v1/parents/me/{id}/read/:
     post:
       operationId: api_v1_parents_me_read_create
@@ -3989,6 +4045,67 @@ components:
       - log_level
       - message
       - timestamp
+    FaceEnrollmentStatus:
+      type: object
+      description: Serializer for checking enrollment status
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          enum:
+          - pending_approval
+          - approved
+          - rejected
+          type: string
+          x-spec-enum-id: 85cd7db90e71a6ab
+          readOnly: true
+          description: |-
+            Approval status
+
+            * `pending_approval` - Pending Approval
+            * `approved` - Approved
+            * `rejected` - Rejected
+        photo_count:
+          type: integer
+          readOnly: true
+          description: Number of photos in this enrollment
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When parent submitted enrollment
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When enrollment was reviewed
+      required:
+      - enrollment_id
+      - photo_count
+      - reviewed_at
+      - status
+      - submitted_at
+    FaceEnrollmentSubmission:
+      type: object
+      description: |-
+        Serializer for parent face enrollment photo submission.
+
+        Parent app auto-captures 3-5 photos and submits as base64-encoded images.
+        This serializer validates the submission and creates a FaceEnrollment record.
+      properties:
+        photos:
+          type: array
+          items:
+            type: string
+          description: Array of base64-encoded photos from auto-capture
+          minItems: 1
+        device_info:
+          description: Device metadata (model, OS, app version, etc.)
+      required:
+      - photos
     Group:
       type: object
       description: |-

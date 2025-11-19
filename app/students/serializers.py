@@ -323,50 +323,38 @@ class FaceEnrollmentSubmissionSerializer(serializers.Serializer):
     photos = serializers.ListField(
         child=serializers.CharField(),  # Base64-encoded image string
         min_length=1,
-        help_text="Array of base64-encoded photos from auto-capture"
+        help_text="Array of base64-encoded photos from auto-capture",
     )
-    device_info = serializers.JSONField(
-        required=False,
-        default=dict,
-        help_text="Device metadata (model, OS, app version, etc.)"
-    )
+    device_info = serializers.JSONField(required=False, default=dict, help_text="Device metadata (model, OS, app version, etc.)")
 
     def validate_photos(self, value):
         """Validate photo count against settings"""
-        from django.conf import settings
         import base64
+
+        from django.conf import settings
 
         min_photos = settings.FACE_ENROLLMENT_MIN_PHOTOS
         max_photos = settings.FACE_ENROLLMENT_MAX_PHOTOS
 
         if len(value) < min_photos:
-            raise serializers.ValidationError(
-                f"Minimum {min_photos} photos required (got {len(value)})"
-            )
+            raise serializers.ValidationError(f"Minimum {min_photos} photos required (got {len(value)})")
 
         if len(value) > max_photos:
-            raise serializers.ValidationError(
-                f"Maximum {max_photos} photos allowed (got {len(value)})"
-            )
+            raise serializers.ValidationError(f"Maximum {max_photos} photos allowed (got {len(value)})")
 
         # Validate each photo is valid base64
         for idx, photo in enumerate(value):
             try:
                 base64.b64decode(photo)
             except Exception:
-                raise serializers.ValidationError(
-                    f"Photo {idx + 1} is not valid base64-encoded data"
-                )
+                raise serializers.ValidationError(f"Photo {idx + 1} is not valid base64-encoded data") from None
 
         return value
 
     def create(self, validated_data):
         """Create FaceEnrollment record"""
         # Convert base64 photos to JSON format for storage
-        photos_data = [
-            {"data": photo, "content_type": "image/jpeg"}
-            for photo in validated_data["photos"]
-        ]
+        photos_data = [{"data": photo, "content_type": "image/jpeg"} for photo in validated_data["photos"]]
 
         enrollment = FaceEnrollment.objects.create(
             student=validated_data["student"],
@@ -374,7 +362,7 @@ class FaceEnrollmentSubmissionSerializer(serializers.Serializer):
             photos_data=photos_data,
             photo_count=len(photos_data),
             device_info=validated_data.get("device_info", {}),
-            status="pending_approval"
+            status="pending_approval",
         )
 
         return enrollment
@@ -393,15 +381,3 @@ class FaceEnrollmentStatusSerializer(serializers.ModelSerializer):
             "reviewed_at",
         ]
         read_only_fields = fields
-
-
-class FaceEnrollmentConfigSerializer(serializers.Serializer):
-    """
-    Serializer for enrollment configuration settings.
-
-    Used by parent app to configure auto-capture behavior.
-    """
-
-    min_photos = serializers.IntegerField()
-    max_photos = serializers.IntegerField()
-    max_photo_size_mb = serializers.IntegerField()
