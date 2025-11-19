@@ -139,21 +139,26 @@ def auto_create_parent_for_new_user(sender, instance, created, **kwargs):
         logger.debug(f"Parent record already exists for user {instance.username}")
         return
 
-    # Create Parent with temporary encrypted values
-    # Admin will update these during approval process
-    temp_suffix = uuid.uuid4().hex[:8]
-    # Generate valid 10-digit phone number from UUID
+    # Use real user data from Firebase/Google auth
+    # Only phone needs temporary value since it's not provided by Firebase
     temp_phone_digits = str(uuid.uuid4().int)[:10].zfill(10)
+
+    # Get name from User model (first_name + last_name or username)
+    if instance.first_name or instance.last_name:
+        full_name = f"{instance.first_name} {instance.last_name}".strip()
+    else:
+        full_name = instance.username
 
     try:
         parent = Parent(
             user=instance,
             approval_status="pending",
         )
-        # Set encrypted PII fields (required by model)
-        parent.encrypted_email = f"pending-{temp_suffix}@example.com"
-        parent.encrypted_phone = f"+91{temp_phone_digits}"
-        parent.encrypted_name = f"Pending User {instance.username}"
+        # Set encrypted PII fields
+        # Email and name from Firebase auth, phone is temporary
+        parent.encrypted_email = instance.email or f"no-email-{instance.username}@example.com"
+        parent.encrypted_phone = f"+91{temp_phone_digits}"  # Temporary - admin will update
+        parent.encrypted_name = full_name
         parent.save()
 
         logger.info(f"✅ Auto-created Parent record for new user: {instance.username} (parent_id: {parent.parent_id}, status: pending)")

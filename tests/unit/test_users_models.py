@@ -97,7 +97,7 @@ class TestParentAutoCreationSignal:
     """Test auto-creation of Parent record when User is created"""
 
     def test_parent_auto_created_on_user_creation(self):
-        """Test that Parent record is auto-created when new User is created"""
+        """Test that Parent record is auto-created with real user data"""
         # Create a new user (simulating Firebase signup)
         user = User.objects.create_user(username="testparent", email="testparent@example.com", password="testpass123")
 
@@ -107,9 +107,12 @@ class TestParentAutoCreationSignal:
         parent = Parent.objects.get(user=user)
         assert parent.approval_status == "pending"
         assert parent.user == user
-        assert "pending-" in parent.encrypted_email
+        # Email should be real email from Firebase
+        assert parent.encrypted_email == "testparent@example.com"
+        # Phone is temporary (admin will update later)
         assert "+91" in parent.encrypted_phone
-        assert "Pending User" in parent.encrypted_name
+        # Name should be username (no first/last name set)
+        assert parent.encrypted_name == "testparent"
 
     def test_parent_not_created_on_user_update(self):
         """Test that Parent is not created again on user update"""
@@ -143,3 +146,20 @@ class TestParentAutoCreationSignal:
         # Count should be same
         final_count = Parent.objects.filter(user=user).count()
         assert initial_count == final_count
+
+    def test_parent_uses_real_name_from_google_auth(self):
+        """Test that Parent uses real first_name and last_name from Google signup"""
+        # Create user with first_name and last_name (simulating Google signup)
+        user = User.objects.create_user(
+            username="johndoe123",
+            email="john.doe@gmail.com",
+            password="testpass123",
+            first_name="John",
+            last_name="Doe",
+        )
+
+        # Check that Parent was auto-created with real name
+        parent = Parent.objects.get(user=user)
+        assert parent.encrypted_email == "john.doe@gmail.com"
+        assert parent.encrypted_name == "John Doe"
+        assert "+91" in parent.encrypted_phone  # Temporary phone
