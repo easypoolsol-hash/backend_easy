@@ -161,7 +161,7 @@ class StudentPhoto(models.Model):
     student: models.ForeignKey = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="photos")
 
     # Track if photo was submitted by parent (via face enrollment)
-    submitted_by_parent: models.ForeignKey = models.ForeignKey(
+    submitted_by_parent = models.ForeignKey(  # type: ignore[misc]
         "Parent",  # String reference - Parent defined later in file
         on_delete=models.SET_NULL,
         null=True,
@@ -593,7 +593,7 @@ class FaceEnrollment(models.Model):
         default=timezone.now,
         help_text="When parent submitted enrollment"
     )
-    reviewed_by: models.ForeignKey = models.ForeignKey(
+    reviewed_by = models.ForeignKey(  # type: ignore[misc]
         "users.User",
         on_delete=models.SET_NULL,
         null=True,
