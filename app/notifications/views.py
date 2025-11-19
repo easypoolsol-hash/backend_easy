@@ -40,61 +40,56 @@ class ParentNotificationViewSet(viewsets.ViewSet):
         Google IAM Pattern: Infrastructure vs Business permissions.
 
         Infrastructure (device management) - Authenticated only:
-        - register_fcm_token: Device identifier, not business data
-        - delete_fcm_token: Device cleanup
+        - manage_fcm_token: Device identifier, not business data
 
         Business (sensitive data) - Approved parent required:
         - notification_preferences: Business feature toggles
         - list_notifications: Sensitive student data
         - mark_as_read: Notification tracking
         """
-        if self.action in ["register_fcm_token", "delete_fcm_token"]:
-            # Infrastructure: Any authenticated user can register device
+        if self.action == "manage_fcm_token":
+            # Infrastructure: Any authenticated user can manage device tokens
             return [IsAuthenticated()]
         # Business: Requires approved parent
         return [IsAuthenticated(), IsApprovedParent()]
 
-    @action(detail=False, methods=["post"], url_path="fcm-tokens")
-    def register_fcm_token(self, request):
+    @action(detail=False, methods=["post", "delete"], url_path="fcm-tokens")
+    def manage_fcm_token(self, request):
         """
-        Register FCM token for push notifications.
-        POST /api/v1/parents/me/fcm-tokens/
+        Manage FCM tokens for push notifications.
+        POST /api/v1/parents/me/fcm-tokens/ - Register token
+        DELETE /api/v1/parents/me/fcm-tokens/ - Delete token
 
         Google Pattern: Infrastructure operation - works for authenticated users.
-        Parent may have "pending" approval status - that's OK for device registration.
+        Parent may have "pending" approval status - that's OK for device management.
         """
-        serializer = FCMTokenSerializer(data=request.data, context={"request": request})
-        if serializer.is_valid():
-            fcm_token = serializer.save()
-            logger.info(f"FCM token registered for parent {fcm_token.parent.parent_id} (approval_status={fcm_token.parent.approval_status})")
-            return Response({"message": "FCM token registered successfully"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if request.method == "POST":
+            # Register FCM token
+            serializer = FCMTokenSerializer(data=request.data, context={"request": request})
+            if serializer.is_valid():
+                fcm_token = serializer.save()
+                logger.info(f"FCM token registered for parent {fcm_token.parent.parent_id} (approval_status={fcm_token.parent.approval_status})")
+                return Response({"message": "FCM token registered successfully"}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=["delete"], url_path="fcm-tokens")
-    def delete_fcm_token(self, request):
-        """
-        Delete FCM token (user opt-out of notifications).
-        DELETE /api/v1/parents/me/fcm-tokens/
+        elif request.method == "DELETE":
+            # Delete FCM token (user opt-out)
+            # Google Pattern: This is for explicit opt-out, NOT called on normal logout
+            if not hasattr(request.user, "parent_profile") or not request.user.parent_profile:
+                return Response({"error": "Parent profile not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-        Google Pattern: Infrastructure operation, no approval required.
-        Note: This is for explicit opt-out, NOT called on normal logout.
-        """
-        # Get parent profile (may be pending)
-        if not hasattr(request.user, "parent_profile") or not request.user.parent_profile:
-            return Response({"error": "Parent profile not found"}, status=status.HTTP_400_BAD_REQUEST)
+            parent = request.user.parent_profile
 
-        parent = request.user.parent_profile
+            serializer = FCMTokenDeleteSerializer(data=request.data)
+            if serializer.is_valid():
+                token = serializer.validated_data["token"]
+                deleted_count, _ = FCMToken.objects.filter(parent=parent, token=token).delete()
 
-        serializer = FCMTokenDeleteSerializer(data=request.data)
-        if serializer.is_valid():
-            token = serializer.validated_data["token"]
-            deleted_count, _ = FCMToken.objects.filter(parent=parent, token=token).delete()
-
-            if deleted_count > 0:
-                logger.info(f"FCM token deleted for parent {parent.parent_id}")
-                return Response({"message": "FCM token deleted successfully"}, status=status.HTTP_200_OK)
-            return Response({"error": "Token not found"}, status=status.HTTP_404_NOT_FOUND)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                if deleted_count > 0:
+                    logger.info(f"FCM token deleted for parent {parent.parent_id}")
+                    return Response({"message": "FCM token deleted successfully"}, status=status.HTTP_200_OK)
+                return Response({"error": "Token not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["get", "patch"], url_path="notification-preferences")
     def notification_preferences(self, request):
