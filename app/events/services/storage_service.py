@@ -16,7 +16,7 @@ Typical usage example:
 from datetime import timedelta
 import os
 
-from google.cloud import storage
+from google.cloud import storage  # type: ignore[attr-defined]
 
 from ..models import MAX_CONFIRMATION_FACES
 
