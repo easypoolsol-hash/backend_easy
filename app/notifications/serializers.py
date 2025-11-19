@@ -4,17 +4,29 @@ from notifications.models import FCMToken, Notification, NotificationPreference
 
 
 class FCMTokenSerializer(serializers.ModelSerializer):
-    """Serializer for registering/managing FCM tokens."""
+    """
+    Serializer for registering/managing FCM tokens.
+
+    Google Pattern: Infrastructure operation - works for any authenticated user.
+    Parent record auto-created by signal on user creation (pending status).
+    """
 
     class Meta:
         model = FCMToken
         fields = ["token", "platform"]
 
     def create(self, validated_data):
-        parent = self.context["request"].user.parent_profile
+        user = self.context["request"].user
         token = validated_data["token"]
 
-        # Update or create token
+        # Get parent profile (auto-created by signal)
+        if not hasattr(user, "parent_profile") or not user.parent_profile:
+            raise serializers.ValidationError("Parent profile not found. Please contact support.")
+
+        parent = user.parent_profile
+
+        # Google Pattern: update_or_create handles duplicate tokens gracefully
+        # Same token = update timestamp, Different token = new device
         fcm_token, _created = FCMToken.objects.update_or_create(
             token=token,
             defaults={

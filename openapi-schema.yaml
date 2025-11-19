@@ -2028,6 +2028,9 @@ paths:
       description: |-
         Register FCM token for push notifications.
         POST /api/v1/parents/me/fcm-tokens/
+
+        Google Pattern: Infrastructure operation - works for authenticated users.
+        Parent may have "pending" approval status - that's OK for device registration.
       tags:
       - api
       security:
@@ -2039,8 +2042,11 @@ paths:
     delete:
       operationId: api_v1_parents_me_fcm_tokens_destroy
       description: |-
-        Delete FCM token on logout.
+        Delete FCM token (user opt-out of notifications).
         DELETE /api/v1/parents/me/fcm-tokens/
+
+        Google Pattern: Infrastructure operation, no approval required.
+        Note: This is for explicit opt-out, NOT called on normal logout.
       tags:
       - api
       security:
