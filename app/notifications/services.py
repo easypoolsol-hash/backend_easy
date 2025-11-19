@@ -145,8 +145,8 @@ class NotificationService:
     """Main service to create and send notifications."""
 
     def __init__(self):
-        self.cloud_task_service = CloudTaskService()
-        self.fcm_service = FCMService()
+        self.cloud_task_service = get_cloud_task_service()
+        self.fcm_service = get_fcm_service()
 
     def create_boarding_notification(
         self,
