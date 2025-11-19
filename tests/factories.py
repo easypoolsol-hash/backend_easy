@@ -26,6 +26,7 @@ from buses.models import Bus, Route, RouteWaypoint, Waypoint
 from kiosks.models import Kiosk
 from students.models import (
     FaceEmbeddingMetadata,
+    FaceEnrollment,
     Parent,
     School,
     Student,
@@ -312,3 +313,49 @@ class FaceEmbeddingMetadataFactory(DjangoModelFactory):
     is_primary = True
     quality_score = 0.90
     captured_at = factory.LazyFunction(timezone.now)
+
+
+class FaceEnrollmentFactory(DjangoModelFactory):
+    """
+    Factory for creating test face enrollment submissions
+
+    Usage:
+        # Create pending enrollment
+        enrollment = FaceEnrollmentFactory()
+
+        # Create approved enrollment
+        enrollment = FaceEnrollmentFactory(status="approved")
+
+        # Create with specific parent-student relationship
+        parent = ParentFactory()
+        student = StudentFactory()
+        enrollment = FaceEnrollmentFactory(parent=parent, student=student)
+    """
+
+    class Meta:
+        model = FaceEnrollment
+
+    student = factory.SubFactory(StudentFactory)
+    parent = factory.SubFactory(ParentFactory)
+    status = "pending_approval"
+    photo_count = 3
+
+    @factory.lazy_attribute
+    def photos_data(self):
+        """Generate fake base64 photo data"""
+        import base64
+
+        # Create minimal valid base64 data (fake JPEG header)
+        fake_jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x00" * 100
+        base64_data = base64.b64encode(fake_jpeg).decode()
+        return [{"data": base64_data, "content_type": "image/jpeg"} for _ in range(3)]
+
+    device_info = factory.Dict(
+        {
+            "app_version": "1.0.0",
+            "platform": "android",
+            "platform_version": "14",
+        }
+    )
+
+    submitted_at = factory.LazyFunction(timezone.now)

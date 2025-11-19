@@ -4,6 +4,7 @@ from buses.models import Bus
 
 from .models import (
     FaceEmbeddingMetadata,
+    FaceEnrollment,
     Parent,
     School,
     Student,
@@ -309,3 +310,74 @@ class FaceEmbeddingMetadataSerializer(serializers.ModelSerializer):
             "is_primary": obj.student_photo.is_primary,
             "captured_at": obj.student_photo.captured_at,
         }
+
+
+class FaceEnrollmentSubmissionSerializer(serializers.Serializer):
+    """
+    Serializer for parent face enrollment photo submission.
+
+    Parent app auto-captures 3-5 photos and submits as base64-encoded images.
+    This serializer validates the submission and creates a FaceEnrollment record.
+    """
+
+    photos = serializers.ListField(
+        child=serializers.CharField(),  # Base64-encoded image string
+        min_length=1,
+        help_text="Array of base64-encoded photos from auto-capture",
+    )
+    device_info = serializers.JSONField(required=False, default=dict, help_text="Device metadata (model, OS, app version, etc.)")
+
+    def validate_photos(self, value):
+        """Validate photo count against settings"""
+        import base64
+
+        from django.conf import settings
+
+        min_photos = settings.FACE_ENROLLMENT_MIN_PHOTOS
+        max_photos = settings.FACE_ENROLLMENT_MAX_PHOTOS
+
+        if len(value) < min_photos:
+            raise serializers.ValidationError(f"Minimum {min_photos} photos required (got {len(value)})")
+
+        if len(value) > max_photos:
+            raise serializers.ValidationError(f"Maximum {max_photos} photos allowed (got {len(value)})")
+
+        # Validate each photo is valid base64
+        for idx, photo in enumerate(value):
+            try:
+                base64.b64decode(photo)
+            except Exception:
+                raise serializers.ValidationError(f"Photo {idx + 1} is not valid base64-encoded data") from None
+
+        return value
+
+    def create(self, validated_data):
+        """Create FaceEnrollment record"""
+        # Convert base64 photos to JSON format for storage
+        photos_data = [{"data": photo, "content_type": "image/jpeg"} for photo in validated_data["photos"]]
+
+        enrollment = FaceEnrollment.objects.create(
+            student=validated_data["student"],
+            parent=validated_data["parent"],
+            photos_data=photos_data,
+            photo_count=len(photos_data),
+            device_info=validated_data.get("device_info", {}),
+            status="pending_approval",
+        )
+
+        return enrollment
+
+
+class FaceEnrollmentStatusSerializer(serializers.ModelSerializer):
+    """Serializer for checking enrollment status"""
+
+    class Meta:
+        model = FaceEnrollment
+        fields = [
+            "enrollment_id",
+            "status",
+            "photo_count",
+            "submitted_at",
+            "reviewed_at",
+        ]
+        read_only_fields = fields

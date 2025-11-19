@@ -1590,6 +1590,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/DeviceLog'
           description: ''
+  /api/v1/notifications/process/:
+    post:
+      operationId: api_v1_notifications_process_create
+      description: |-
+        Process a queued notification.
+        POST /api/v1/notifications/process/
+        Called by Cloud Tasks.
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/parent/my-buses/:
     get:
       operationId: parent_bus_locations
@@ -1822,6 +1837,82 @@ paths:
               schema:
                 $ref: '#/components/schemas/Parent'
           description: ''
+  /api/v1/parents/me/{id}/face-enrollment/status/:
+    get:
+      operationId: api_v1_parents_me_face_enrollment_status_retrieve
+      description: Check face enrollment status for child
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceEnrollmentStatus'
+          description: ''
+  /api/v1/parents/me/{id}/face-enrollment/submit/:
+    post:
+      operationId: api_v1_parents_me_face_enrollment_submit_create
+      description: Submit face enrollment photos for child
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmission'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceEnrollmentStatus'
+          description: ''
+  /api/v1/parents/me/{id}/read/:
+    post:
+      operationId: api_v1_parents_me_read_create
+      description: |-
+        Mark a notification as read.
+        POST /api/v1/parents/me/notifications/{notification_id}/read/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/parents/me/bus-locations/:
     get:
       operationId: api_v1_parents_me_bus_locations_retrieve
@@ -1932,6 +2023,74 @@ paths:
                 items:
                   $ref: '#/components/schemas/Student'
           description: ''
+  /api/v1/parents/me/fcm-tokens/:
+    post:
+      operationId: api_v1_parents_me_fcm_tokens_create
+      description: |-
+        Register FCM token for push notifications.
+        POST /api/v1/parents/me/fcm-tokens/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_v1_parents_me_fcm_tokens_destroy
+      description: |-
+        Delete FCM token on logout.
+        DELETE /api/v1/parents/me/fcm-tokens/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/parents/me/notification-preferences/:
+    get:
+      operationId: api_v1_parents_me_notification_preferences_retrieve
+      description: |-
+        Get or update notification preferences.
+        GET/PATCH /api/v1/parents/me/notification-preferences/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_v1_parents_me_notification_preferences_partial_update
+      description: |-
+        Get or update notification preferences.
+        GET/PATCH /api/v1/parents/me/notification-preferences/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/parents/me/notifications/:
+    get:
+      operationId: api_v1_parents_me_notifications_retrieve
+      description: |-
+        List all notifications for the parent.
+        GET /api/v1/parents/me/notifications/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/parents/me/profile/:
     get:
       operationId: api_v1_parents_me_profile_retrieve
@@ -3886,6 +4045,67 @@ components:
       - log_level
       - message
       - timestamp
+    FaceEnrollmentStatus:
+      type: object
+      description: Serializer for checking enrollment status
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          enum:
+          - pending_approval
+          - approved
+          - rejected
+          type: string
+          x-spec-enum-id: 85cd7db90e71a6ab
+          readOnly: true
+          description: |-
+            Approval status
+
+            * `pending_approval` - Pending Approval
+            * `approved` - Approved
+            * `rejected` - Rejected
+        photo_count:
+          type: integer
+          readOnly: true
+          description: Number of photos in this enrollment
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When parent submitted enrollment
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When enrollment was reviewed
+      required:
+      - enrollment_id
+      - photo_count
+      - reviewed_at
+      - status
+      - submitted_at
+    FaceEnrollmentSubmission:
+      type: object
+      description: |-
+        Serializer for parent face enrollment photo submission.
+
+        Parent app auto-captures 3-5 photos and submits as base64-encoded images.
+        This serializer validates the submission and creates a FaceEnrollment record.
+      properties:
+        photos:
+          type: array
+          items:
+            type: string
+          description: Array of base64-encoded photos from auto-capture
+          minItems: 1
+        device_info:
+          description: Device metadata (model, OS, app version, etc.)
+      required:
+      - photos
     Group:
       type: object
       description: |-
@@ -4464,9 +4684,11 @@ components:
           description: Encrypted name (plaintext validated max 100 chars)
         phone:
           type: string
+          nullable: true
           description: Encrypted phone number (plaintext validated as +91XXXXXXXXXX)
         email:
           type: string
+          nullable: true
           description: Encrypted email address (plaintext validated per RFC 5321)
         created_at:
           type: string
@@ -4477,10 +4699,8 @@ components:
       - decrypted_email
       - decrypted_name
       - decrypted_phone
-      - email
       - name
       - parent_id
-      - phone
     ParentBusLocationsResponse:
       type: object
       properties:
@@ -4787,9 +5007,11 @@ components:
           description: Encrypted name (plaintext validated max 100 chars)
         phone:
           type: string
+          nullable: true
           description: Encrypted phone number (plaintext validated as +91XXXXXXXXXX)
         email:
           type: string
+          nullable: true
           description: Encrypted email address (plaintext validated per RFC 5321)
         created_at:
           type: string

@@ -91,6 +91,22 @@ def publish_boarding_event(sender, instance, created, **kwargs):
         # Channel layer error - stats update is best-effort
         print(f"[WARN] Failed to publish stats to WebSocket: {e}")
 
+    # Send push notifications to parents
+    # Runs async via Cloud Tasks to avoid blocking
+    try:
+        from notifications.services import notification_service
+
+        event_type = instance.metadata.get("event_type", "boarding")
+        notification_service.create_boarding_notification(
+            student=student,
+            event_type=event_type,
+            timestamp=instance.timestamp,
+            bus_route=instance.bus_route,
+        )
+    except Exception as e:
+        # Notification service error - best-effort, don't block boarding
+        print(f"[WARN] Failed to queue parent notification: {e}")
+
 
 @receiver(post_save, sender=BusLocation)
 def publish_bus_location_update(sender, instance, created, **kwargs):

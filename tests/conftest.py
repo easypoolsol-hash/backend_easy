@@ -129,6 +129,61 @@ def parent_user(db):
     return user
 
 
+@pytest.fixture
+def approved_parent_client(db):
+    """
+    Creates an approved parent user with APIClient for testing parent-only endpoints.
+
+    Returns tuple: (client, user, parent)
+    - client: Authenticated APIClient
+    - user: User in Parent group
+    - parent: Approved Parent profile linked to user
+    """
+    from django.contrib.auth.models import Group
+
+    from tests.factories import ParentFactory, UserFactory
+
+    # Create user in Parent group
+    user = UserFactory()
+    parent_group, _ = Group.objects.get_or_create(name="Parent")
+    user.groups.clear()
+    user.groups.add(parent_group)
+
+    # Create approved Parent profile linked to user
+    parent = ParentFactory(user=user, approval_status="approved")
+
+    # Create authenticated client
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    return client, user, parent
+
+
+@pytest.fixture
+def unapproved_parent_client(db):
+    """
+    Creates a pending parent user for testing permission denial.
+
+    Returns tuple: (client, user, parent)
+    """
+    from django.contrib.auth.models import Group
+
+    from tests.factories import ParentFactory, UserFactory
+
+    user = UserFactory()
+    parent_group, _ = Group.objects.get_or_create(name="Parent")
+    user.groups.clear()
+    user.groups.add(parent_group)
+
+    # Pending approval status
+    parent = ParentFactory(user=user, approval_status="pending")
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    return client, user, parent
+
+
 # This fixture makes the OpenAPI schema available to all tests, including schemathesis.
 @pytest.fixture(scope="session")
 def schemathesis_schema():

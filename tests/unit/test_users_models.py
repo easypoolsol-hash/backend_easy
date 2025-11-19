@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.utils import timezone
 import pytest
 
+from students.models import Parent
 from tests.factories import UserFactory
 from users.models import APIKey, AuditLog
 
@@ -89,3 +90,77 @@ class TestAuditLogModel:
 
         assert audit_log.user is None
         assert str(audit_log).startswith("DELETE student by None")
+
+
+@pytest.mark.django_db
+class TestParentAutoCreationSignal:
+    """Test auto-creation of Parent record when User is created"""
+
+    def test_parent_auto_created_on_user_creation(self):
+        """Test that Parent record is auto-created with real user data"""
+        # Create a new user (simulating Firebase signup)
+        user = User.objects.create_user(username="testparent", email="testparent@example.com", password="testpass123")
+
+        # Check that Parent was auto-created
+        assert Parent.objects.filter(user=user).exists()
+
+        parent = Parent.objects.get(user=user)
+        assert parent.approval_status == "pending"
+        assert parent.user == user
+        # Email should be real email from Firebase
+        assert parent.encrypted_email == "testparent@example.com"
+        # Phone is optional - not set during auto-creation (admin will add during approval)
+        assert parent.encrypted_phone == ""
+        # Name should be username (no first/last name set)
+        assert parent.encrypted_name == "testparent"
+
+    def test_parent_not_created_on_user_update(self):
+        """Test that Parent is not created again on user update"""
+        # Create user
+        user = User.objects.create_user(username="updatetest", email="updatetest@example.com", password="testpass123")
+
+        # Get the auto-created parent
+        parent = Parent.objects.get(user=user)
+        parent_id = parent.parent_id
+
+        # Update user
+        user.email = "newemail@example.com"
+        user.save()
+
+        # Should still have only one parent with same ID
+        assert Parent.objects.filter(user=user).count() == 1
+        assert Parent.objects.get(user=user).parent_id == parent_id
+
+    def test_signal_is_idempotent(self):
+        """Test that signal doesn't create duplicate Parents"""
+        # Create user with UserFactory (which might trigger signal)
+        user = UserFactory()
+
+        # Count parents
+        initial_count = Parent.objects.filter(user=user).count()
+
+        # Update user (should not create another parent)
+        user.email = "newemail@example.com"
+        user.save()
+
+        # Count should be same
+        final_count = Parent.objects.filter(user=user).count()
+        assert initial_count == final_count
+
+    def test_parent_uses_real_name_from_google_auth(self):
+        """Test that Parent uses real first_name and last_name from Google signup"""
+        # Create user with first_name and last_name (simulating Google signup)
+        user = User.objects.create_user(
+            username="johndoe123",
+            email="john.doe@gmail.com",
+            password="testpass123",
+            first_name="John",
+            last_name="Doe",
+        )
+
+        # Check that Parent was auto-created with real name
+        parent = Parent.objects.get(user=user)
+        assert parent.encrypted_email == "john.doe@gmail.com"
+        assert parent.encrypted_name == "John Doe"
+        # Phone is optional - Firebase doesn't provide phone, admin adds during approval
+        assert parent.encrypted_phone == ""

@@ -160,6 +160,16 @@ class StudentPhoto(models.Model):
     photo_id: models.UUIDField = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student: models.ForeignKey = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="photos")
 
+    # Track if photo was submitted by parent (via face enrollment)
+    submitted_by_parent: models.ForeignKey = models.ForeignKey(
+        "Parent",  # String reference - Parent defined later in file
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="submitted_photos",
+        help_text="Parent who submitted this photo (NULL if admin-uploaded)"
+    )
+
     # Store photo as binary data in database (Cloud SQL)
     photo_data: models.BinaryField = models.BinaryField(
         blank=True,
@@ -242,11 +252,13 @@ class Parent(models.Model):
     )
 
     phone: models.TextField = models.TextField(
-        unique=True,
+        null=True,
+        blank=True,
         help_text="Encrypted phone number (plaintext validated as +91XXXXXXXXXX)",
     )
     email: models.TextField = models.TextField(
-        unique=True,
+        null=True,
+        blank=True,
         help_text="Encrypted email address (plaintext validated per RFC 5321)",
     )
     name: models.TextField = models.TextField(help_text="Encrypted name (plaintext validated max 100 chars)")
@@ -523,3 +535,142 @@ class FaceEmbeddingMetadata(models.Model):
         if self.is_primary:
             FaceEmbeddingMetadata.objects.filter(student_photo=self.student_photo, is_primary=True).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
+
+
+class FaceEnrollment(models.Model):
+    """
+    Staging table for parent-submitted face enrollment photos.
+
+    Workflow:
+    1. Parent uses camera app to scan student face (auto-captures 3-5 photos)
+    2. Photos saved here with status='pending_approval'
+    3. Admin reviews and approves/rejects
+    4. On approval: Photos moved to StudentPhoto table, enrollment deleted
+
+    This is a temporary staging area - approved enrollments are deleted after
+    photos are transferred to production StudentPhoto table.
+    """
+
+    ENROLLMENT_STATUS_CHOICES = [
+        ("pending_approval", "Pending Approval"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    enrollment_id: models.UUIDField = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Links
+    student: models.ForeignKey = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="face_enrollments",
+        help_text="Student for this enrollment"
+    )
+    parent: models.ForeignKey = models.ForeignKey(
+        Parent,
+        on_delete=models.CASCADE,
+        related_name="face_enrollments",
+        help_text="Parent who submitted this enrollment"
+    )
+
+    # Photos data (stored as JSON array of base64-encoded images)
+    # Each photo is a dict: {"data": "<base64>", "content_type": "image/jpeg"}
+    photos_data: models.JSONField = models.JSONField(
+        help_text="Array of photo data objects from auto-capture session"
+    )
+    photo_count: models.IntegerField = models.IntegerField(help_text="Number of photos in this enrollment")
+
+    # Status tracking
+    status: models.CharField = models.CharField(
+        max_length=20,
+        choices=ENROLLMENT_STATUS_CHOICES,
+        default="pending_approval",
+        help_text="Approval status"
+    )
+
+    # Timestamps
+    submitted_at: models.DateTimeField = models.DateTimeField(
+        default=timezone.now,
+        help_text="When parent submitted enrollment"
+    )
+    reviewed_by: models.ForeignKey = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_enrollments",
+        help_text="Admin who reviewed this enrollment"
+    )
+    reviewed_at: models.DateTimeField = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When enrollment was reviewed"
+    )
+
+    # Metadata
+    device_info: models.JSONField = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Device and capture metadata from parent app"
+    )
+
+    class Meta:
+        db_table = "face_enrollments"
+        indexes = [
+            models.Index(fields=["student", "status"], name="idx_enrollments_student_status"),
+            models.Index(fields=["parent", "status"], name="idx_enrollments_parent_status"),
+            models.Index(fields=["status", "submitted_at"], name="idx_enrollments_status_date"),
+        ]
+
+    def __str__(self):
+        return f"Face enrollment for {self.student} by {self.parent} ({self.status})"
+
+    def approve(self, reviewed_by_user):
+        """
+        Approve this enrollment and move photos to StudentPhoto table.
+
+        This method:
+        1. Creates StudentPhoto records from enrollment photos
+        2. Sets first photo as primary
+        3. Marks enrollment as approved
+        4. Sets review metadata
+
+        Note: Enrollment record should be deleted after approval by admin action.
+        """
+        import base64
+
+        if self.status != "pending_approval":
+            raise ValidationError("Can only approve pending enrollments")
+
+        # Create StudentPhoto records from enrollment photos
+        for idx, photo_data in enumerate(self.photos_data):
+            # Decode base64 photo data
+            photo_binary = base64.b64decode(photo_data.get("data", ""))
+            content_type = photo_data.get("content_type", "image/jpeg")
+
+            # Create StudentPhoto
+            student_photo = StudentPhoto(
+                student=self.student,
+                submitted_by_parent=self.parent,  # Track parent submission
+                photo_data=photo_binary,
+                photo_content_type=content_type,
+                is_primary=(idx == 0),  # First photo is primary
+                captured_at=self.submitted_at,
+            )
+            student_photo.save()
+
+        # Update enrollment status
+        self.status = "approved"
+        self.reviewed_by = reviewed_by_user
+        self.reviewed_at = timezone.now()
+        self.save()
+
+    def reject(self, reviewed_by_user):
+        """Reject this enrollment"""
+        if self.status != "pending_approval":
+            raise ValidationError("Can only reject pending enrollments")
+
+        self.status = "rejected"
+        self.reviewed_by = reviewed_by_user
+        self.reviewed_at = timezone.now()
+        self.save()
