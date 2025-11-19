@@ -240,13 +240,20 @@ class TestIsApprovedParentPermission:
     )
     def test_approval_status_check(self, approval_status, expected_allowed):
         """Test permission based on parent approval status"""
+        from students.models import Parent
+
         user = UserFactory()
         parent_group, _ = Group.objects.get_or_create(name="Parent")
         user.groups.clear()
         user.groups.add(parent_group)
 
-        # Create parent with specific status
-        ParentFactory(user=user, approval_status=approval_status)
+        # Get auto-created parent from signal and update status
+        parent = Parent.objects.get(user=user)
+        parent.approval_status = approval_status
+        parent.save()
+
+        # Refresh user to get updated parent_profile
+        user.refresh_from_db()
 
         request = self._create_request()
         request.user = user
