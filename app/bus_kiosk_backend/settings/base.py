@@ -298,6 +298,8 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     "SWAGGER_UI_DIST": "SIDECAR",
     "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
     "REDOC_DIST": "SIDECAR",
+    # Google Way: Split request/response schemas for proper nullable handling
+    "COMPONENT_SPLIT_REQUEST": True,
 }
 
 # OpenAPI Validation Settings
