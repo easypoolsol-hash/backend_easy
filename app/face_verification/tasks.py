@@ -5,11 +5,9 @@ Handles async verification of boarding events using Cloud Tasks
 """
 
 import logging
-from datetime import datetime
-from typing import Dict, List
 
-import numpy as np
 from django.utils import timezone
+import numpy as np
 
 from events.models import BoardingEvent
 from students.models import FaceEmbeddingMetadata
@@ -19,7 +17,7 @@ from .services import FaceVerificationConsensusService
 logger = logging.getLogger(__name__)
 
 
-def verify_boarding_event(event_id: str) -> Dict:
+def verify_boarding_event(event_id: str) -> dict:
     """
     Verify a boarding event using multi-model consensus
 
@@ -101,9 +99,7 @@ def verify_boarding_event(event_id: str) -> Dict:
         # Log if there's a mismatch
         if event.student_id != result.student_id:
             logger.warning(
-                f"MISMATCH: Kiosk predicted {event.student_id}, "
-                f"backend predicted {result.student_id} "
-                f"(confidence: {result.confidence_level})"
+                f"MISMATCH: Kiosk predicted {event.student_id}, backend predicted {result.student_id} (confidence: {result.confidence_level})"
             )
 
         return {
@@ -132,7 +128,7 @@ def verify_boarding_event(event_id: str) -> Dict:
         return {"status": "error", "reason": str(e)}
 
 
-def _load_student_embeddings() -> Dict[int, List[Dict]]:
+def _load_student_embeddings() -> dict[int, list[dict]]:
     """
     Load all student embeddings from database
 
@@ -145,11 +141,9 @@ def _load_student_embeddings() -> Dict[int, List[Dict]]:
             ]
         }
     """
-    embeddings_qs = FaceEmbeddingMetadata.objects.select_related("student_photo__student").filter(
-        embedding__isnull=False
-    )
+    embeddings_qs = FaceEmbeddingMetadata.objects.select_related("student_photo__student").filter(embedding__isnull=False)
 
-    student_embeddings: Dict[int, List[Dict]] = {}
+    student_embeddings: dict[int, list[dict]] = {}
 
     for emb_meta in embeddings_qs:
         student_id = emb_meta.student_photo.student_id
