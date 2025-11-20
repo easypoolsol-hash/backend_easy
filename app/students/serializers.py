@@ -209,17 +209,21 @@ class StudentListSerializer(serializers.ModelSerializer):
 
 
 class StudentSerializer(serializers.ModelSerializer):
-    """Full serializer for detail view - includes all nested data"""
+    """Full serializer for detail view - includes all nested data
+
+    Google Way: Nested fields use graceful degradation - they return null/empty
+    on any error rather than crashing the entire response.
+    """
 
     # Decrypted name for API responses
     decrypted_name = serializers.SerializerMethodField()
-    # Google way: Use SerializerMethodField for nullable nested objects to ensure proper OpenAPI schema
+    # Google way: Use SerializerMethodField for nullable nested objects
     school_details = serializers.SerializerMethodField()
     bus_details = serializers.SerializerMethodField()
     parents = serializers.SerializerMethodField()
     photos = serializers.SerializerMethodField()
 
-    @extend_schema_field(SchoolSerializer(allow_null=True))
+    @extend_schema_field({'oneOf': [{'$ref': '#/components/schemas/School'}, {'type': 'null'}]})
     def get_school_details(self, obj):
         """Return school details or None - graceful degradation for bad data"""
         try:
@@ -229,7 +233,7 @@ class StudentSerializer(serializers.ModelSerializer):
             pass
         return None
 
-    @extend_schema_field(BusBasicSerializer(allow_null=True))
+    @extend_schema_field({'oneOf': [{'$ref': '#/components/schemas/BusBasic'}, {'type': 'null'}]})
     def get_bus_details(self, obj):
         """Return bus details or None"""
         try:
@@ -239,7 +243,7 @@ class StudentSerializer(serializers.ModelSerializer):
             pass
         return None
 
-    @extend_schema_field(StudentParentSerializer(many=True))
+    @extend_schema_field({'type': 'array', 'items': {'$ref': '#/components/schemas/StudentParent'}})
     def get_parents(self, obj):
         """Return parents list or empty list"""
         try:
@@ -247,7 +251,7 @@ class StudentSerializer(serializers.ModelSerializer):
         except Exception:
             return []
 
-    @extend_schema_field(StudentPhotoSerializer(many=True))
+    @extend_schema_field({'type': 'array', 'items': {'$ref': '#/components/schemas/StudentPhoto'}})
     def get_photos(self, obj):
         """Return photos list or empty list"""
         try:
