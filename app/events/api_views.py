@@ -6,7 +6,6 @@ from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -192,3 +191,142 @@ class DashboardStudentsAPIView(APIView):
                 "results": results,
             }
         )
+
+
+class AllStudentsAPIView(APIView):
+    """
+    All registered students API - Returns list of ALL registered students.
+    Separate from dashboard/students which only shows today's boarding activity.
+
+    FEATURES:
+    - Returns ALL registered students (not just today's boarders)
+    - Lightweight response (no boarding events)
+    - Pagination support
+    - Search by name, ID, or grade
+    - Cached for 5 minutes for performance
+
+    PERMISSION: IsSchoolAdmin (school administrators only)
+    """
+
+    permission_classes = [IsSchoolAdmin]
+
+    @extend_schema(
+        summary="Get all registered students",
+        description=("Returns paginated list of ALL registered students (not just students who boarded today). Cached for 5 minutes."),
+        parameters=[
+            OpenApiParameter(
+                name="limit",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Number of students per page (default=50, max=100)",
+            ),
+            OpenApiParameter(
+                name="offset",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Offset for pagination (default=0)",
+            ),
+            OpenApiParameter(
+                name="search",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Search by student name, school ID, or grade",
+            ),
+        ],
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "count": {"type": "integer"},
+                    "next": {"type": "boolean"},
+                    "previous": {"type": "boolean"},
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "school_student_id": {"type": "string"},
+                                "student_name": {"type": "string"},
+                                "grade": {"type": "string"},
+                                "bus_number": {"type": "string", "nullable": True},
+                                "route_name": {"type": "string", "nullable": True},
+                                "status": {"type": "string"},
+                            },
+                        },
+                    },
+                },
+            }
+        },
+    )
+    def get(self, request):
+        """Get all registered students with pagination and search."""
+        # Pagination params
+        try:
+            limit = min(int(request.query_params.get("limit", 50)), 100)  # Max 100 per page
+            offset = int(request.query_params.get("offset", 0))
+        except ValueError:
+            return Response(
+                {"error": "Invalid limit or offset"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Search parameter
+        search = request.query_params.get("search", "").strip()
+
+        # Build cache key
+        cache_key = f"all_students_{limit}_{offset}_{search}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return Response(cached_response)
+
+        # Build query
+        students_query = Student.objects.select_related("assigned_bus__route").order_by("grade", "encrypted_name")
+
+        # Apply search filter if provided
+        if search:
+            students_query = students_query.filter(
+                Q(encrypted_name__icontains=search) | Q(school_student_id__icontains=search) | Q(grade__icontains=search)
+            )
+
+        # Get total count
+        total_count = students_query.count()
+
+        # Apply pagination
+        students = students_query[offset : offset + limit]
+
+        # Build response
+        results = []
+        for student in students:
+            # Get bus and route info
+            bus_number = None
+            route_name = None
+            if student.assigned_bus:
+                bus_number = student.assigned_bus.license_plate
+                if student.assigned_bus.route:
+                    route_name = student.assigned_bus.route.name
+
+            results.append(
+                {
+                    "school_student_id": student.school_student_id,
+                    "student_name": student.encrypted_name,
+                    "grade": student.grade,
+                    "bus_number": bus_number,
+                    "route_name": route_name,
+                    "status": student.status,
+                }
+            )
+
+        response_data = {
+            "count": total_count,
+            "next": offset + limit < total_count,
+            "previous": offset > 0,
+            "results": results,
+        }
+
+        # Cache for 5 minutes
+        cache.set(cache_key, response_data, timeout=300)
+
+        return Response(response_data)
