@@ -43,7 +43,7 @@ def mark_activation_public(result, generator=None, request=None, public=True):
     return result
 
 
-def remove_nullable_from_required(result, generator=None, request=None, public=True):
+def remove_nullable_from_required(result, generator, request, public):
     """
     Google Way: Remove nullable fields from the required array.
 
@@ -65,7 +65,9 @@ def remove_nullable_from_required(result, generator=None, request=None, public=T
         # Find nullable fields
         nullable_fields = []
         for field_name, field_schema in schema["properties"].items():
-            if field_schema.get("nullable") is True:
+            # Check for nullable at top level or with allOf/anyOf/oneOf
+            is_nullable = field_schema.get("nullable") is True
+            if is_nullable:
                 nullable_fields.append(field_name)
 
         # Remove nullable fields from required array
