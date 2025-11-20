@@ -3878,6 +3878,10 @@ components:
           format: uuid
           readOnly: true
           description: UUID primary key
+        license_plate:
+          type: string
+          description: Vehicle license plate number
+          maxLength: 20
         bus_number:
           type: string
           description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
@@ -3916,6 +3920,7 @@ components:
       - bus_id
       - bus_number
       - created_at
+      - license_plate
       - updated_at
     BusLocation:
       type: object
@@ -5227,16 +5232,19 @@ components:
           allOf:
           - $ref: '#/components/schemas/BusBasic'
           readOnly: true
+          nullable: true
         parents:
           type: array
           items:
             $ref: '#/components/schemas/StudentParent'
           readOnly: true
+          nullable: true
         photos:
           type: array
           items:
             $ref: '#/components/schemas/StudentPhoto'
           readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -5646,16 +5654,19 @@ components:
           allOf:
           - $ref: '#/components/schemas/BusBasic'
           readOnly: true
+          nullable: true
         parents:
           type: array
           items:
             $ref: '#/components/schemas/StudentParent'
           readOnly: true
+          nullable: true
         photos:
           type: array
           items:
             $ref: '#/components/schemas/StudentPhoto'
           readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time

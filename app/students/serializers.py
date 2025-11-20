@@ -27,6 +27,7 @@ class BusBasicSerializer(serializers.ModelSerializer):
         model = Bus
         fields = [
             "bus_id",
+            "license_plate",  # Added license_plate for frontend compatibility
             "bus_number",
             "capacity",
             "status",
@@ -212,10 +213,11 @@ class StudentSerializer(serializers.ModelSerializer):
     # Decrypted name for API responses
     decrypted_name = serializers.SerializerMethodField()
     school_details = SchoolSerializer(source="school", read_only=True)
-    bus_details = BusBasicSerializer(source="assigned_bus", read_only=True)
+    # Google way: Make optional fields explicitly nullable
+    bus_details = BusBasicSerializer(source="assigned_bus", read_only=True, allow_null=True)
     # Explicitly define as nested serializers (not SerializerMethodField) for correct OpenAPI schema
-    parents = StudentParentSerializer(source="student_parents", many=True, read_only=True)
-    photos = StudentPhotoSerializer(many=True, read_only=True)  # source defaults to field name
+    parents = StudentParentSerializer(source="student_parents", many=True, read_only=True, allow_null=True)
+    photos = StudentPhotoSerializer(many=True, read_only=True, allow_null=True)  # source defaults to field name
 
     class Meta:
         model = Student
