@@ -229,17 +229,25 @@ tests/fixtures/test_images/*.png
 scripts/seed_bus_locations.py
 firebase-adminsdk-key.json
 
-# Face Recognition Models - Keep only MobileFaceNet and OpenCV detection models
-# Ignore all other face recognition models and conversion scripts
+# Face Recognition Models - Large binary files stored in Google Cloud Storage
+# DO NOT commit ML models to Git (too large, use GCS instead)
+ml_models/face_recognition/models/*.onnx
+ml_models/face_recognition/models/*.tflite
+ml_models/face_recognition/models/*.h5
+ml_models/face_recognition/models/*.pb
+ml_models/face_recognition/models/*.caffemodel
+ml_models/face_recognition/models/*.pth
+ml_models/face_recognition/models/*.pt
 ml_models/face_recognition/models/*_openface*.py
 ml_models/face_recognition/models/*ghostface*.py
 ml_models/face_recognition/models/openface_*.py
 ml_models/face_recognition/models/extract_openface_architecture.py
 ml_models/face_recognition/models/load_openface_full.py
 ml_models/face_recognition/models/verify_openface.py
-ml_models/face_recognition/models/*.h5
+ml_models/face_recognition/models/load_arcface_legacy.py
+ml_models/face_recognition/models/convert_*.py
+ml_models/face_recognition/models/download_*.py
 ml_models/face_recognition/models/.convert_venv/
-# Keep production models only
-!ml_models/face_recognition/models/mobilefacenet.tflite
-!ml_models/face_recognition/models/deploy.prototxt
-!ml_models/face_recognition/models/res10_300x300_ssd_iter_140000.caffemodel
+ml_models/face_recognition/models/temp_saved_model/
+# Model deployment: Download from GCS on Cloud Run startup
+# See: ml_models/face_recognition/models/README.md for deployment instructions

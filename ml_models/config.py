@@ -40,31 +40,31 @@ PROCESSING_CONFIG = {
 FACE_RECOGNITION_MODELS = {
     "mobilefacenet": {
         "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",
-        "dimensions": MOBILEFACENET_CONFIG["output_dims"],
+        "dimensions": 192,
         "enabled": True,
         "quality_threshold": 0.68,
-        "description": "MobileFaceNet - Fast lightweight model (192D)",
+        "description": "MobileFaceNet - Fast lightweight model (192D, ~90% accuracy)",
     },
-    "arcface": {
-        "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",  # Placeholder
-        "dimensions": MOBILEFACENET_CONFIG["output_dims"],  # Will be 512 when real model added
+    "arcface_resnet100": {
+        "class": "ml_models.face_recognition.inference.arcface_resnet100.ArcFaceResNet100",
+        "dimensions": 512,
         "enabled": True,
         "quality_threshold": 0.75,
-        "description": "ArcFace - Banking grade accuracy (99.82% LFW) - PLACEHOLDER: Using MobileFaceNet",
+        "description": "ArcFace ResNet100 - HIGHEST banking-grade accuracy (512D, 99.82% LFW)",
     },
-    "adaface": {
-        "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",  # Placeholder
-        "dimensions": MOBILEFACENET_CONFIG["output_dims"],  # Will be 512 when real model added
+    "arcface_resnet50": {
+        "class": "ml_models.face_recognition.inference.arcface_resnet50.ArcFaceResNet50",
+        "dimensions": 512,
         "enabled": True,
         "quality_threshold": 0.72,
-        "description": "AdaFace - Quality adaptive, low-quality robust - PLACEHOLDER: Using MobileFaceNet",
+        "description": "ArcFace ResNet50 - Banking-grade accuracy (512D, 99.77% LFW)",
     },
 }
 
 # Multi-model verification config
 MULTI_MODEL_CONFIG = {
     "enabled": True,
-    "models_for_verification": ["mobilefacenet", "arcface", "adaface"],  # All 3 for backend verification
+    "models_for_verification": ["mobilefacenet", "arcface_resnet100", "arcface_resnet50"],  # All 3 for backend verification
     "consensus_strategy": "voting",  # voting, weighted, unanimous
     "minimum_consensus": 2,  # At least 2 models must agree
 }

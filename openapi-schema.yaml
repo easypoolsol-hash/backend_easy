@@ -1,0 +1,6375 @@
+openapi: 3.0.3
+info:
+  title: Bus Kiosk Backend API
+  version: 1.0.0
+  description: Industrial REST API for Bus Kiosk face recognition system
+paths:
+  /api/v1/api-keys/:
+    get:
+      operationId: api_v1_api_keys_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAPIKeyList'
+          description: ''
+    post:
+      operationId: api_v1_api_keys_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/APIKeyCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/APIKeyCreateRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyCreate'
+          description: ''
+  /api/v1/api-keys/{key_id}/:
+    get:
+      operationId: api_v1_api_keys_retrieve
+      parameters:
+      - in: path
+        name: key_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+    put:
+      operationId: api_v1_api_keys_update
+      parameters:
+      - in: path
+        name: key_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+    patch:
+      operationId: api_v1_api_keys_partial_update
+      parameters:
+      - in: path
+        name: key_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAPIKeyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAPIKeyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAPIKeyRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+    delete:
+      operationId: api_v1_api_keys_destroy
+      parameters:
+      - in: path
+        name: key_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/api-keys/{key_id}/revoke/:
+    post:
+      operationId: api_v1_api_keys_revoke_create
+      parameters:
+      - in: path
+        name: key_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+  /api/v1/attendance/:
+    get:
+      operationId: api_v1_attendance_list
+      description: |-
+        Read-only ViewSet for attendance records
+
+        PERMISSION: IsSchoolAdmin (school administrators only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+          x-spec-enum-id: 0ad3f4d50b94ceb7
+          enum:
+          - absent
+          - partial
+          - present
+        description: |-
+          Overall attendance status
+
+          * `present` - Present
+          * `absent` - Absent
+          * `partial` - Partial
+      - in: query
+        name: student
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAttendanceRecordList'
+          description: ''
+  /api/v1/attendance/{record_id}/:
+    get:
+      operationId: api_v1_attendance_retrieve
+      description: |-
+        Read-only ViewSet for attendance records
+
+        PERMISSION: IsSchoolAdmin (school administrators only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: path
+        name: record_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecord'
+          description: ''
+  /api/v1/attendance/student/{student_id}/:
+    get:
+      operationId: api_v1_attendance_student_retrieve
+      description: Get attendance history for a specific student
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+          description: Student attendance record
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecord'
+          description: ''
+  /api/v1/attendance/summary/:
+    get:
+      operationId: api_v1_attendance_summary_retrieve
+      description: Get attendance summary for date range
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecord'
+          description: ''
+  /api/v1/audit-logs/:
+    get:
+      operationId: api_v1_audit_logs_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditLogList'
+          description: ''
+  /api/v1/audit-logs/{log_id}/:
+    get:
+      operationId: api_v1_audit_logs_retrieve
+      parameters:
+      - in: path
+        name: log_id
+        schema:
+          type: integer
+        description: A unique integer value identifying this audit log.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLog'
+          description: ''
+  /api/v1/boarding-events/:
+    get:
+      operationId: api_v1_boarding_events_list
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: query
+        name: bus_route
+        schema:
+          type: string
+      - in: query
+        name: kiosk_id
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: student
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: timestamp
+        schema:
+          type: string
+          format: date-time
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBoardingEventList'
+          description: ''
+    post:
+      operationId: api_v1_boarding_events_create
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardingEventCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoardingEventCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BoardingEventCreateRequest'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEventCreate'
+          description: ''
+  /api/v1/boarding-events/{event_id}/:
+    get:
+      operationId: api_v1_boarding_events_retrieve
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          description: ULID primary key for global uniqueness and time sorting
+        required: true
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEvent'
+          description: ''
+    put:
+      operationId: api_v1_boarding_events_update
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          description: ULID primary key for global uniqueness and time sorting
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardingEventRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoardingEventRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BoardingEventRequest'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEvent'
+          description: ''
+    patch:
+      operationId: api_v1_boarding_events_partial_update
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          description: ULID primary key for global uniqueness and time sorting
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBoardingEventRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBoardingEventRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBoardingEventRequest'
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEvent'
+          description: ''
+    delete:
+      operationId: api_v1_boarding_events_destroy
+      description: |-
+        ViewSet for boarding events
+
+        PERMISSIONS:
+        - CREATE/BULK: IsKiosk (kiosk devices only)
+        - LIST/RETRIEVE/UPDATE/DELETE: IsSchoolAdmin (school admins only)
+        - RECENT: IsSchoolAdmin (school admins only)
+
+        NOTE: Old permission was IsAuthenticated (too permissive!)
+        Now using AWS-style deny-by-default with explicit permissions.
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          description: ULID primary key for global uniqueness and time sorting
+        required: true
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/boarding-events/bulk/:
+    post:
+      operationId: api_v1_boarding_events_bulk_create
+      description: Bulk create boarding events (for high-throughput kiosk operations)
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoardingEventRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BoardingEventRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BoardingEventRequest'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEvent'
+          description: ''
+  /api/v1/boarding-events/recent/:
+    get:
+      operationId: api_v1_boarding_events_recent_retrieve
+      description: Get recent boarding events for dashboard
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEvent'
+          description: ''
+  /api/v1/buses/:
+    get:
+      operationId: api_v1_buses_list
+      description: ViewSet for buses
+      parameters:
+      - in: query
+        name: device_id
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: route
+        schema:
+          type: string
+          format: uuid
+        description: UUID primary key
+      - in: query
+        name: status
+        schema:
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          enum:
+          - active
+          - maintenance
+          - retired
+        description: |-
+          Current operational status
+
+          * `active` - Active
+          * `maintenance` - Under Maintenance
+          * `retired` - Retired
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBusList'
+          description: ''
+    post:
+      operationId: api_v1_buses_create
+      description: ViewSet for buses
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+  /api/v1/buses/{bus_id}/:
+    get:
+      operationId: api_v1_buses_retrieve
+      description: ViewSet for buses
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+    put:
+      operationId: api_v1_buses_update
+      description: ViewSet for buses
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+    patch:
+      operationId: api_v1_buses_partial_update
+      description: ViewSet for buses
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBusRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+    delete:
+      operationId: api_v1_buses_destroy
+      description: ViewSet for buses
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/buses/{bus_id}/students/:
+    get:
+      operationId: api_v1_buses_students_retrieve
+      description: Get all students assigned to this bus
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+  /api/v1/buses/assign-students/:
+    post:
+      operationId: api_v1_buses_assign_students_create
+      description: Bulk assign students to buses
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BusRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+  /api/v1/buses/utilization/:
+    get:
+      operationId: api_v1_buses_utilization_retrieve
+      description: Get fleet utilization report
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bus'
+          description: ''
+  /api/v1/dashboard/stats/:
+    get:
+      operationId: api_v1_dashboard_stats_retrieve
+      description: Returns summary statistics for school dashboard (buses, students
+        boarded) for TODAY only. Cached for 10 seconds.
+      summary: Get dashboard summary statistics
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStats'
+          description: ''
+  /api/v1/dashboard/students/:
+    get:
+      operationId: api_v1_dashboard_students_retrieve
+      description: Returns paginated list of students who boarded TODAY with all their
+        events
+      summary: Get students with boarding events
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Number of students per page (default=50)
+      - in: query
+        name: offset
+        schema:
+          type: integer
+        description: Offset for pagination (default=0)
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardStudentsResponse'
+          description: ''
+  /api/v1/face-verification/events/{event_id}/:
+    get:
+      operationId: api_v1_face_verification_events_retrieve
+      description: |-
+        Get verification status for a boarding event
+
+        GET /api/v1/face-verification/events/{event_id}/
+
+        Response:
+            {
+                "event_id": "...",
+                "backend_verification_status": "verified",
+                "backend_verification_confidence": "high",
+                "backend_student_id": 123,
+                "kiosk_student_id": 123,
+                "has_mismatch": false,
+                "needs_manual_review": false,
+                "backend_verified_at": "2025-01-15T10:30:00Z",
+                "model_consensus_data": {
+                    "mobilefacenet": {...},
+                    "arcface": {...},
+                    "adaface": {...}
+                }
+            }
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/face-verification/verify/:
+    post:
+      operationId: api_v1_face_verification_verify_create
+      description: |-
+        Cloud Tasks handler for async boarding event verification
+
+        This endpoint is called by Cloud Tasks to verify boarding events
+        using multi-model consensus.
+
+        Authentication: CloudTasksAuthentication (validates Cloud Tasks headers)
+
+        Request Body:
+            {
+                "event_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV"  # ULID
+            }
+
+        Response:
+            {
+                "status": "success",
+                "event_id": "...",
+                "verification_status": "verified",
+                "confidence_level": "high",
+                "student_id": 123,
+                "kiosk_student_id": 123,
+                "is_mismatch": false
+            }
+      tags:
+      - api
+      security:
+      - Bearer: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/geocode/:
+    post:
+      operationId: api_v1_geocode_create
+      description: |-
+        Geocode an address to coordinates.
+
+        POST /api/v1/geocode/
+        Body: {"address": "Imperial College London"}
+
+        Returns: {
+            "latitude": 51.4988,
+            "longitude": -0.1749,
+            "formatted_address": "Imperial College London, Exhibition Rd, London SW7 2AZ, UK"
+        }
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/groups/:
+    get:
+      operationId: api_v1_groups_list
+      description: |-
+        API endpoint for Groups (Roles).
+        Read-only following IAM principle - groups managed via seed_groups command.
+        Groups represent user roles: school_admin, parent, driver.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGroupList'
+          description: ''
+  /api/v1/groups/{id}/:
+    get:
+      operationId: api_v1_groups_retrieve
+      description: |-
+        API endpoint for Groups (Roles).
+        Read-only following IAM principle - groups managed via seed_groups command.
+        Groups represent user roles: school_admin, parent, driver.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this group.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+          description: ''
+  /api/v1/kiosk/boarding/:
+    post:
+      operationId: api_v1_kiosk_boarding_create
+      description: Student boarding endpoint - returns immediate approval and schedules
+        background processing
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+          description: ''
+  /api/v1/kiosks/:
+    get:
+      operationId: api_v1_kiosks_list
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedKioskList'
+          description: ''
+    post:
+      operationId: api_v1_kiosks_create
+      description: ViewSet for kiosk management (admin only)
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KioskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KioskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KioskRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/check-updates/:
+    get:
+      operationId: kiosk_check_updates
+      description: Check if kiosk needs database update
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: last_sync_hash
+        schema:
+          type: string
+        description: Last content hash from kiosk
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckUpdatesResponse'
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/heartbeat/:
+    post:
+      operationId: kiosk_heartbeat
+      description: Report kiosk health and sync status
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/kiosks/{kiosk_id}/location/:
+    post:
+      operationId: kiosk_update_location
+      description: Update bus GPS location. Kiosk sends location when bus moves significantly
+        or every 2 minutes.
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusLocationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BusLocationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BusLocationRequest'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocation'
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/snapshot/:
+    get:
+      operationId: kiosk_download_snapshot
+      description: Download kiosk database snapshot (binary SQLite file). Returns
+        raw binary data with x-snapshot-checksum header for verification.
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/sos/:
+    post:
+      operationId: kiosk_trigger_sos
+      description: Trigger SOS emergency alert. Creates an active alert with optional
+        location and message.
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SOSAlertCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SOSAlertCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SOSAlertCreateRequest'
+      security:
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SOSAlert'
+          description: ''
+  /api/v1/kiosks/{kiosk_id}/:
+    get:
+      operationId: api_v1_kiosks_retrieve
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+    put:
+      operationId: api_v1_kiosks_update
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KioskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/KioskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KioskRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+    patch:
+      operationId: api_v1_kiosks_partial_update
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedKioskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedKioskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedKioskRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+    delete:
+      operationId: api_v1_kiosks_destroy
+      description: ViewSet for kiosk management (admin only)
+      parameters:
+      - in: path
+        name: kiosk_id
+        schema:
+          type: string
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/kiosks/logs/:
+    post:
+      operationId: kiosk_log
+      description: Kiosk logging endpoint for device log submission
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceLogRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeviceLogRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeviceLogRequest'
+        required: true
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+          description: ''
+  /api/v1/kiosks/me/:
+    get:
+      operationId: kiosk_get_me
+      description: Get current authenticated kiosk details including bus assignment
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Kiosk'
+          description: ''
+  /api/v1/locations/:
+    get:
+      operationId: bus_locations_api
+      description: "\n    Returns real-time bus locations for ALL buses in the fleet\
+        \ as GeoJSON.\n\n    Accessible by any authenticated user (school administrators,\
+        \ staff, etc.).\n\n    **Response Format:**\n    GeoJSON FeatureCollection\
+        \ with Point geometries for each bus location.\n\n    Each feature includes\
+        \ properties:\n    - id: Kiosk ID\n    - name: Bus license plate\n    - status:\
+        \ Bus status\n    - last_update: Timestamp of last location update\n    -\
+        \ speed: Current speed (km/h)\n    - heading: Direction heading (degrees)\n\
+        \    "
+      tags:
+      - Buses
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocationsResponse'
+          description: ''
+  /api/v1/locations/history/:
+    get:
+      operationId: bus_locations_history_api
+      description: "\n    Returns historical bus locations for a specific bus on a\
+        \ specific date as GeoJSON.\n\n    Accessible by school administrators only.\n\
+        \n    **Response Format:**\n    GeoJSON FeatureCollection with Point geometries\
+        \ for each location record.\n\n    Each feature includes properties:\n   \
+        \ - id: Location record ID\n    - bus_number: Bus identifier\n    - bus_name:\
+        \ Bus license plate\n    - timestamp: When the location was recorded\n   \
+        \ - speed: Speed at that moment (km/h)\n    - heading: Direction heading (degrees)\n\
+        \    - accuracy: GPS accuracy (meters)\n    "
+      parameters:
+      - in: query
+        name: bus_uuid
+        schema:
+          type: string
+          format: uuid
+        description: Bus UUID (primary key)
+        required: true
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Date in YYYY-MM-DD format (max 7 days in the past)
+        required: true
+      tags:
+      - Buses
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocationHistoryResponse'
+          description: ''
+  /api/v1/logs/:
+    get:
+      operationId: api_v1_logs_list
+      description: Read-only ViewSet for device logs (any authenticated user)
+      parameters:
+      - in: query
+        name: kiosk
+        schema:
+          type: string
+        description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+      - in: query
+        name: log_level
+        schema:
+          type: string
+          x-spec-enum-id: 7b1a6f8785c20640
+          enum:
+          - CRITICAL
+          - DEBUG
+          - ERROR
+          - INFO
+          - WARN
+        description: |-
+          Log level severity
+
+          * `DEBUG` - Debug
+          * `INFO` - Info
+          * `WARN` - Warning
+          * `ERROR` - Error
+          * `CRITICAL` - Critical
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: timestamp
+        schema:
+          type: string
+          format: date-time
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDeviceLogList'
+          description: ''
+  /api/v1/logs/{log_id}/:
+    get:
+      operationId: api_v1_logs_retrieve
+      description: Read-only ViewSet for device logs (any authenticated user)
+      parameters:
+      - in: path
+        name: log_id
+        schema:
+          type: integer
+          description: Auto-incrementing log entry ID
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceLog'
+          description: ''
+  /api/v1/logs/summary/:
+    get:
+      operationId: api_v1_logs_summary_retrieve
+      description: Get logs summary by level and time
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceLog'
+          description: ''
+  /api/v1/notifications/process/:
+    post:
+      operationId: api_v1_notifications_process_create
+      description: |-
+        Process a queued notification.
+        POST /api/v1/notifications/process/
+        Called by Cloud Tasks.
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/parent/my-buses/:
+    get:
+      operationId: parent_bus_locations
+      description: "\n    **Fortune 500 IAM-style Parent Bus Locations**\n\n    Returns\
+        \ bus locations ONLY for buses assigned to the parent's children.\n\n    **Authorization:**\n\
+        \    - Requires authentication (JWT token)\n    - Requires role: parent\n\
+        \    - Filters results by parent-child-bus assignments\n    - Zero-trust:\
+        \ Parents can ONLY see their own children's buses\n\n    **Response:**\n \
+        \   GeoJSON FeatureCollection with bus location points\n    "
+      tags:
+      - Parents
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParentBusLocationsResponse'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Access denied - not a parent or not authenticated
+          description: ''
+  /api/v1/parents/:
+    get:
+      operationId: api_v1_parents_list
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedParentList'
+          description: ''
+    post:
+      operationId: api_v1_parents_create
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+  /api/v1/parents/{parent_id}/:
+    get:
+      operationId: api_v1_parents_retrieve
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      parameters:
+      - in: path
+        name: parent_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+    put:
+      operationId: api_v1_parents_update
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      parameters:
+      - in: path
+        name: parent_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ParentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ParentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+    patch:
+      operationId: api_v1_parents_partial_update
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      parameters:
+      - in: path
+        name: parent_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedParentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedParentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedParentRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+    delete:
+      operationId: api_v1_parents_destroy
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      parameters:
+      - in: path
+        name: parent_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/parents/{parent_id}/students/:
+    get:
+      operationId: api_v1_parents_students_retrieve
+      description: Admin-only parent management - NO row-level filtering (requires
+        admin access)
+      parameters:
+      - in: path
+        name: parent_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this parent.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+  /api/v1/parents/me/{id}/face-enrollment/status/:
+    get:
+      operationId: api_v1_parents_me_face_enrollment_status_retrieve
+      description: Check face enrollment status for child
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceEnrollmentStatus'
+          description: ''
+  /api/v1/parents/me/{id}/face-enrollment/submit/:
+    post:
+      operationId: api_v1_parents_me_face_enrollment_submit_create
+      description: Submit face enrollment photos for child
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FaceEnrollmentSubmissionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaceEnrollmentStatus'
+          description: ''
+  /api/v1/parents/me/{id}/read/:
+    post:
+      operationId: api_v1_parents_me_read_create
+      description: |-
+        Mark a notification as read.
+        POST /api/v1/parents/me/notifications/{notification_id}/read/
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/parents/me/bus-locations/:
+    get:
+      operationId: api_v1_parents_me_bus_locations_retrieve
+      description: Get real-time locations for all buses assigned to my children (row-level
+        security enforced). Cached for 30 seconds.
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    bus_id:
+                      type: string
+                    bus_number:
+                      type: string
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    speed:
+                      type: number
+                    heading:
+                      type: number
+                    last_updated:
+                      type: string
+          description: ''
+  /api/v1/parents/me/buses/:
+    get:
+      operationId: api_v1_parents_me_buses_retrieve
+      description: Get all buses for my children
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buses:
+                    type: array
+                    items:
+                      type: object
+          description: ''
+  /api/v1/parents/me/buses/{bus_id}/location/:
+    get:
+      operationId: api_v1_parents_me_buses_location_retrieve
+      description: Get real-time location for a specific bus (only buses for my children).
+        Cached for 30 seconds.
+      parameters:
+      - in: path
+        name: bus_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bus_id:
+                    type: string
+                  license_plate:
+                    type: string
+                  location:
+                    type: object
+                    properties:
+                      latitude:
+                        type: number
+                      longitude:
+                        type: number
+                      last_updated:
+                        type: string
+          description: ''
+  /api/v1/parents/me/children/:
+    get:
+      operationId: api_v1_parents_me_children_list
+      description: Get my children
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/parents/me/fcm-tokens/:
+    post:
+      operationId: api_v1_parents_me_fcm_tokens_create
+      description: |-
+        Manage FCM tokens for push notifications.
+        POST /api/v1/parents/me/fcm-tokens/ - Register token
+        DELETE /api/v1/parents/me/fcm-tokens/ - Delete token
+
+        Google Pattern: Infrastructure operation - works for authenticated users.
+        Parent may have "pending" approval status - that's OK for device management.
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: api_v1_parents_me_fcm_tokens_destroy
+      description: |-
+        Manage FCM tokens for push notifications.
+        POST /api/v1/parents/me/fcm-tokens/ - Register token
+        DELETE /api/v1/parents/me/fcm-tokens/ - Delete token
+
+        Google Pattern: Infrastructure operation - works for authenticated users.
+        Parent may have "pending" approval status - that's OK for device management.
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/parents/me/notification-preferences/:
+    get:
+      operationId: api_v1_parents_me_notification_preferences_retrieve
+      description: |-
+        Get or update notification preferences.
+        GET/PATCH /api/v1/parents/me/notification-preferences/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: api_v1_parents_me_notification_preferences_partial_update
+      description: |-
+        Get or update notification preferences.
+        GET/PATCH /api/v1/parents/me/notification-preferences/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/parents/me/notifications/:
+    get:
+      operationId: api_v1_parents_me_notifications_retrieve
+      description: |-
+        List all notifications for the parent.
+        GET /api/v1/parents/me/notifications/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/parents/me/profile/:
+    get:
+      operationId: api_v1_parents_me_profile_retrieve
+      description: Get my parent profile
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+  /api/v1/parents/register/:
+    post:
+      operationId: api_v1_parents_register_create
+      description: Register as a parent (called from parent_easy app after Firebase
+        login)
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Parent'
+          description: ''
+  /api/v1/routes/:
+    get:
+      operationId: api_v1_routes_list
+      description: ViewSet for bus routes
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRouteList'
+          description: ''
+    post:
+      operationId: api_v1_routes_create
+      description: ViewSet for bus routes
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+  /api/v1/routes/{route_id}/:
+    get:
+      operationId: api_v1_routes_retrieve
+      description: ViewSet for bus routes
+      parameters:
+      - in: path
+        name: route_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+    put:
+      operationId: api_v1_routes_update
+      description: ViewSet for bus routes
+      parameters:
+      - in: path
+        name: route_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RouteRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+    patch:
+      operationId: api_v1_routes_partial_update
+      description: ViewSet for bus routes
+      parameters:
+      - in: path
+        name: route_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedRouteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedRouteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedRouteRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+    delete:
+      operationId: api_v1_routes_destroy
+      description: ViewSet for bus routes
+      parameters:
+      - in: path
+        name: route_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/routes/{route_id}/buses/:
+    get:
+      operationId: api_v1_routes_buses_retrieve
+      description: Get all buses assigned to this route
+      parameters:
+      - in: path
+        name: route_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+  /api/v1/routes/{route_id}/students/:
+    get:
+      operationId: api_v1_routes_students_retrieve
+      description: Get all students assigned to buses on this route
+      parameters:
+      - in: path
+        name: route_id
+        schema:
+          type: string
+          format: uuid
+          description: UUID primary key
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Route'
+          description: ''
+  /api/v1/school/api/bus-locations/:
+    get:
+      operationId: bus_locations_api_2
+      description: "\n    Returns real-time bus locations for ALL buses in the fleet\
+        \ as GeoJSON.\n\n    Accessible by any authenticated user (school administrators,\
+        \ staff, etc.).\n\n    **Response Format:**\n    GeoJSON FeatureCollection\
+        \ with Point geometries for each bus location.\n\n    Each feature includes\
+        \ properties:\n    - id: Kiosk ID\n    - name: Bus license plate\n    - status:\
+        \ Bus status\n    - last_update: Timestamp of last location update\n    -\
+        \ speed: Current speed (km/h)\n    - heading: Direction heading (degrees)\n\
+        \    "
+      tags:
+      - Buses
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocationsResponse'
+          description: ''
+  /api/v1/schools/:
+    get:
+      operationId: api_v1_schools_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSchoolList'
+          description: ''
+    post:
+      operationId: api_v1_schools_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+  /api/v1/schools/{school_id}/:
+    get:
+      operationId: api_v1_schools_retrieve
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this school.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+    put:
+      operationId: api_v1_schools_update
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this school.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+    patch:
+      operationId: api_v1_schools_partial_update
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this school.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSchoolRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/School'
+          description: ''
+    delete:
+      operationId: api_v1_schools_destroy
+      parameters:
+      - in: path
+        name: school_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this school.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/student-parents/:
+    get:
+      operationId: api_v1_student_parents_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentParentList'
+          description: ''
+    post:
+      operationId: api_v1_student_parents_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentParentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentParentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentParentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentParent'
+          description: ''
+  /api/v1/student-parents/{id}/:
+    get:
+      operationId: api_v1_student_parents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student parent.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentParent'
+          description: ''
+    put:
+      operationId: api_v1_student_parents_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student parent.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentParentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentParentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentParentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentParent'
+          description: ''
+    patch:
+      operationId: api_v1_student_parents_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student parent.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentParentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentParentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentParentRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentParent'
+          description: ''
+    delete:
+      operationId: api_v1_student_parents_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student parent.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/student-photos/:
+    get:
+      operationId: api_v1_student_photos_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentPhotoList'
+          description: ''
+    post:
+      operationId: api_v1_student_photos_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentPhoto'
+          description: ''
+  /api/v1/student-photos/{photo_id}/:
+    get:
+      operationId: api_v1_student_photos_retrieve
+      parameters:
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student photo.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentPhoto'
+          description: ''
+    put:
+      operationId: api_v1_student_photos_update
+      parameters:
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student photo.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentPhoto'
+          description: ''
+    patch:
+      operationId: api_v1_student_photos_partial_update
+      parameters:
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student photo.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentPhotoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentPhotoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentPhotoRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentPhoto'
+          description: ''
+    delete:
+      operationId: api_v1_student_photos_destroy
+      parameters:
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student photo.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/student-photos/{photo_id}/set_primary/:
+    post:
+      operationId: api_v1_student_photos_set_primary_create
+      parameters:
+      - in: path
+        name: photo_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student photo.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentPhotoRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentPhoto'
+          description: ''
+  /api/v1/students/:
+    get:
+      operationId: api_v1_students_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentListList'
+          description: ''
+    post:
+      operationId: api_v1_students_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/{student_id}/:
+    get:
+      operationId: api_v1_students_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    put:
+      operationId: api_v1_students_update
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    patch:
+      operationId: api_v1_students_partial_update
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    delete:
+      operationId: api_v1_students_destroy
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/students/{student_id}/assign_bus/:
+    post:
+      operationId: api_v1_students_assign_bus_create
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/{student_id}/parents/:
+    get:
+      operationId: api_v1_students_parents_retrieve
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this student.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/all/:
+    get:
+      operationId: api_v1_students_all_retrieve
+      description: Returns paginated list of ALL registered students (not just students
+        who boarded today). Cached for 5 minutes.
+      summary: Get all registered students
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+        description: Number of students per page (default=50, max=100)
+      - in: query
+        name: offset
+        schema:
+          type: integer
+        description: Offset for pagination (default=0)
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by student name, school ID, or grade
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: boolean
+                  previous:
+                    type: boolean
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        school_student_id:
+                          type: string
+                        student_name:
+                          type: string
+                        grade:
+                          type: string
+                        bus_number:
+                          type: string
+                          nullable: true
+                        route_name:
+                          type: string
+                          nullable: true
+                        status:
+                          type: string
+          description: ''
+  /api/v1/users/:
+    get:
+      operationId: api_v1_users_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserList'
+          description: ''
+    post:
+      operationId: api_v1_users_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/users/{user_id}/:
+    get:
+      operationId: api_v1_users_retrieve
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: api_v1_users_update
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: api_v1_users_partial_update
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserRequest'
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    delete:
+      operationId: api_v1_users_destroy
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/users/me/:
+    get:
+      operationId: api_v1_users_me_retrieve
+      description: Get current authenticated user information
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+components:
+  schemas:
+    APIKey:
+      type: object
+      properties:
+        key_id:
+          type: string
+          format: uuid
+          readOnly: true
+        kiosk_id:
+          type: string
+          description: Reference to kiosk device
+          maxLength: 100
+        name:
+          type: string
+          description: Human-readable name for the key
+          maxLength: 100
+        permissions:
+          description: JSON object defining scoped permissions
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_used:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - key_id
+      - kiosk_id
+    APIKeyCreate:
+      type: object
+      properties:
+        kiosk_id:
+          type: string
+          description: Reference to kiosk device
+          maxLength: 100
+        name:
+          type: string
+          description: Human-readable name for the key
+          maxLength: 100
+        permissions:
+          description: JSON object defining scoped permissions
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        raw_key:
+          type: string
+          readOnly: true
+      required:
+      - kiosk_id
+      - raw_key
+    APIKeyCreateRequest:
+      type: object
+      properties:
+        kiosk_id:
+          type: string
+          minLength: 1
+          description: Reference to kiosk device
+          maxLength: 100
+        name:
+          type: string
+          description: Human-readable name for the key
+          maxLength: 100
+        permissions:
+          description: JSON object defining scoped permissions
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - kiosk_id
+    APIKeyRequest:
+      type: object
+      properties:
+        kiosk_id:
+          type: string
+          minLength: 1
+          description: Reference to kiosk device
+          maxLength: 100
+        name:
+          type: string
+          description: Human-readable name for the key
+          maxLength: 100
+        permissions:
+          description: JSON object defining scoped permissions
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - kiosk_id
+    AttendanceRecord:
+      type: object
+      description: Serializer for attendance records
+      properties:
+        record_id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: UUID primary key
+        student:
+          type: string
+          format: uuid
+          description: Student attendance record
+        student_name:
+          type: string
+          readOnly: true
+        student_grade:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          description: Date of attendance record
+        morning_boarded:
+          type: boolean
+          description: Whether student boarded in the morning
+        morning_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time of morning boarding
+        afternoon_boarded:
+          type: boolean
+          description: Whether student boarded in the afternoon
+        afternoon_time:
+          type: string
+          format: date-time
+          nullable: true
+          description: Time of afternoon boarding
+        status:
+          enum:
+          - present
+          - absent
+          - partial
+          type: string
+          x-spec-enum-id: 0ad3f4d50b94ceb7
+          readOnly: true
+          description: |-
+            Overall attendance status
+
+            * `present` - Present
+            * `absent` - Absent
+            * `partial` - Partial
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this record was created
+      required:
+      - created_at
+      - date
+      - record_id
+      - status
+      - student
+      - student_grade
+      - student_name
+    AuditLog:
+      type: object
+      properties:
+        log_id:
+          type: integer
+          readOnly: true
+        user:
+          type: string
+          format: uuid
+          nullable: true
+        user_username:
+          type: string
+          readOnly: true
+        user_email:
+          type: string
+          readOnly: true
+        action:
+          enum:
+          - CREATE
+          - UPDATE
+          - DELETE
+          - LOGIN
+          - LOGOUT
+          - API_ACCESS
+          type: string
+          description: |-
+            * `CREATE` - Create
+            * `UPDATE` - Update
+            * `DELETE` - Delete
+            * `LOGIN` - Login
+            * `LOGOUT` - Logout
+            * `API_ACCESS` - API Access
+          x-spec-enum-id: b2327df74eb7fd10
+        resource_type:
+          enum:
+          - user
+          - student
+          - bus
+          - kiosk
+          - event
+          - notification
+          type: string
+          description: |-
+            * `user` - User
+            * `student` - Student
+            * `bus` - Bus
+            * `kiosk` - Kiosk
+            * `event` - Boarding Event
+            * `notification` - Notification
+          x-spec-enum-id: 89b231cbca1d3d06
+        resource_id:
+          type: string
+          maxLength: 100
+        changes:
+          nullable: true
+          description: JSON object of changes made
+        ip_address:
+          type: string
+          nullable: true
+        user_agent:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - action
+      - log_id
+      - resource_type
+      - timestamp
+      - user_email
+      - user_username
+    BoardingEvent:
+      type: object
+      description: Serializer for boarding events
+      properties:
+        event_id:
+          type: string
+          readOnly: true
+          description: ULID primary key for global uniqueness and time sorting
+        student:
+          type: string
+          format: uuid
+          nullable: true
+          description: Student who boarded the bus (null for unidentified faces)
+        kiosk_id:
+          type: string
+          description: Kiosk device identifier
+          maxLength: 100
+        confidence_score:
+          type: number
+          format: double
+          maximum: 1.0
+          minimum: 0.0
+          description: Face recognition confidence score (0.0-1.0)
+        timestamp:
+          type: string
+          format: date-time
+          description: When the boarding event occurred
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude coordinate
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude coordinate
+        bus_route:
+          type: string
+          description: Bus route identifier
+          maxLength: 100
+        face_image_url:
+          type: string
+          description: S3 URL to face image for verification (optional)
+        model_version:
+          type: string
+          description: Face recognition model version used
+          maxLength: 50
+        metadata:
+          description: Additional metadata as JSON
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this record was created in database
+        confirmation_face_urls:
+          type: string
+          readOnly: true
+        is_unknown_face:
+          type: string
+          readOnly: true
+      required:
+      - confidence_score
+      - confirmation_face_urls
+      - created_at
+      - event_id
+      - is_unknown_face
+      - kiosk_id
+      - model_version
+      - timestamp
+    BoardingEventCreate:
+      type: object
+      description: Serializer for creating boarding events (kiosk-facing)
+      properties:
+        event_id:
+          type: string
+          readOnly: true
+          description: ULID primary key for global uniqueness and time sorting
+        student:
+          type: string
+          format: uuid
+          nullable: true
+          description: Student who boarded the bus (null for unidentified faces)
+        kiosk_id:
+          type: string
+          description: Kiosk device identifier
+          maxLength: 100
+        confidence_score:
+          type: number
+          format: double
+          maximum: 1.0
+          minimum: 0.0
+          description: Face recognition confidence score (0.0-1.0)
+        timestamp:
+          type: string
+          format: date-time
+          description: When the boarding event occurred
+        bus_route:
+          type: string
+          description: Bus route identifier
+          maxLength: 100
+        face_image_url:
+          type: string
+          description: S3 URL to face image for verification (optional)
+        model_version:
+          type: string
+          description: Face recognition model version used
+          maxLength: 50
+        metadata:
+          description: Additional metadata as JSON
+      required:
+      - confidence_score
+      - event_id
+      - kiosk_id
+      - model_version
+      - timestamp
+    BoardingEventCreateRequest:
+      type: object
+      description: Serializer for creating boarding events (kiosk-facing)
+      properties:
+        student:
+          type: string
+          format: uuid
+          nullable: true
+          description: Student who boarded the bus (null for unidentified faces)
+        kiosk_id:
+          type: string
+          minLength: 1
+          description: Kiosk device identifier
+          maxLength: 100
+        confidence_score:
+          type: number
+          format: double
+          maximum: 1.0
+          minimum: 0.0
+          description: Face recognition confidence score (0.0-1.0)
+        timestamp:
+          type: string
+          format: date-time
+          description: When the boarding event occurred
+        gps_coords:
+          type: array
+          items:
+            type: number
+            format: double
+          writeOnly: true
+          nullable: true
+          description: GPS coordinates as [latitude, longitude]. Optional - boarding
+            events can be created without location.
+          maxItems: 2
+          minItems: 2
+        bus_route:
+          type: string
+          description: Bus route identifier
+          maxLength: 100
+        face_image_url:
+          type: string
+          description: S3 URL to face image for verification (optional)
+        model_version:
+          type: string
+          minLength: 1
+          description: Face recognition model version used
+          maxLength: 50
+        metadata:
+          description: Additional metadata as JSON
+        confirmation_faces_base64:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          writeOnly: true
+          description: Array of base64-encoded confirmation faces (112x112 JPEG).
+            Send up to 3 consecutive frames.
+          maxItems: 3
+      required:
+      - confidence_score
+      - kiosk_id
+      - model_version
+      - timestamp
+    BoardingEventNested:
+      type: object
+      description: Nested boarding event for student activity.
+      properties:
+        event_id:
+          type: string
+          description: Event ULID
+        timestamp:
+          type: string
+          format: date-time
+          description: When event occurred
+        kiosk_id:
+          type: string
+          description: Kiosk device ID
+        event_type:
+          type: string
+          description: Event type (boarding/pickup/dropoff)
+        confirmation_face_urls:
+          type: array
+          items:
+            type: string
+          description: List of signed URLs for confirmation faces (flexible - 1 to
+            N photos)
+      required:
+      - event_id
+      - event_type
+      - kiosk_id
+      - timestamp
+    BoardingEventRequest:
+      type: object
+      description: Serializer for boarding events
+      properties:
+        student:
+          type: string
+          format: uuid
+          nullable: true
+          description: Student who boarded the bus (null for unidentified faces)
+        kiosk_id:
+          type: string
+          minLength: 1
+          description: Kiosk device identifier
+          maxLength: 100
+        confidence_score:
+          type: number
+          format: double
+          maximum: 1.0
+          minimum: 0.0
+          description: Face recognition confidence score (0.0-1.0)
+        timestamp:
+          type: string
+          format: date-time
+          description: When the boarding event occurred
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude coordinate
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude coordinate
+        bus_route:
+          type: string
+          description: Bus route identifier
+          maxLength: 100
+        face_image_url:
+          type: string
+          description: S3 URL to face image for verification (optional)
+        model_version:
+          type: string
+          minLength: 1
+          description: Face recognition model version used
+          maxLength: 50
+        metadata:
+          description: Additional metadata as JSON
+      required:
+      - confidence_score
+      - kiosk_id
+      - model_version
+      - timestamp
+    Bus:
+      type: object
+      description: Serializer for buses
+      properties:
+        bus_id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: UUID primary key
+        bus_number:
+          type: string
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
+        license_plate:
+          type: string
+          description: Vehicle license plate number
+          maxLength: 20
+        route:
+          type: string
+          format: uuid
+          description: Route this bus is assigned to
+          nullable: true
+        route_name:
+          type: string
+          readOnly: true
+          nullable: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+          nullable: true
+          description: Maximum number of passengers
+        device_id:
+          type: string
+          nullable: true
+          description: Kiosk device identifier installed on this bus
+          maxLength: 100
+        status:
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          description: |-
+            Current operational status
+
+            * `active` - Active
+            * `maintenance` - Under Maintenance
+            * `retired` - Retired
+        manufacturer:
+          type: string
+          description: Bus manufacturer
+          maxLength: 100
+        model:
+          type: string
+          description: Bus model
+          maxLength: 100
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Manufacturing year
+        last_maintenance:
+          type: string
+          format: date
+          nullable: true
+          description: Date of last maintenance
+        driver_name:
+          type: string
+          description: Driver's full name
+          maxLength: 200
+        driver_phone:
+          type: string
+          description: Driver's contact number
+          maxLength: 20
+        driver_address:
+          type: string
+          description: Driver's address
+        driver_license_number:
+          type: string
+          description: Driver's license number
+          maxLength: 50
+        conductor_name:
+          type: string
+          description: Conductor's full name
+          maxLength: 200
+        conductor_phone:
+          type: string
+          description: Conductor's contact number
+          maxLength: 20
+        conductor_address:
+          type: string
+          description: Conductor's address
+        assigned_students_count:
+          type: integer
+          readOnly: true
+        utilization_percentage:
+          type: number
+          format: double
+          readOnly: true
+        is_available:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this bus was added to the system
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this bus record was last updated
+      required:
+      - assigned_students_count
+      - bus_id
+      - bus_number
+      - created_at
+      - is_available
+      - license_plate
+      - updated_at
+      - utilization_percentage
+    BusBasic:
+      type: object
+      description: Basic bus serializer for nested use in student views
+      properties:
+        bus_id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: UUID primary key
+        license_plate:
+          type: string
+          description: Vehicle license plate number
+          maxLength: 20
+        bus_number:
+          type: string
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+          nullable: true
+          description: Maximum number of passengers
+        status:
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          description: |-
+            Current operational status
+
+            * `active` - Active
+            * `maintenance` - Under Maintenance
+            * `retired` - Retired
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this bus was added to the system
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this bus record was last updated
+      required:
+      - bus_id
+      - bus_number
+      - created_at
+      - license_plate
+      - updated_at
+    BusBasicRequest:
+      type: object
+      description: Basic bus serializer for nested use in student views
+      properties:
+        license_plate:
+          type: string
+          minLength: 1
+          description: Vehicle license plate number
+          maxLength: 20
+        bus_number:
+          type: string
+          minLength: 1
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+          nullable: true
+          description: Maximum number of passengers
+        status:
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          description: |-
+            Current operational status
+
+            * `active` - Active
+            * `maintenance` - Under Maintenance
+            * `retired` - Retired
+      required:
+      - bus_number
+      - license_plate
+    BusLocation:
+      type: object
+      description: Serializer for GPS location updates from kiosk
+      properties:
+        location_id:
+          type: integer
+          readOnly: true
+          description: Auto-incrementing location entry ID
+        latitude:
+          type: number
+          format: double
+          description: GPS latitude coordinate
+        longitude:
+          type: number
+          format: double
+          description: GPS longitude coordinate
+        accuracy:
+          type: number
+          format: double
+          nullable: true
+          description: GPS accuracy in meters
+        speed:
+          type: number
+          format: double
+          nullable: true
+          description: Speed in km/h
+        heading:
+          type: number
+          format: double
+          nullable: true
+          description: Heading/bearing in degrees (0-360)
+        timestamp:
+          type: string
+          format: date-time
+          description: When this location was recorded by the kiosk
+      required:
+      - latitude
+      - location_id
+      - longitude
+      - timestamp
+    BusLocationHistoryResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          default: FeatureCollection
+        features:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: Array of GeoJSON Feature objects with historical bus locations
+      required:
+      - features
+    BusLocationRequest:
+      type: object
+      description: Serializer for GPS location updates from kiosk
+      properties:
+        latitude:
+          type: number
+          format: double
+          description: GPS latitude coordinate
+        longitude:
+          type: number
+          format: double
+          description: GPS longitude coordinate
+        accuracy:
+          type: number
+          format: double
+          nullable: true
+          description: GPS accuracy in meters
+        speed:
+          type: number
+          format: double
+          nullable: true
+          description: Speed in km/h
+        heading:
+          type: number
+          format: double
+          nullable: true
+          description: Heading/bearing in degrees (0-360)
+        timestamp:
+          type: string
+          format: date-time
+          description: When this location was recorded by the kiosk
+      required:
+      - latitude
+      - longitude
+      - timestamp
+    BusLocationsResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          default: FeatureCollection
+        features:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: Array of GeoJSON Feature objects with bus locations
+      required:
+      - features
+    BusRequest:
+      type: object
+      description: Serializer for buses
+      properties:
+        bus_number:
+          type: string
+          minLength: 1
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
+        license_plate:
+          type: string
+          minLength: 1
+          description: Vehicle license plate number
+          maxLength: 20
+        route:
+          type: string
+          format: uuid
+          description: Route this bus is assigned to
+          nullable: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+          nullable: true
+          description: Maximum number of passengers
+        device_id:
+          type: string
+          nullable: true
+          description: Kiosk device identifier installed on this bus
+          maxLength: 100
+        status:
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          description: |-
+            Current operational status
+
+            * `active` - Active
+            * `maintenance` - Under Maintenance
+            * `retired` - Retired
+        manufacturer:
+          type: string
+          description: Bus manufacturer
+          maxLength: 100
+        model:
+          type: string
+          description: Bus model
+          maxLength: 100
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Manufacturing year
+        last_maintenance:
+          type: string
+          format: date
+          nullable: true
+          description: Date of last maintenance
+        driver_name:
+          type: string
+          description: Driver's full name
+          maxLength: 200
+        driver_phone:
+          type: string
+          description: Driver's contact number
+          maxLength: 20
+        driver_address:
+          type: string
+          description: Driver's address
+        driver_license_number:
+          type: string
+          description: Driver's license number
+          maxLength: 50
+        conductor_name:
+          type: string
+          description: Conductor's full name
+          maxLength: 200
+        conductor_phone:
+          type: string
+          description: Conductor's contact number
+          maxLength: 20
+        conductor_address:
+          type: string
+          description: Conductor's address
+      required:
+      - bus_number
+      - license_plate
+    CheckUpdatesResponse:
+      type: object
+      description: Serializer for check updates response
+      properties:
+        needs_update:
+          type: boolean
+          description: Whether kiosk needs to download new snapshot
+        current_version:
+          type: string
+          description: Current database version timestamp
+        student_count:
+          type: integer
+          description: Number of students for this bus
+        embedding_count:
+          type: integer
+          description: Number of embeddings for this bus
+        content_hash:
+          type: string
+          description: Content hash for integrity verification
+      required:
+      - content_hash
+      - current_version
+      - embedding_count
+      - needs_update
+      - student_count
+    DashboardStats:
+      type: object
+      description: Serializer for dashboard statistics response.
+      properties:
+        date:
+          type: string
+          format: date
+          description: Date for stats (YYYY-MM-DD)
+        active_buses:
+          type: integer
+          description: Number of active buses
+        total_buses:
+          type: integer
+          description: Total buses in fleet
+        students_boarded_today:
+          type: integer
+          description: Unique students who boarded today
+        total_events_today:
+          type: integer
+          description: Total boarding events today
+        last_updated:
+          type: string
+          format: date-time
+          description: When this data was last calculated
+      required:
+      - active_buses
+      - date
+      - last_updated
+      - students_boarded_today
+      - total_buses
+      - total_events_today
+    DashboardStudentsResponse:
+      type: object
+      description: Paginated response for dashboard students.
+      properties:
+        count:
+          type: integer
+          description: Total number of students with events
+        next:
+          type: boolean
+          description: Has next page
+        previous:
+          type: boolean
+          description: Has previous page
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentActivity'
+          description: List of students
+      required:
+      - count
+      - next
+      - previous
+      - results
+    DeviceLog:
+      type: object
+      description: Serializer for device logs
+      properties:
+        log_id:
+          type: integer
+          readOnly: true
+          description: Auto-incrementing log entry ID
+        kiosk:
+          type: string
+          description: Kiosk that generated this log entry
+        kiosk_id:
+          type: string
+          readOnly: true
+        log_level:
+          enum:
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
+          - CRITICAL
+          type: string
+          x-spec-enum-id: 7b1a6f8785c20640
+          description: |-
+            Log level severity
+
+            * `DEBUG` - Debug
+            * `INFO` - Info
+            * `WARN` - Warning
+            * `ERROR` - Error
+            * `CRITICAL` - Critical
+        message:
+          type: string
+          description: Log message content
+        metadata:
+          description: Additional structured data as JSON
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this log entry was created
+      required:
+      - kiosk
+      - kiosk_id
+      - log_id
+      - log_level
+      - message
+      - timestamp
+    DeviceLogRequest:
+      type: object
+      description: Serializer for device logs
+      properties:
+        kiosk:
+          type: string
+          minLength: 1
+          description: Kiosk that generated this log entry
+        log_level:
+          enum:
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
+          - CRITICAL
+          type: string
+          x-spec-enum-id: 7b1a6f8785c20640
+          description: |-
+            Log level severity
+
+            * `DEBUG` - Debug
+            * `INFO` - Info
+            * `WARN` - Warning
+            * `ERROR` - Error
+            * `CRITICAL` - Critical
+        message:
+          type: string
+          minLength: 1
+          description: Log message content
+        metadata:
+          description: Additional structured data as JSON
+      required:
+      - kiosk
+      - log_level
+      - message
+    FaceEnrollmentStatus:
+      type: object
+      description: Serializer for checking enrollment status
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+          readOnly: true
+        status:
+          enum:
+          - pending_approval
+          - approved
+          - rejected
+          type: string
+          x-spec-enum-id: 85cd7db90e71a6ab
+          readOnly: true
+          description: |-
+            Approval status
+
+            * `pending_approval` - Pending Approval
+            * `approved` - Approved
+            * `rejected` - Rejected
+        photo_count:
+          type: integer
+          readOnly: true
+          description: Number of photos in this enrollment
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When parent submitted enrollment
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When enrollment was reviewed
+      required:
+      - enrollment_id
+      - photo_count
+      - status
+      - submitted_at
+    FaceEnrollmentSubmissionRequest:
+      type: object
+      description: |-
+        Serializer for parent face enrollment photo submission.
+
+        Parent app auto-captures 3-5 photos and submits as base64-encoded images.
+        This serializer validates the submission and creates a FaceEnrollment record.
+      properties:
+        photos:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: Array of base64-encoded photos from auto-capture
+          minItems: 1
+        device_info:
+          description: Device metadata (model, OS, app version, etc.)
+      required:
+      - photos
+    Group:
+      type: object
+      description: |-
+        Serializer for Django Groups (Roles).
+        Read-only following IAM principle.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        permissions_count:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - name
+      - permissions_count
+    HealthDataRequest:
+      type: object
+      description: Serializer for health metrics
+      properties:
+        battery_level:
+          type: integer
+          maximum: 100
+          minimum: 0
+          nullable: true
+        device_temperature:
+          type: integer
+          nullable: true
+          description: Device temperature in deciselsius (Celsius * 10)
+        is_charging:
+          type: boolean
+          default: false
+        storage_available_mb:
+          type: integer
+          minimum: 0
+          nullable: true
+        camera_active:
+          type: boolean
+          default: false
+        network_type:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 20
+        app_version:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 20
+        last_face_detected_ago_min:
+          type: integer
+          minimum: 0
+          nullable: true
+        faces_detected_today:
+          type: integer
+          minimum: 0
+          default: 0
+        students_identified_today:
+          type: integer
+          minimum: 0
+          default: 0
+    HeartbeatRequest:
+      type: object
+      description: Serializer for kiosk heartbeat
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Heartbeat timestamp
+        database_version:
+          type: string
+          minLength: 1
+          description: Current database version on kiosk
+          maxLength: 50
+        database_hash:
+          type: string
+          description: Database content hash
+          maxLength: 64
+        student_count:
+          type: integer
+          minimum: 0
+          description: Students in DB
+        embedding_count:
+          type: integer
+          minimum: 0
+          description: Embeddings in DB
+        git_commit_sha:
+          type: string
+          nullable: true
+          minLength: 1
+          description: Git commit SHA of the kiosk app build (40 chars). Null for
+            dev builds.
+          maxLength: 40
+        health:
+          $ref: '#/components/schemas/HealthDataRequest'
+      required:
+      - database_version
+      - embedding_count
+      - student_count
+      - timestamp
+    Kiosk:
+      type: object
+      description: Serializer for kiosks
+      properties:
+        kiosk_id:
+          type: string
+          readOnly: true
+          description: Unique kiosk device identifier (e.g., KIOSK001, BUS123-KIOSK)
+        bus:
+          type: string
+          readOnly: true
+        bus_license_plate:
+          type: string
+          readOnly: true
+        firmware_version:
+          type: string
+          description: Current firmware version installed on device
+          maxLength: 50
+        git_commit_sha:
+          type: string
+          nullable: true
+          description: Git commit SHA of current kiosk app build
+          maxLength: 40
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last heartbeat received from device
+        is_active:
+          type: boolean
+          description: Whether this kiosk is active and accepting requests
+        battery_level:
+          type: number
+          format: double
+        storage_used_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Storage used in MB on the device
+        operation_timing:
+          allOf:
+          - $ref: '#/components/schemas/OperationTiming'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        is_online:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this kiosk was registered
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this kiosk record was last updated
+      required:
+      - bus
+      - bus_license_plate
+      - created_at
+      - is_online
+      - kiosk_id
+      - operation_timing
+      - status_display
+      - updated_at
+    KioskRequest:
+      type: object
+      description: Serializer for kiosks
+      properties:
+        firmware_version:
+          type: string
+          description: Current firmware version installed on device
+          maxLength: 50
+        git_commit_sha:
+          type: string
+          nullable: true
+          description: Git commit SHA of current kiosk app build
+          maxLength: 40
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last heartbeat received from device
+        is_active:
+          type: boolean
+          description: Whether this kiosk is active and accepting requests
+        battery_level:
+          type: number
+          format: double
+        storage_used_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Storage used in MB on the device
+    OperationSlot:
+      type: object
+      description: Serializer for operation time slots
+      properties:
+        start_time:
+          type: string
+          format: time
+          description: Start time (e.g., 08:00)
+        end_time:
+          type: string
+          format: time
+          description: End time (e.g., 10:00)
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Display order (0 = first slot)
+      required:
+      - end_time
+      - start_time
+    OperationSlotRequest:
+      type: object
+      description: Serializer for operation time slots
+      properties:
+        start_time:
+          type: string
+          format: time
+          description: Start time (e.g., 08:00)
+        end_time:
+          type: string
+          format: time
+          description: End time (e.g., 10:00)
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+          description: Display order (0 = first slot)
+      required:
+      - end_time
+      - start_time
+    OperationTiming:
+      type: object
+      description: Serializer for operation timing with slots
+      properties:
+        name:
+          type: string
+          description: Schedule name (e.g., 'Morning Shift', 'Full Day')
+          maxLength: 100
+        description:
+          type: string
+          description: Optional description of this schedule
+        is_active:
+          type: boolean
+          description: Whether this schedule is available for selection
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperationSlot'
+          readOnly: true
+      required:
+      - name
+      - slots
+    OperationTimingRequest:
+      type: object
+      description: Serializer for operation timing with slots
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Schedule name (e.g., 'Morning Shift', 'Full Day')
+          maxLength: 100
+        description:
+          type: string
+          description: Optional description of this schedule
+        is_active:
+          type: boolean
+          description: Whether this schedule is available for selection
+      required:
+      - name
+    PaginatedAPIKeyList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+    PaginatedAttendanceRecordList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttendanceRecord'
+    PaginatedAuditLogList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+    PaginatedBoardingEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardingEvent'
+    PaginatedBusList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bus'
+    PaginatedDeviceLogList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeviceLog'
+    PaginatedGroupList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+    PaginatedKioskList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kiosk'
+    PaginatedParentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parent'
+    PaginatedRouteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Route'
+    PaginatedSchoolList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/School'
+    PaginatedStudentListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentList'
+    PaginatedStudentParentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentParent'
+    PaginatedStudentPhotoList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentPhoto'
+    PaginatedUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+    Parent:
+      type: object
+      properties:
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+        decrypted_name:
+          type: string
+          readOnly: true
+        decrypted_phone:
+          type: string
+          readOnly: true
+        decrypted_email:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          description: Encrypted name (plaintext validated max 100 chars)
+        phone:
+          type: string
+          nullable: true
+          description: Encrypted phone number (plaintext validated as +91XXXXXXXXXX)
+        email:
+          type: string
+          nullable: true
+          description: Encrypted email address (plaintext validated per RFC 5321)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - decrypted_email
+      - decrypted_name
+      - decrypted_phone
+      - name
+      - parent_id
+    ParentBusLocationsResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          default: FeatureCollection
+        features:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: GeoJSON features array
+      required:
+      - features
+    ParentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Encrypted name (plaintext validated max 100 chars)
+        phone:
+          type: string
+          nullable: true
+          description: Encrypted phone number (plaintext validated as +91XXXXXXXXXX)
+        email:
+          type: string
+          nullable: true
+          description: Encrypted email address (plaintext validated per RFC 5321)
+      required:
+      - name
+    PatchedAPIKeyRequest:
+      type: object
+      properties:
+        kiosk_id:
+          type: string
+          minLength: 1
+          description: Reference to kiosk device
+          maxLength: 100
+        name:
+          type: string
+          description: Human-readable name for the key
+          maxLength: 100
+        permissions:
+          description: JSON object defining scoped permissions
+        is_active:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+    PatchedBoardingEventRequest:
+      type: object
+      description: Serializer for boarding events
+      properties:
+        student:
+          type: string
+          format: uuid
+          nullable: true
+          description: Student who boarded the bus (null for unidentified faces)
+        kiosk_id:
+          type: string
+          minLength: 1
+          description: Kiosk device identifier
+          maxLength: 100
+        confidence_score:
+          type: number
+          format: double
+          maximum: 1.0
+          minimum: 0.0
+          description: Face recognition confidence score (0.0-1.0)
+        timestamp:
+          type: string
+          format: date-time
+          description: When the boarding event occurred
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude coordinate
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude coordinate
+        bus_route:
+          type: string
+          description: Bus route identifier
+          maxLength: 100
+        face_image_url:
+          type: string
+          description: S3 URL to face image for verification (optional)
+        model_version:
+          type: string
+          minLength: 1
+          description: Face recognition model version used
+          maxLength: 50
+        metadata:
+          description: Additional metadata as JSON
+    PatchedBusRequest:
+      type: object
+      description: Serializer for buses
+      properties:
+        bus_number:
+          type: string
+          minLength: 1
+          description: School-assigned bus number (e.g., 'BUS-001', 'B-12')
+          maxLength: 20
+        license_plate:
+          type: string
+          minLength: 1
+          description: Vehicle license plate number
+          maxLength: 20
+        route:
+          type: string
+          format: uuid
+          description: Route this bus is assigned to
+          nullable: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 1
+          format: int64
+          nullable: true
+          description: Maximum number of passengers
+        device_id:
+          type: string
+          nullable: true
+          description: Kiosk device identifier installed on this bus
+          maxLength: 100
+        status:
+          enum:
+          - active
+          - maintenance
+          - retired
+          type: string
+          x-spec-enum-id: 7cfb8829cc47c499
+          description: |-
+            Current operational status
+
+            * `active` - Active
+            * `maintenance` - Under Maintenance
+            * `retired` - Retired
+        manufacturer:
+          type: string
+          description: Bus manufacturer
+          maxLength: 100
+        model:
+          type: string
+          description: Bus model
+          maxLength: 100
+        year:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Manufacturing year
+        last_maintenance:
+          type: string
+          format: date
+          nullable: true
+          description: Date of last maintenance
+        driver_name:
+          type: string
+          description: Driver's full name
+          maxLength: 200
+        driver_phone:
+          type: string
+          description: Driver's contact number
+          maxLength: 20
+        driver_address:
+          type: string
+          description: Driver's address
+        driver_license_number:
+          type: string
+          description: Driver's license number
+          maxLength: 50
+        conductor_name:
+          type: string
+          description: Conductor's full name
+          maxLength: 200
+        conductor_phone:
+          type: string
+          description: Conductor's contact number
+          maxLength: 20
+        conductor_address:
+          type: string
+          description: Conductor's address
+    PatchedKioskRequest:
+      type: object
+      description: Serializer for kiosks
+      properties:
+        firmware_version:
+          type: string
+          description: Current firmware version installed on device
+          maxLength: 50
+        git_commit_sha:
+          type: string
+          nullable: true
+          description: Git commit SHA of current kiosk app build
+          maxLength: 40
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of last heartbeat received from device
+        is_active:
+          type: boolean
+          description: Whether this kiosk is active and accepting requests
+        battery_level:
+          type: number
+          format: double
+        storage_used_mb:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+          description: Storage used in MB on the device
+    PatchedParentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Encrypted name (plaintext validated max 100 chars)
+        phone:
+          type: string
+          nullable: true
+          description: Encrypted phone number (plaintext validated as +91XXXXXXXXXX)
+        email:
+          type: string
+          nullable: true
+          description: Encrypted email address (plaintext validated per RFC 5321)
+    PatchedRouteRequest:
+      type: object
+      description: Serializer for bus routes with polyline support
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Route name (e.g., 'Route A', 'North Loop')
+          maxLength: 100
+        description:
+          type: string
+          description: Detailed description of the route
+        color_code:
+          type: string
+          minLength: 1
+          description: 'Hex color for map display (e.g., #FF5733)'
+          maxLength: 7
+        line_pattern:
+          enum:
+          - solid
+          - dashed
+          type: string
+          x-spec-enum-id: 45d895aa6835744a
+          description: |-
+            Line pattern for map visualization
+
+            * `solid` - Solid Line
+            * `dashed` - Dashed Line
+        is_active:
+          type: boolean
+          description: Whether this route is currently active
+    PatchedSchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+    PatchedStudentParentRequest:
+      type: object
+      properties:
+        student:
+          type: string
+          format: uuid
+        parent:
+          type: string
+          format: uuid
+        relationship:
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
+        is_primary:
+          type: boolean
+    PatchedStudentPhotoRequest:
+      type: object
+      properties:
+        student:
+          type: string
+          format: uuid
+        photo_content_type:
+          type: string
+          description: MIME type (e.g., image/jpeg, image/png)
+          maxLength: 50
+        is_primary:
+          type: boolean
+          description: Primary photo for student
+        captured_at:
+          type: string
+          format: date-time
+          description: When photo was taken
+    PatchedStudentRequest:
+      type: object
+      description: Full serializer for detail view - includes all nested data
+      properties:
+        school:
+          type: string
+          format: uuid
+        school_student_id:
+          type: string
+          minLength: 1
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
+        grade:
+          type: string
+          minLength: 1
+          maxLength: 10
+        section:
+          type: string
+          maxLength: 10
+        address_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address latitude
+        address_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address longitude
+        assigned_bus:
+          type: string
+          format: uuid
+          description: UUID primary key
+          nullable: true
+        status:
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
+        enrollment_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date student enrolled in school
+    PatchedUserRequest:
+      type: object
+      description: |-
+        User serializer - Authentication layer only.
+
+        For parent approval status, see ParentSerializer (domain layer).
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        is_active:
+          type: boolean
+    Route:
+      type: object
+      description: Serializer for bus routes with polyline support
+      properties:
+        route_id:
+          type: string
+          format: uuid
+          readOnly: true
+          description: UUID primary key
+        name:
+          type: string
+          description: Route name (e.g., 'Route A', 'North Loop')
+          maxLength: 100
+        description:
+          type: string
+          description: Detailed description of the route
+        color_code:
+          type: string
+          description: 'Hex color for map display (e.g., #FF5733)'
+          maxLength: 7
+        line_pattern:
+          enum:
+          - solid
+          - dashed
+          type: string
+          x-spec-enum-id: 45d895aa6835744a
+          description: |-
+            Line pattern for map visualization
+
+            * `solid` - Solid Line
+            * `dashed` - Dashed Line
+        is_active:
+          type: boolean
+          description: Whether this route is currently active
+        stop_count:
+          type: integer
+          readOnly: true
+        total_students:
+          type: integer
+          readOnly: true
+        route_stops:
+          type: array
+          items:
+            $ref: '#/components/schemas/RouteStop'
+          readOnly: true
+        encoded_polyline:
+          type: string
+          readOnly: true
+        bus_stops:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this route was created
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When this route was last updated
+      required:
+      - bus_stops
+      - created_at
+      - encoded_polyline
+      - name
+      - route_id
+      - route_stops
+      - stop_count
+      - total_students
+      - updated_at
+    RouteRequest:
+      type: object
+      description: Serializer for bus routes with polyline support
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Route name (e.g., 'Route A', 'North Loop')
+          maxLength: 100
+        description:
+          type: string
+          description: Detailed description of the route
+        color_code:
+          type: string
+          minLength: 1
+          description: 'Hex color for map display (e.g., #FF5733)'
+          maxLength: 7
+        line_pattern:
+          enum:
+          - solid
+          - dashed
+          type: string
+          x-spec-enum-id: 45d895aa6835744a
+          description: |-
+            Line pattern for map visualization
+
+            * `solid` - Solid Line
+            * `dashed` - Dashed Line
+        is_active:
+          type: boolean
+          description: Whether this route is currently active
+      required:
+      - name
+    RouteStop:
+      type: object
+      description: Serializer for route stops with nested bus stop info
+      properties:
+        bus_stop:
+          type: string
+          format: uuid
+          description: Bus stop on this route
+        bus_stop_name:
+          type: string
+          readOnly: true
+        latitude:
+          type: number
+          format: double
+          readOnly: true
+        longitude:
+          type: number
+          format: double
+          readOnly: true
+        sequence:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Order of this stop in the route (1-based)
+        waypoints:
+          description: 'Path coordinates to NEXT stop: [{lat, lon}, ...]'
+      required:
+      - bus_stop
+      - bus_stop_name
+      - latitude
+      - longitude
+      - sequence
+    RouteStopRequest:
+      type: object
+      description: Serializer for route stops with nested bus stop info
+      properties:
+        bus_stop:
+          type: string
+          format: uuid
+          description: Bus stop on this route
+        sequence:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Order of this stop in the route (1-based)
+        waypoints:
+          description: 'Path coordinates to NEXT stop: [{lat, lon}, ...]'
+      required:
+      - bus_stop
+      - sequence
+    SOSAlert:
+      type: object
+      description: Serializer for SOS emergency alerts
+      properties:
+        alert_id:
+          type: integer
+          readOnly: true
+          description: Auto-incrementing alert ID
+        kiosk_id:
+          type: string
+          readOnly: true
+        bus_license_plate:
+          type: string
+          readOnly: true
+          nullable: true
+        bus_number:
+          type: string
+          readOnly: true
+          nullable: true
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude at time of alert
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude at time of alert
+        status:
+          enum:
+          - active
+          - acknowledged
+          - resolved
+          - false_alarm
+          type: string
+          x-spec-enum-id: 807151cfe11df5c3
+          description: |-
+            Current status of the alert
+
+            * `active` - Active
+            * `acknowledged` - Acknowledged
+            * `resolved` - Resolved
+            * `false_alarm` - False Alarm
+        message:
+          type: string
+          description: Optional message/notes from the kiosk operator
+        metadata:
+          description: Additional data (battery level, network status, etc.)
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: When the alert was created
+        acknowledged_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When the alert was first acknowledged by staff
+        resolved_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+          description: When the alert was resolved
+        acknowledged_by:
+          type: string
+          description: Name/ID of person who acknowledged the alert
+          maxLength: 255
+        resolved_by:
+          type: string
+          description: Name/ID of person who resolved the alert
+          maxLength: 255
+      required:
+      - alert_id
+      - created_at
+      - kiosk_id
+    SOSAlertCreateRequest:
+      type: object
+      description: Serializer for creating SOS alerts from kiosk
+      properties:
+        latitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS latitude at time of alert
+        longitude:
+          type: number
+          format: double
+          nullable: true
+          description: GPS longitude at time of alert
+        message:
+          type: string
+          description: Optional message from operator
+        metadata:
+          description: Additional context data
+    School:
+      type: object
+      properties:
+        school_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - name
+      - school_id
+    SchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - name
+    Student:
+      type: object
+      description: Full serializer for detail view - includes all nested data
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          readOnly: true
+        school:
+          type: string
+          format: uuid
+        school_student_id:
+          type: string
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
+        decrypted_name:
+          type: string
+          readOnly: true
+        grade:
+          type: string
+          maxLength: 10
+        section:
+          type: string
+          maxLength: 10
+        address_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address latitude
+        address_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address longitude
+        assigned_bus:
+          type: string
+          format: uuid
+          description: UUID primary key
+          nullable: true
+        status:
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
+        enrollment_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date student enrolled in school
+        school_details:
+          allOf:
+          - $ref: '#/components/schemas/School'
+          readOnly: true
+        bus_details:
+          allOf:
+          - $ref: '#/components/schemas/BusBasic'
+          readOnly: true
+        parents:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentParent'
+          readOnly: true
+        photos:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentPhoto'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bus_details
+      - created_at
+      - decrypted_name
+      - grade
+      - parents
+      - photos
+      - school
+      - school_details
+      - school_student_id
+      - student_id
+      - updated_at
+    StudentActivity:
+      type: object
+      description: |-
+        Serializer for student activity with boarding events.
+
+        SECURITY: Does NOT expose internal student_id UUID to dashboard
+        Uses school_student_id (human-readable) instead
+      properties:
+        school_student_id:
+          type: string
+          description: School-provided student ID (e.g., STU-2024-001)
+        student_name:
+          type: string
+          description: Student name (decrypted by backend)
+        grade:
+          type: string
+          description: Student grade
+        bus_number:
+          type: string
+          nullable: true
+          description: Bus license plate
+        route_name:
+          type: string
+          nullable: true
+          description: Route name
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/BoardingEventNested'
+          description: All boarding events for this student today
+        event_count:
+          type: integer
+          description: Number of events today
+      required:
+      - event_count
+      - events
+      - grade
+      - school_student_id
+      - student_name
+    StudentList:
+      type: object
+      description: Lightweight serializer for list view - only essential fields
+      properties:
+        student_id:
+          type: string
+          format: uuid
+          readOnly: true
+        school_student_id:
+          type: string
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
+        decrypted_name:
+          type: string
+          readOnly: true
+        grade:
+          type: string
+          maxLength: 10
+        section:
+          type: string
+          maxLength: 10
+        primary_parent_name:
+          type: string
+          readOnly: true
+        primary_parent_phone:
+          type: string
+          readOnly: true
+        bus_number:
+          type: string
+          readOnly: true
+        status:
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
+      required:
+      - bus_number
+      - decrypted_name
+      - grade
+      - primary_parent_name
+      - primary_parent_phone
+      - school_student_id
+      - student_id
+    StudentParent:
+      type: object
+      properties:
+        student:
+          type: string
+          format: uuid
+        parent:
+          type: string
+          format: uuid
+        relationship:
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
+        is_primary:
+          type: boolean
+        parent_details:
+          allOf:
+          - $ref: '#/components/schemas/Parent'
+          readOnly: true
+        student_details:
+          type: string
+          readOnly: true
+      required:
+      - parent
+      - parent_details
+      - relationship
+      - student
+      - student_details
+    StudentParentRequest:
+      type: object
+      properties:
+        student:
+          type: string
+          format: uuid
+        parent:
+          type: string
+          format: uuid
+        relationship:
+          enum:
+          - mother
+          - father
+          - guardian
+          - grandparent
+          - other
+          type: string
+          description: |-
+            * `mother` - Mother
+            * `father` - Father
+            * `guardian` - Guardian
+            * `grandparent` - Grandparent
+            * `other` - Other
+          x-spec-enum-id: b3cc345f241d9470
+        is_primary:
+          type: boolean
+      required:
+      - parent
+      - relationship
+      - student
+    StudentPhoto:
+      type: object
+      properties:
+        photo_id:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: string
+          format: uuid
+        photo_url:
+          type: string
+          readOnly: true
+        photo_content_type:
+          type: string
+          description: MIME type (e.g., image/jpeg, image/png)
+          maxLength: 50
+        is_primary:
+          type: boolean
+          description: Primary photo for student
+        captured_at:
+          type: string
+          format: date-time
+          description: When photo was taken
+        student_details:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - photo_id
+      - photo_url
+      - student
+      - student_details
+    StudentPhotoRequest:
+      type: object
+      properties:
+        student:
+          type: string
+          format: uuid
+        photo_content_type:
+          type: string
+          description: MIME type (e.g., image/jpeg, image/png)
+          maxLength: 50
+        is_primary:
+          type: boolean
+          description: Primary photo for student
+        captured_at:
+          type: string
+          format: date-time
+          description: When photo was taken
+      required:
+      - student
+    StudentRequest:
+      type: object
+      description: Full serializer for detail view - includes all nested data
+      properties:
+        school:
+          type: string
+          format: uuid
+        school_student_id:
+          type: string
+          minLength: 1
+          description: School-provided student ID (e.g., STU-2024-001)
+          maxLength: 50
+        grade:
+          type: string
+          minLength: 1
+          maxLength: 10
+        section:
+          type: string
+          maxLength: 10
+        address_latitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address latitude
+        address_longitude:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,7})?$
+          nullable: true
+          description: Student home address longitude
+        assigned_bus:
+          type: string
+          format: uuid
+          description: UUID primary key
+          nullable: true
+        status:
+          enum:
+          - active
+          - inactive
+          - suspended
+          type: string
+          description: |-
+            * `active` - Active
+            * `inactive` - Inactive
+            * `suspended` - Suspended
+          x-spec-enum-id: b5ba39b211d43b5e
+        enrollment_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date student enrolled in school
+      required:
+      - grade
+      - school
+      - school_student_id
+    User:
+      type: object
+      description: |-
+        User serializer - Authentication layer only.
+
+        For parent approval status, see ParentSerializer (domain layer).
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          readOnly: true
+        username:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        groups:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        group_names:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+      required:
+      - created_at
+      - email
+      - group_names
+      - groups
+      - updated_at
+      - user_id
+      - username
+    UserRequest:
+      type: object
+      description: |-
+        User serializer - Authentication layer only.
+
+        For parent approval status, see ParentSerializer (domain layer).
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        is_active:
+          type: boolean
+      required:
+      - email
+      - username
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+servers:
+- url: http://localhost:8000
+  description: Local development
+- url: https://api.easypool.in
+  description: Production API
