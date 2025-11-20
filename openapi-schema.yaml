@@ -5228,6 +5228,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/School'
           readOnly: true
+          nullable: true
         bus_details:
           allOf:
           - $ref: '#/components/schemas/BusBasic'
@@ -5650,6 +5651,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/School'
           readOnly: true
+          nullable: true
         bus_details:
           allOf:
           - $ref: '#/components/schemas/BusBasic'

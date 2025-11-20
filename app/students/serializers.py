@@ -212,8 +212,8 @@ class StudentSerializer(serializers.ModelSerializer):
 
     # Decrypted name for API responses
     decrypted_name = serializers.SerializerMethodField()
-    school_details = SchoolSerializer(source="school", read_only=True)
     # Google way: Make optional fields explicitly nullable
+    school_details = SchoolSerializer(source="school", read_only=True, allow_null=True)
     bus_details = BusBasicSerializer(source="assigned_bus", read_only=True, allow_null=True)
     # Explicitly define as nested serializers (not SerializerMethodField) for correct OpenAPI schema
     parents = StudentParentSerializer(source="student_parents", many=True, read_only=True, allow_null=True)
