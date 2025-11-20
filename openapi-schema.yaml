@@ -5169,7 +5169,11 @@ components:
           readOnly: true
     PatchedStudent:
       type: object
-      description: Full serializer for detail view - includes all nested data
+      description: |-
+        Full serializer for detail view - includes all nested data
+
+        Google Way: Nested fields use graceful degradation - they return null/empty
+        on any error rather than crashing the entire response.
       properties:
         student_id:
           type: string
@@ -5227,11 +5231,13 @@ components:
         school_details:
           allOf:
           - $ref: '#/components/schemas/School'
+          nullable: true
           readOnly: true
           nullable: true
         bus_details:
           allOf:
           - $ref: '#/components/schemas/BusBasic'
+          nullable: true
           readOnly: true
           nullable: true
         parents:
@@ -5592,7 +5598,11 @@ components:
       - school_id
     Student:
       type: object
-      description: Full serializer for detail view - includes all nested data
+      description: |-
+        Full serializer for detail view - includes all nested data
+
+        Google Way: Nested fields use graceful degradation - they return null/empty
+        on any error rather than crashing the entire response.
       properties:
         student_id:
           type: string
@@ -5650,11 +5660,13 @@ components:
         school_details:
           allOf:
           - $ref: '#/components/schemas/School'
+          nullable: true
           readOnly: true
           nullable: true
         bus_details:
           allOf:
           - $ref: '#/components/schemas/BusBasic'
+          nullable: true
           readOnly: true
           nullable: true
         parents:

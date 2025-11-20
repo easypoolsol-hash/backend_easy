@@ -223,7 +223,7 @@ class StudentSerializer(serializers.ModelSerializer):
     parents = serializers.SerializerMethodField()
     photos = serializers.SerializerMethodField()
 
-    @extend_schema_field({'oneOf': [{'$ref': '#/components/schemas/School'}, {'type': 'null'}]})
+    @extend_schema_field(SchoolSerializer(allow_null=True))
     def get_school_details(self, obj):
         """Return school details or None - graceful degradation for bad data"""
         try:
@@ -233,9 +233,9 @@ class StudentSerializer(serializers.ModelSerializer):
             pass
         return None
 
-    @extend_schema_field({'oneOf': [{'$ref': '#/components/schemas/BusBasic'}, {'type': 'null'}]})
+    @extend_schema_field(BusBasicSerializer(allow_null=True))
     def get_bus_details(self, obj):
-        """Return bus details or None"""
+        """Return bus details or None - graceful degradation for bad data"""
         try:
             if obj.assigned_bus:
                 return BusBasicSerializer(obj.assigned_bus).data
@@ -243,17 +243,17 @@ class StudentSerializer(serializers.ModelSerializer):
             pass
         return None
 
-    @extend_schema_field({'type': 'array', 'items': {'$ref': '#/components/schemas/StudentParent'}})
+    @extend_schema_field(StudentParentSerializer(many=True))
     def get_parents(self, obj):
-        """Return parents list or empty list"""
+        """Return parents list or empty list - graceful degradation"""
         try:
             return StudentParentSerializer(obj.student_parents.all(), many=True).data
         except Exception:
             return []
 
-    @extend_schema_field({'type': 'array', 'items': {'$ref': '#/components/schemas/StudentPhoto'}})
+    @extend_schema_field(StudentPhotoSerializer(many=True))
     def get_photos(self, obj):
-        """Return photos list or empty list"""
+        """Return photos list or empty list - graceful degradation"""
         try:
             return StudentPhotoSerializer(obj.photos.all(), many=True).data
         except Exception:

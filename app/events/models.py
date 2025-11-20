@@ -72,6 +72,48 @@ class BoardingEvent(models.Model):
         help_text="GCS path for third confirmation face (112x112 JPEG, ~5-10KB)",
     )
 
+    # Backend Multi-Model Verification Fields (for async verification after boarding)
+    backend_verification_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending Verification"),
+            ("verified", "Verified"),
+            ("flagged", "Flagged for Review"),
+            ("failed", "Verification Failed"),
+        ],
+        default="pending",
+        help_text="Backend multi-model verification status",
+    )
+    backend_verification_confidence = models.CharField(
+        max_length=20,
+        choices=[
+            ("high", "High Confidence"),  # All 3 models agree
+            ("medium", "Medium Confidence"),  # 2 models agree
+            ("low", "Low Confidence"),  # No consensus
+        ],
+        null=True,
+        blank=True,
+        help_text="Confidence level from backend verification consensus",
+    )
+    backend_student = models.ForeignKey(
+        Student,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="backend_verified_events",
+        help_text="Student identified by backend multi-model consensus (may differ from kiosk)",
+    )
+    model_consensus_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Detailed results from all backend models (arcface, adaface, mobilefacenet)",
+    )
+    backend_verified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When backend verification completed",
+    )
+
     class Meta:
         db_table = "boarding_events"
         ordering = ["-timestamp"]
@@ -79,6 +121,7 @@ class BoardingEvent(models.Model):
             models.Index(fields=["student", "timestamp"], name="idx_events_student_time"),
             models.Index(fields=["kiosk_id", "timestamp"], name="idx_events_kiosk_time"),
             models.Index(fields=["timestamp"], name="idx_events_timestamp"),
+            models.Index(fields=["backend_verification_status"], name="idx_events_verification_status"),
             # GPS index will be added when PostGIS is available
         ]
         constraints = [
@@ -102,6 +145,18 @@ class BoardingEvent(models.Model):
         if self.latitude is not None and self.longitude is not None:
             return (self.latitude, self.longitude)
         return None
+
+    @property
+    def has_verification_mismatch(self) -> bool:
+        """Check if kiosk and backend predictions differ"""
+        if not self.backend_student:
+            return False
+        return self.student_id != self.backend_student_id
+
+    @property
+    def needs_manual_review(self) -> bool:
+        """Check if event needs manual review"""
+        return self.backend_verification_status == "flagged" or self.has_verification_mismatch or self.backend_verification_confidence == "low"
 
     @property
     def confirmation_face_1_url(self) -> str | None:

@@ -42,10 +42,31 @@ FACE_RECOGNITION_MODELS = {
         "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",
         "dimensions": MOBILEFACENET_CONFIG["output_dims"],
         "enabled": True,
-        "quality_threshold": 0.7,
-        "description": "MobileFaceNet - Matches frontend exactly (zero drift)",
+        "quality_threshold": 0.68,
+        "description": "MobileFaceNet - Fast lightweight model (192D)",
     },
-    # Add more models here in future
+    "arcface": {
+        "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",  # Placeholder
+        "dimensions": MOBILEFACENET_CONFIG["output_dims"],  # Will be 512 when real model added
+        "enabled": True,
+        "quality_threshold": 0.75,
+        "description": "ArcFace - Banking grade accuracy (99.82% LFW) - PLACEHOLDER: Using MobileFaceNet",
+    },
+    "adaface": {
+        "class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNet",  # Placeholder
+        "dimensions": MOBILEFACENET_CONFIG["output_dims"],  # Will be 512 when real model added
+        "enabled": True,
+        "quality_threshold": 0.72,
+        "description": "AdaFace - Quality adaptive, low-quality robust - PLACEHOLDER: Using MobileFaceNet",
+    },
+}
+
+# Multi-model verification config
+MULTI_MODEL_CONFIG = {
+    "enabled": True,
+    "models_for_verification": ["mobilefacenet", "arcface", "adaface"],  # All 3 for backend verification
+    "consensus_strategy": "voting",  # voting, weighted, unanimous
+    "minimum_consensus": 2,  # At least 2 models must agree
 }
 
 # Service-level config (business logic)

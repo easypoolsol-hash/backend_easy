@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter, display
+from django.db import models
 from django.http import HttpResponse
 from django.utils.html import format_html
 
@@ -27,6 +28,30 @@ class UnknownFaceFilter(SimpleListFilter):
         return queryset
 
 
+class BackendVerificationFilter(SimpleListFilter):
+    """Filter for backend multi-model verification status"""
+
+    title = "Backend Verification"
+    parameter_name = "backend_verification"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("pending", "⏳ Pending"),
+            ("verified", "✅ Verified"),
+            ("flagged", "⚠️ Flagged for Review"),
+            ("failed", "❌ Failed"),
+            ("mismatch", "🔴 Kiosk/Backend Mismatch"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() in ("pending", "verified", "flagged", "failed"):
+            return queryset.filter(backend_verification_status=self.value())
+        if self.value() == "mismatch":
+            # Show events where kiosk and backend predictions differ
+            return queryset.exclude(backend_student__isnull=True).exclude(student=models.F("backend_student"))
+        return queryset
+
+
 @admin.register(BoardingEvent)
 class BoardingEventAdmin(admin.ModelAdmin):
     """Admin interface for boarding events"""
@@ -37,6 +62,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
         "get_reference_photo_thumbnail",
         "get_confirmation_faces_thumbnails",
         "get_student_name",
+        "backend_verification_display",
         "kiosk_id",
         "confidence_score",
         "timestamp",
@@ -55,6 +81,9 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     list_filter = [
         UnknownFaceFilter,
+        BackendVerificationFilter,
+        "backend_verification_status",
+        "backend_verification_confidence",
         "timestamp",
         "kiosk_id",
         "model_version",
@@ -105,6 +134,19 @@ class BoardingEventAdmin(admin.ModelAdmin):
             {"fields": ("confidence_score", "model_version", "face_image_url")},
         ),
         (
+            "Backend Verification (Multi-Model)",
+            {
+                "fields": (
+                    "backend_verification_status",
+                    "backend_verification_confidence",
+                    "backend_student",
+                    "backend_verified_at",
+                    "model_consensus_data",
+                ),
+                "description": "Results from backend multi-model consensus verification (ArcFace + AdaFace + MobileFaceNet)",
+            },
+        ),
+        (
             "Verification Images",
             {
                 "fields": ("get_confirmation_faces_display",),
@@ -121,6 +163,39 @@ class BoardingEventAdmin(admin.ModelAdmin):
     def is_unknown_face_display(self, obj):
         """Display whether this is an unknown face event"""
         return obj.student is None
+
+    @display(description="Backend Verification")
+    def backend_verification_display(self, obj):
+        """Display backend multi-model verification status with color coding"""
+        status_icons = {
+            "pending": "⏳",
+            "verified": "✅",
+            "flagged": "⚠️",
+            "failed": "❌",
+        }
+        confidence_colors = {
+            "high": "#28a745",  # green
+            "medium": "#ffc107",  # yellow
+            "low": "#dc3545",  # red
+        }
+
+        icon = status_icons.get(obj.backend_verification_status, "❓")
+        status_label = obj.backend_verification_status.upper()
+
+        # Check for mismatch
+        has_mismatch = obj.has_verification_mismatch if obj.backend_student else False
+
+        # Build HTML
+        html = f'<span style="font-size:16px;">{icon}</span> {status_label}'
+
+        if obj.backend_verification_confidence:
+            color = confidence_colors.get(obj.backend_verification_confidence, "#6c757d")
+            html += f'<br/><span style="color:{color};font-weight:bold;">{obj.backend_verification_confidence.upper()}</span>'
+
+        if has_mismatch:
+            html += '<br/><span style="color:#dc3545;font-weight:bold;">🔴 MISMATCH</span>'
+
+        return format_html(html)
 
     @display(description="Student Name")
     def get_student_name(self, obj):
