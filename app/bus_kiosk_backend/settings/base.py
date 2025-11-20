@@ -281,6 +281,7 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     ],
     "POSTPROCESSING_HOOKS": [
         "bus_kiosk_backend.schema_hooks.mark_activation_public",
+        "bus_kiosk_backend.schema_hooks.remove_nullable_from_required",
     ],
     "SERVERS": [
         {"url": "https://api.easypool.in", "description": "Production API"},
