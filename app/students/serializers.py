@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from buses.models import Bus
@@ -212,12 +213,47 @@ class StudentSerializer(serializers.ModelSerializer):
 
     # Decrypted name for API responses
     decrypted_name = serializers.SerializerMethodField()
-    # Google way: Make optional fields explicitly nullable
-    school_details = SchoolSerializer(source="school", read_only=True, allow_null=True)
-    bus_details = BusBasicSerializer(source="assigned_bus", read_only=True, allow_null=True)
-    # Explicitly define as nested serializers (not SerializerMethodField) for correct OpenAPI schema
-    parents = StudentParentSerializer(source="student_parents", many=True, read_only=True, allow_null=True)
-    photos = StudentPhotoSerializer(many=True, read_only=True, allow_null=True)  # source defaults to field name
+    # Google way: Use SerializerMethodField for nullable nested objects to ensure proper OpenAPI schema
+    school_details = serializers.SerializerMethodField()
+    bus_details = serializers.SerializerMethodField()
+    parents = serializers.SerializerMethodField()
+    photos = serializers.SerializerMethodField()
+
+    @extend_schema_field(SchoolSerializer(allow_null=True))
+    def get_school_details(self, obj):
+        """Return school details or None - graceful degradation for bad data"""
+        try:
+            if obj.school:
+                return SchoolSerializer(obj.school).data
+        except Exception:
+            pass
+        return None
+
+    @extend_schema_field(BusBasicSerializer(allow_null=True))
+    def get_bus_details(self, obj):
+        """Return bus details or None"""
+        try:
+            if obj.assigned_bus:
+                return BusBasicSerializer(obj.assigned_bus).data
+        except Exception:
+            pass
+        return None
+
+    @extend_schema_field(StudentParentSerializer(many=True))
+    def get_parents(self, obj):
+        """Return parents list or empty list"""
+        try:
+            return StudentParentSerializer(obj.student_parents.all(), many=True).data
+        except Exception:
+            return []
+
+    @extend_schema_field(StudentPhotoSerializer(many=True))
+    def get_photos(self, obj):
+        """Return photos list or empty list"""
+        try:
+            return StudentPhotoSerializer(obj.photos.all(), many=True).data
+        except Exception:
+            return []
 
     class Meta:
         model = Student
