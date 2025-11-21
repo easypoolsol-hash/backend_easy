@@ -330,7 +330,18 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 for crop in crop_results:
                     crop_idx = crop.get("crop", "?")
                     crop_student_id = crop.get("student_id")
-                    crop_student = f"S{crop_student_id}" if crop_student_id else "No match"
+
+                    # Get student name from UUID
+                    crop_student = "No match"
+                    if crop_student_id:
+                        try:
+                            from students.models import Student
+
+                            crop_student_obj = Student.objects.get(student_id=crop_student_id)
+                            crop_student = f"{crop_student_obj.encrypted_name} ({str(crop_student_id)[:8]}...)"
+                        except Exception:
+                            crop_student = f"{str(crop_student_id)[:8]}..."
+
                     crop_score = crop.get("score", 0.0)
                     crop_conf = crop.get("confidence", "low")
                     conf_colors = {"high": "#28a745", "medium": "#ffc107", "low": "#dc3545"}
@@ -360,7 +371,18 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
                 for model_name, result in model_results.items():
                     m_student_id = result.get("student_id")
-                    m_student = f"S{m_student_id}" if m_student_id else "-"
+
+                    # Get student name from UUID
+                    m_student = "-"
+                    if m_student_id:
+                        try:
+                            from students.models import Student
+
+                            m_student_obj = Student.objects.get(student_id=m_student_id)
+                            m_student = f"{m_student_obj.encrypted_name} ({str(m_student_id)[:8]}...)"
+                        except Exception:
+                            m_student = f"{str(m_student_id)[:8]}..."
+
                     m_score = result.get("confidence_score", 0.0)
                     html.append("<tr>")
                     html.append(f'<td style="padding:6px;border:1px solid #ddd;">{model_name}</td>')
@@ -377,8 +399,18 @@ class BoardingEventAdmin(admin.ModelAdmin):
             reason = voting.get("reason", "unknown").replace("_", " ").title()
             total_crops = voting.get("total_crops", 0)
             max_votes = max(vote_dist.values()) if vote_dist.values() else 0
-            # Format vote_dist without curly braces (format_html issue)
-            vote_str = ", ".join([f"S{k}:{v}" for k, v in vote_dist.items()]) or "none"
+
+            # Format vote_dist with student names
+            vote_items = []
+            for student_id, vote_count in vote_dist.items():
+                try:
+                    from students.models import Student
+
+                    student_obj = Student.objects.get(student_id=student_id)
+                    vote_items.append(f"{student_obj.encrypted_name}:{vote_count}")
+                except Exception:
+                    vote_items.append(f"{str(student_id)[:8]}...:{vote_count}")
+            vote_str = ", ".join(vote_items) or "none"
 
             html.append('<div style="margin-top:10px;padding:8px;background:#f5f5f5;border-left:4px solid #007bff;">')
             html.append(f"<strong>Voting:</strong> {reason}<br/>")
@@ -391,18 +423,55 @@ class BoardingEventAdmin(admin.ModelAdmin):
             kiosk_uuid = obj.student.student_id if obj.student else None
             is_match = backend_student_uuid and str(backend_student_uuid) == str(kiosk_uuid)
 
+            # Get backend student name from UUID
+            backend_student_name = ""
+            if backend_student_uuid:
+                try:
+                    from students.models import Student
+
+                    backend_student = Student.objects.get(student_id=backend_student_uuid)
+                    backend_student_name = backend_student.encrypted_name
+                except Student.DoesNotExist:
+                    backend_student_name = "Unknown Student"
+                except Exception:
+                    backend_student_name = str(backend_student_uuid)[:8] + "..."
+
+            # Format: NAME (uuid: xxx)
+            kiosk_display = f"{kiosk_name} (uuid: {str(kiosk_uuid)[:8]}...)" if kiosk_name else str(kiosk_uuid)[:8] + "..."
+            backend_display = (
+                f"{backend_student_name} (uuid: {str(backend_student_uuid)[:8]}...)"
+                if backend_student_name
+                else (str(backend_student_uuid)[:8] + "..." if backend_student_uuid else "?")
+            )
+
             if is_match:
-                html.append('<div style="padding:12px;background:#d4edda;border:2px solid #28a745;border-radius:4px;">')
-                html.append('<strong style="color:#155724;font-size:16px;">✅ MATCH</strong><br/>')
-                html.append(f'<span style="color:#155724;">Kiosk: {kiosk_name or kiosk_student_id} @ {kiosk_score:.4f}</span><br/>')
-                html.append(f'<span style="color:#155724;">Backend: {kiosk_name or backend_student_uuid} @ {backend_score:.4f}</span>')
-                html.append("</div>")
+                html.append('<div style="padding:15px;background:#d4edda;border:3px solid #28a745;border-radius:6px;">')
+                html.append('<strong style="color:#155724;font-size:18px;">✅ VERIFIED MATCH</strong><br/>')
+                html.append('<table style="width:100%;margin-top:10px;border-collapse:collapse;">')
+                # Kiosk row
+                html.append('<tr><td style="padding:6px;color:#155724;"><strong>Kiosk:</strong></td>')
+                html.append(f'<td style="padding:6px;color:#155724;font-weight:bold;">{kiosk_display} @ {kiosk_score:.4f}</td></tr>')
+                # Backend row
+                html.append('<tr><td style="padding:6px;color:#155724;"><strong>Backend:</strong></td>')
+                html.append(f'<td style="padding:6px;color:#155724;font-weight:bold;">{backend_display} @ {backend_score:.4f}</td></tr>')
+                # Models row
+                html.append('<tr><td style="padding:6px;color:#155724;"><strong>Models:</strong></td>')
+                html.append('<td style="padding:6px;color:#155724;">MobileFaceNet (192D) + ArcFace INT8 (512D)</td></tr>')
+                html.append("</table></div>")
             else:
-                html.append('<div style="padding:12px;background:#f8d7da;border:2px solid #dc3545;border-radius:4px;">')
-                html.append('<strong style="color:#721c24;font-size:16px;">🔴 MISMATCH</strong><br/>')
-                html.append(f'<span style="color:#721c24;">Kiosk: {kiosk_name or kiosk_student_id} @ {kiosk_score:.4f}</span><br/>')
-                html.append(f'<span style="color:#721c24;">Backend: {backend_student_uuid if backend_student_uuid else "?"} @ {backend_score:.4f}</span>')
-                html.append("</div>")
+                html.append('<div style="padding:15px;background:#f8d7da;border:3px solid #dc3545;border-radius:6px;">')
+                html.append('<strong style="color:#721c24;font-size:18px;">🔴 MISMATCH DETECTED</strong><br/>')
+                html.append('<table style="width:100%;margin-top:10px;border-collapse:collapse;">')
+                # Kiosk row
+                html.append('<tr><td style="padding:6px;color:#721c24;"><strong>Kiosk:</strong></td>')
+                html.append(f'<td style="padding:6px;color:#721c24;font-weight:bold;">{kiosk_display} @ {kiosk_score:.4f}</td></tr>')
+                # Backend row
+                html.append('<tr><td style="padding:6px;color:#721c24;"><strong>Backend:</strong></td>')
+                html.append(f'<td style="padding:6px;color:#721c24;font-weight:bold;">{backend_display} @ {backend_score:.4f}</td></tr>')
+                # Models row
+                html.append('<tr><td style="padding:6px;color:#721c24;"><strong>Models:</strong></td>')
+                html.append('<td style="padding:6px;color:#721c24;">MobileFaceNet (192D) + ArcFace INT8 (512D)</td></tr>')
+                html.append("</table></div>")
 
             return format_html("".join(html))
 
