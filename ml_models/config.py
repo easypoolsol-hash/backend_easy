@@ -58,8 +58,63 @@ FACE_RECOGNITION_MODELS = {
 MULTI_MODEL_CONFIG = {
     "enabled": True,
     "models_for_verification": ["mobilefacenet", "arcface_int8"],  # 2 models for backend verification
-    "consensus_strategy": "voting",  # voting, weighted, unanimous
+    "consensus_strategy": "weighted",  # voting, weighted, unanimous
     "minimum_consensus": 2,  # Both models must agree
+}
+
+# =============================================================================
+# ENSEMBLE TUNING PARAMETERS (Adjustable for optimization)
+# =============================================================================
+ENSEMBLE_CONFIG = {
+    # Model weights for weighted ensemble (must sum to 1.0)
+    "model_weights": {
+        "mobilefacenet": 0.6,  # Higher weight - better recall on varying conditions
+        "arcface_int8": 0.4,  # Lower weight but good at distinguishing similar faces
+        "adaface": 0.0,  # Disabled until model is added
+    },
+    # Temperature scaling per model (adjusts score distribution)
+    # Higher temperature = spread out scores, Lower = sharpen differences
+    "temperature_scaling": {
+        "mobilefacenet": {
+            "enabled": False,  # MobileFaceNet scores are already well distributed
+            "temperature": 1.0,
+            "shift": 0.0,  # Shift scores before scaling
+        },
+        "arcface_int8": {
+            "enabled": True,  # ArcFace W600K has compressed score range
+            "temperature": 3.0,  # Spread out the 0.01-0.39 range
+            "shift": -0.15,  # Center around 0.15 (typical score)
+        },
+        "adaface": {
+            "enabled": False,
+            "temperature": 1.0,
+            "shift": 0.0,
+        },
+    },
+    # Per-model thresholds (override quality_threshold in FACE_RECOGNITION_MODELS)
+    "thresholds": {
+        "mobilefacenet": 0.50,  # Lower threshold for recall
+        "arcface_int8": 0.25,  # Lower because scores are compressed
+        "adaface": 0.40,
+    },
+    # Combined score thresholds for final decision
+    "combined_thresholds": {
+        "high_confidence": 0.55,  # Combined score >= this = HIGH confidence
+        "medium_confidence": 0.40,  # Combined score >= this = MEDIUM confidence
+        "match_threshold": 0.35,  # Minimum to consider a match
+    },
+    # Voting strategy parameters
+    "voting": {
+        "require_all_agree": False,  # If True, all models must agree for VERIFIED
+        "minimum_agreeing": 1,  # Minimum models that must agree
+        "use_weighted_vote": True,  # Weight votes by model confidence
+    },
+    # Score normalization (applied before temperature scaling)
+    "normalization": {
+        "clip_min": -1.0,  # Clip scores below this
+        "clip_max": 1.0,  # Clip scores above this
+        "apply_sigmoid": False,  # Apply sigmoid to normalize to 0-1 range
+    },
 }
 
 # Service-level config (business logic)

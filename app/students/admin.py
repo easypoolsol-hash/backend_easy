@@ -280,7 +280,7 @@ class StudentAdmin(admin.ModelAdmin):
         "status",
     ]
     list_filter = ["status", "grade", "school"]
-    search_fields = ["school_student_id", "student_id"]
+    search_fields = ["school_student_id", "student_id", "name", "grade", "section"]
     readonly_fields = ["student_id", "created_at", "updated_at"]
     inlines = [StudentParentInline, StudentPhotoInline]  # Parents first, then photos
     change_list_template = "admin/students/student_changelist.html"
