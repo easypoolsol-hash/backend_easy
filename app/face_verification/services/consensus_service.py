@@ -58,11 +58,10 @@ class FaceVerificationConsensusService:
         """Initialize service with all enabled models"""
         from ml_models.config import FACE_RECOGNITION_MODELS, MULTI_MODEL_CONFIG
 
-        self.config = MULTI_MODEL_CONFIG
-        self.enabled_models = {
-            name: config
-            for name, config in FACE_RECOGNITION_MODELS.items()
-            if config.get("enabled", False) and name in self.config["models_for_verification"]
+        self.config: dict[str, Any] = MULTI_MODEL_CONFIG
+        models_for_verification: list[str] = self.config.get("models_for_verification", [])  # type: ignore[assignment]
+        self.enabled_models: dict[str, dict[str, Any]] = {
+            name: config for name, config in FACE_RECOGNITION_MODELS.items() if config.get("enabled", False) and name in models_for_verification
         }
 
         self.models: dict[str, Any] = {}  # Lazy loaded
@@ -78,7 +77,8 @@ class FaceVerificationConsensusService:
         for model_name, config in self.enabled_models.items():
             try:
                 # Import model class dynamically
-                module_path, class_name = config["class"].rsplit(".", 1)
+                class_path: str = config["class"]  # type: ignore[assignment]
+                module_path, class_name = class_path.rsplit(".", 1)
                 module = __import__(module_path, fromlist=[class_name])
                 model_class = getattr(module, class_name)
 
@@ -142,7 +142,7 @@ class FaceVerificationConsensusService:
         """Run inference on a single model"""
 
         # Get threshold for this model
-        threshold = self.enabled_models[model_name]["quality_threshold"]
+        threshold: float = self.enabled_models[model_name]["quality_threshold"]  # type: ignore[assignment]
 
         # Generate embedding for input face
         try:
@@ -219,10 +219,11 @@ class FaceVerificationConsensusService:
         total_models = len(model_results)
 
         # Determine confidence level and status
+        minimum_consensus: int = self.config.get("minimum_consensus", 2)  # type: ignore[assignment]
         if consensus_count == total_models:
             confidence_level = "high"
             verification_status = "verified"
-        elif consensus_count >= self.config.get("minimum_consensus", 2):
+        elif consensus_count >= minimum_consensus:
             confidence_level = "medium"
             verification_status = "verified"
         else:

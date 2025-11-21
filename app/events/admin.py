@@ -141,9 +141,9 @@ class BoardingEventAdmin(admin.ModelAdmin):
                     "backend_verification_confidence",
                     "backend_student",
                     "backend_verified_at",
-                    "model_consensus_data",
+                    "model_consensus_display",
                 ),
-                "description": "Results from backend multi-model consensus verification (ArcFace + AdaFace + MobileFaceNet)",
+                "description": "Results from backend multi-model consensus verification (MobileFaceNet + ArcFace INT8)",
             },
         ),
         (
@@ -157,7 +157,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
         ("Metadata", {"fields": ("metadata", "created_at"), "classes": ("collapse",)}),
     )
 
-    readonly_fields = ["event_id", "created_at", "get_confirmation_faces_display"]
+    readonly_fields = ["event_id", "created_at", "get_confirmation_faces_display", "model_consensus_display"]
 
     @display(description="Unknown", boolean=True)
     def is_unknown_face_display(self, obj):
@@ -196,6 +196,88 @@ class BoardingEventAdmin(admin.ModelAdmin):
             html += '<br/><span style="color:#dc3545;font-weight:bold;">🔴 MISMATCH</span>'
 
         return format_html(html)
+
+    @display(description="Model Consensus Results")
+    def model_consensus_display(self, obj):
+        """Display detailed results from each model in multi-model consensus"""
+        if not obj.model_consensus_data:
+            return format_html('<span style="color: gray;">No consensus data available</span>')
+
+        try:
+            import json
+
+            # Parse consensus data
+            consensus = obj.model_consensus_data if isinstance(obj.model_consensus_data, dict) else json.loads(obj.model_consensus_data)
+            model_results = consensus.get("model_results", {})
+
+            if not model_results:
+                return format_html('<span style="color: gray;">No model results</span>')
+
+            # Build HTML table
+            html_parts = []
+            html_parts.append('<table style="width:100%; border-collapse: collapse; margin-top: 10px;">')
+            html_parts.append(
+                '<thead><tr style="background: #f5f5f5;">'
+                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Model</th>'
+                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Predicted Student</th>'
+                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Confidence</th>'
+                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Top 3 Matches</th>'
+                "</tr></thead><tbody>"
+            )
+
+            for model_name, result in model_results.items():
+                student_id = result.get("student_id")
+                confidence = result.get("confidence_score", 0.0)
+                top_scores = result.get("top_5_scores", {})
+
+                # Color code confidence
+                if confidence >= 0.7:
+                    conf_color = "#28a745"  # green
+                elif confidence >= 0.5:
+                    conf_color = "#ffc107"  # yellow
+                else:
+                    conf_color = "#dc3545"  # red
+
+                # Student ID cell
+                if student_id:
+                    student_cell = f"<strong>{student_id}</strong>"
+                else:
+                    student_cell = '<span style="color: #dc3545;">No match</span>'
+
+                # Confidence cell
+                conf_cell = f'<span style="color: {conf_color}; font-weight: bold;">{confidence:.3f}</span>'
+
+                # Top scores cell
+                top_3 = list(top_scores.items())[:3]
+                if top_3:
+                    scores_html = "<br/>".join([f"ID {sid}: {score:.3f}" for sid, score in top_3])
+                else:
+                    scores_html = '<span style="color: gray;">-</span>'
+
+                html_parts.append(
+                    f"<tr>"
+                    f'<td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_name}</strong></td>'
+                    f'<td style="padding: 8px; border: 1px solid #ddd;">{student_cell}</td>'
+                    f'<td style="padding: 8px; border: 1px solid #ddd;">{conf_cell}</td>'
+                    f'<td style="padding: 8px; border: 1px solid #ddd; font-size: 11px;">{scores_html}</td>'
+                    f"</tr>"
+                )
+
+            html_parts.append("</tbody></table>")
+
+            # Add consensus summary
+            consensus_count = consensus.get("consensus_count", 0)
+            total_models = len(model_results)
+            html_parts.append(
+                f'<div style="margin-top: 10px; padding: 8px; background: #f9f9f9; border-left: 4px solid #007bff;">'
+                f"<strong>Consensus:</strong> {consensus_count}/{total_models} models agreed"
+                f"</div>"
+            )
+
+            return format_html("".join(html_parts))
+
+        except Exception as e:
+            return format_html(f'<span style="color: red;">Error displaying consensus data: {e}</span>')
 
     @display(description="Student Name")
     def get_student_name(self, obj):

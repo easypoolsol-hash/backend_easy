@@ -176,14 +176,48 @@ class StudentPhotoInline(admin.TabularInline):
     model = StudentPhoto
     form = StudentPhotoInlineForm
     extra = 1  # Allow adding new photos inline
-    fields = ["photo_upload", "is_primary", "photo_preview"]
-    readonly_fields = ["photo_preview"]
+    fields = ["photo_upload", "is_primary", "photo_preview", "embeddings_display"]
+    readonly_fields = ["photo_preview", "embeddings_display"]
 
     @display(description="Preview")
     def photo_preview(self, obj):
         if obj.photo_url:
             return format_html('<img src="{}" width="100" height="100" />', obj.photo_url)
         return NO_PHOTO
+
+    @display(description="Embeddings")
+    def embeddings_display(self, obj):
+        """Show all embeddings for this photo with model details"""
+        if not obj.pk:
+            return format_html('<span style="color: gray;">Save first</span>')
+
+        embeddings = obj.face_embeddings.all()
+        if not embeddings:
+            return format_html('<span style="color: red;">⚠️ No embeddings</span>')
+
+        result = []
+        for emb in embeddings:
+            model_name = emb.model_name or "unknown"
+            quality = f"{emb.quality_score:.2f}" if emb.quality_score else "N/A"
+            dims = len(emb.embedding) if emb.embedding else 0
+
+            # Color based on quality score
+            if emb.quality_score and emb.quality_score >= 0.7:
+                color = "green"
+            elif emb.quality_score and emb.quality_score >= 0.5:
+                color = "orange"
+            else:
+                color = "red"
+
+            result.append(
+                f'<div style="margin: 2px 0; padding: 4px; background: #f5f5f5; border-radius: 3px;">'
+                f"<strong>{model_name}</strong>: "
+                f'<span style="color: {color};">Q:{quality}</span> '
+                f'<span style="color: gray;">({dims}D)</span>'
+                f"</div>"
+            )
+
+        return format_html("".join(result))
 
 
 class StudentParentInline(admin.TabularInline):
