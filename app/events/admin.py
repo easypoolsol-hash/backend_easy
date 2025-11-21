@@ -207,15 +207,15 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
         # Kiosk score
         kiosk_score = obj.confidence_score or 0.0
-        kiosk_student = f"S{obj.student.student_id}" if obj.student else "?"
+        kiosk_student = obj.student.name if obj.student else "?"
 
         if obj.backend_verification_status == "pending":
             html = f'{icon} <span style="color:#6c757d;">PENDING</span>'
             html += f"<br/><small>K:{kiosk_student}@{kiosk_score:.2f}</small>"
             return format_html(html)
 
-        # Parse backend results
-        backend_student = f"S{obj.backend_student}" if obj.backend_student else "?"
+        # Parse backend results - show student name if available
+        backend_student = str(obj.backend_student) if obj.backend_student else "?"
         backend_score = 0.0
         vote_info = ""
 
@@ -304,8 +304,18 @@ class BoardingEventAdmin(admin.ModelAdmin):
             model_results = consensus.get("model_results", {})
             backend_score = consensus.get("confidence_score", 0.0)
 
+            # Check for empty results (verification ran but failed)
+            if not crop_results and not model_results:
+                reason = voting.get("reason", "unknown")
+                html.append('<div style="padding:15px;background:#f8d7da;border:2px solid #dc3545;border-radius:4px;">')
+                html.append('<h4 style="margin:0 0 8px 0;color:#721c24;">❌ BACKEND VERIFICATION FAILED</h4>')
+                html.append(f'<p style="color:#721c24;margin:0;"><strong>Reason:</strong> {reason}</p>')
+                html.append('<p style="color:#721c24;margin:5px 0 0 0;font-size:12px;">No crop images could be processed.</p>')
+                html.append("</div>")
+                return format_html("".join(html))
+
             html.append('<div style="margin-bottom:15px;padding:10px;background:#e8f5e9;border-radius:4px;">')
-            html.append('<h4 style="margin:0 0 8px 0;color:#2e7d32;">🔍 BACKEND MULTI-CROP VERIFICATION</h4>')
+            html.append('<h4 style="margin:0 0 8px 0;color:#1b5e20;">🔍 BACKEND MULTI-CROP VERIFICATION</h4>')
 
             # Per-crop results table
             if crop_results:
@@ -384,14 +394,14 @@ class BoardingEventAdmin(admin.ModelAdmin):
             if is_match:
                 html.append('<div style="padding:12px;background:#d4edda;border:2px solid #28a745;border-radius:4px;">')
                 html.append('<strong style="color:#155724;font-size:16px;">✅ MATCH</strong><br/>')
-                html.append(f"<span>Kiosk: {kiosk_student} @ {kiosk_score:.4f}</span><br/>")
-                html.append(f"<span>Backend: S{backend_student} @ {backend_score:.4f}</span>")
+                html.append(f'<span style="color:#155724;">Kiosk: {kiosk_student} @ {kiosk_score:.4f}</span><br/>')
+                html.append(f'<span style="color:#155724;">Backend: {backend_student} @ {backend_score:.4f}</span>')
                 html.append("</div>")
             else:
                 html.append('<div style="padding:12px;background:#f8d7da;border:2px solid #dc3545;border-radius:4px;">')
                 html.append('<strong style="color:#721c24;font-size:16px;">🔴 MISMATCH</strong><br/>')
-                html.append(f"<span>Kiosk predicted: {kiosk_student} @ {kiosk_score:.4f}</span><br/>")
-                html.append(f"<span>Backend predicted: S{backend_student if backend_student else '?'} @ {backend_score:.4f}</span>")
+                html.append(f'<span style="color:#721c24;">Kiosk: {kiosk_student} @ {kiosk_score:.4f}</span><br/>')
+                html.append(f'<span style="color:#721c24;">Backend: {backend_student if backend_student else "?"} @ {backend_score:.4f}</span>')
                 html.append("</div>")
 
             return format_html("".join(html))
