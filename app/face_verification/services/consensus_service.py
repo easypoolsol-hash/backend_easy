@@ -82,11 +82,8 @@ class FaceVerificationConsensusService:
                 module = __import__(module_path, fromlist=[class_name])
                 model_class = getattr(module, class_name)
 
-                # Instantiate model
-                from ml_models.config import MOBILEFACENET_CONFIG
-
-                # All models use MobileFaceNet path for now (placeholders)
-                self.models[model_name] = model_class(MOBILEFACENET_CONFIG["model_path"])
+                # Instantiate model (models determine their own paths)
+                self.models[model_name] = model_class()
 
                 logger.info(f"✅ Loaded model: {model_name}")
             except Exception as e:
@@ -149,7 +146,7 @@ class FaceVerificationConsensusService:
 
         # Generate embedding for input face
         try:
-            face_embedding = model.predict(face_image)
+            face_embedding = model.generate_embedding(face_image)
         except Exception as e:
             logger.error(f"Failed to generate embedding with {model_name}: {e}")
             return ModelResult(model_name=model_name, student_id=None, confidence_score=0.0, all_scores={})
