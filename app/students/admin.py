@@ -460,24 +460,36 @@ class StudentAdmin(admin.ModelAdmin):
 
         return photo_count
 
-    @admin.action(description="🔄 Regenerate face embeddings for selected students")
+    @admin.action(description="🔄 Regenerate face embeddings (select 1-3 students)")
     def regenerate_embeddings(self, request, queryset):
         """
         Regenerate face embeddings for all photos of selected students.
 
         This will:
         1. Delete existing embeddings
-        2. Create new embeddings using all 3 models
-        3. Trigger consensus verification
+        2. Regenerate using FaceRecognitionService
         """
+        from .services.face_recognition_service import FaceRecognitionService
+
         total_students = queryset.count()
+
+        # Limit to prevent timeout
+        if total_students > 3:
+            self.message_user(
+                request,
+                f"⚠️ Please select 3 or fewer students at a time to avoid timeout. You selected {total_students}.",
+                level=messages.ERROR,
+            )
+            return
+
         total_photos = 0
-        total_embeddings_created = 0
+        success_count = 0
         errors = []
+
+        service = FaceRecognitionService()
 
         for student in queryset:
             try:
-                # Get all photos for this student
                 photos = student.photos.all()
                 total_photos += photos.count()
 
@@ -485,76 +497,29 @@ class StudentAdmin(admin.ModelAdmin):
                     # Delete existing embeddings
                     photo.face_embeddings.all().delete()
 
-                    # Generate new embeddings using all 3 models
+                    # Regenerate using service
                     try:
-                        import io
-
-                        import numpy as np
-                        from PIL import Image
-
-                        from ml_models.face_recognition.inference.arcface_resnet50 import ArcFaceResNet50
-                        from ml_models.face_recognition.inference.arcface_resnet100 import ArcFaceResNet100
-                        from ml_models.face_recognition.inference.mobilefacenet import MobileFaceNet
-
-                        # Load image
-                        image_data = photo.photo_data
-                        if not image_data:
-                            errors.append(f"Photo {photo.photo_id} has no data")
-                            continue
-
-                        image = Image.open(io.BytesIO(image_data))
-                        image_array = np.array(image)
-
-                        # Generate embeddings for each model
-                        models = [
-                            ("mobilefacenet", MobileFaceNet(), 0.68),
-                            ("arcface_resnet100", ArcFaceResNet100(), 0.75),
-                            ("arcface_resnet50", ArcFaceResNet50(), 0.72),
-                        ]
-
-                        embeddings_created = 0
-                        for model_name, model, quality_threshold in models:
-                            try:
-                                embedding = model.generate_embedding(image_array)
-
-                                # Create embedding metadata
-                                FaceEmbeddingMetadata.objects.create(
-                                    student_photo=photo,
-                                    model_name=model_name,
-                                    embedding=embedding.tolist(),
-                                    quality_score=quality_threshold,  # Use model threshold as initial score
-                                    is_primary=(embeddings_created == 0),  # First is primary
-                                )
-                                embeddings_created += 1
-                                total_embeddings_created += 1
-                            except Exception as e:
-                                errors.append(f"Failed to generate {model_name} embedding for photo {photo.photo_id}: {e!s}")
-
-                        if embeddings_created > 0:
-                            self.message_user(
-                                request, f"✓ Generated {embeddings_created} embeddings for photo {photo.photo_id}", level=messages.SUCCESS
-                            )
-
+                        if service.process_student_photo(photo):
+                            success_count += 1
+                        else:
+                            errors.append(f"Failed to process photo {photo.photo_id}")
                     except Exception as e:
-                        errors.append(f"Failed to process photo {photo.photo_id}: {e!s}")
+                        errors.append(f"Photo {photo.photo_id}: {e!s}")
 
             except Exception as e:
-                errors.append(f"Failed to process student {student.student_id}: {e!s}")
+                errors.append(f"Student {student.student_id}: {e!s}")
 
-        # Summary message
-        success_msg = (
-            f"🎉 Regeneration complete!\n"
-            f"Students processed: {total_students}\n"
-            f"Photos processed: {total_photos}\n"
-            f"Embeddings created: {total_embeddings_created}"
+        # Summary
+        self.message_user(
+            request,
+            f"✅ Processed {success_count}/{total_photos} photos for {total_students} students",
+            level=messages.SUCCESS if not errors else messages.WARNING,
         )
-        self.message_user(request, success_msg, level=messages.SUCCESS)
 
-        # Show errors if any
         if errors:
-            error_msg = "⚠️ Errors occurred:\n" + "\n".join(errors[:10])  # Show first 10 errors
-            if len(errors) > 10:
-                error_msg += f"\n... and {len(errors) - 10} more errors"
+            error_msg = "⚠️ Errors:\n" + "\n".join(errors[:5])
+            if len(errors) > 5:
+                error_msg += f"\n... and {len(errors) - 5} more"
             self.message_user(request, error_msg, level=messages.WARNING)
 
 
