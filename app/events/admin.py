@@ -314,17 +314,17 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 html.append("</div>")
                 return format_html("".join(html))
 
-            html.append('<div style="margin-bottom:15px;padding:10px;background:#e8f5e9;border-radius:4px;">')
-            html.append('<h4 style="margin:0 0 8px 0;color:#1b5e20;">🔍 BACKEND MULTI-CROP VERIFICATION</h4>')
+            html.append('<div style="margin-bottom:15px;padding:10px;background:#2d5016;border-radius:4px;">')
+            html.append('<h4 style="margin:0 0 8px 0;color:#fff;">🔍 BACKEND MULTI-CROP VERIFICATION</h4>')
 
             # Per-crop results table
             if crop_results:
                 html.append('<table style="width:100%;border-collapse:collapse;margin-bottom:10px;">')
-                html.append('<tr style="background:#c8e6c9;">')
-                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Frame</th>')
-                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Matched</th>')
-                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Score</th>')
-                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Confidence</th>')
+                html.append('<tr style="background:#4a7c2e;">')
+                html.append('<th style="padding:8px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Frame</th>')
+                html.append('<th style="padding:8px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Matched</th>')
+                html.append('<th style="padding:8px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Score</th>')
+                html.append('<th style="padding:8px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Confidence</th>')
                 html.append("</tr>")
 
                 for crop in crop_results:
@@ -348,12 +348,12 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
                     sc = score_color(crop_score)
                     cc = conf_colors.get(crop_conf, "#999")
-                    html.append("<tr>")
-                    html.append(f'<td style="padding:8px;border:1px solid #ddd;">Frame {crop_idx}</td>')
-                    html.append(f'<td style="padding:8px;border:1px solid #ddd;"><strong>{crop_student}</strong></td>')
-                    html.append('<td style="padding:8px;border:1px solid #ddd;">')
+                    html.append('<tr style="background:#3a6020;">')
+                    html.append(f'<td style="padding:8px;border:1px solid #5a8c3e;color:#fff;">Frame {crop_idx}</td>')
+                    html.append(f'<td style="padding:8px;border:1px solid #5a8c3e;color:#fff;"><strong>{crop_student}</strong></td>')
+                    html.append('<td style="padding:8px;border:1px solid #5a8c3e;">')
                     html.append(f'<span style="color:{sc};font-weight:bold;">{crop_score:.4f}</span></td>')
-                    html.append('<td style="padding:8px;border:1px solid #ddd;">')
+                    html.append('<td style="padding:8px;border:1px solid #5a8c3e;">')
                     html.append(f'<span style="color:{cc};">{crop_conf.upper()}</span></td>')
                     html.append("</tr>")
 
@@ -361,12 +361,12 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
             # Model breakdown from best crop
             if model_results:
-                html.append('<h5 style="margin:10px 0 5px 0;">Model Breakdown (Best Crop):</h5>')
+                html.append('<h5 style="margin:10px 0 5px 0;color:#fff;">Model Breakdown (Best Crop):</h5>')
                 html.append('<table style="width:100%;border-collapse:collapse;">')
-                html.append('<tr style="background:#fff3e0;">')
-                html.append('<th style="padding:6px;border:1px solid #ffcc80;text-align:left;">Model</th>')
-                html.append('<th style="padding:6px;border:1px solid #ffcc80;text-align:left;">Student</th>')
-                html.append('<th style="padding:6px;border:1px solid #ffcc80;text-align:left;">Score</th>')
+                html.append('<tr style="background:#4a7c2e;">')
+                html.append('<th style="padding:6px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Model</th>')
+                html.append('<th style="padding:6px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Student</th>')
+                html.append('<th style="padding:6px;border:1px solid #5a8c3e;text-align:left;color:#fff;">Score</th>')
                 html.append("</tr>")
 
                 for model_name, result in model_results.items():
@@ -384,11 +384,11 @@ class BoardingEventAdmin(admin.ModelAdmin):
                             m_student = f"{str(m_student_id)[:8]}..."
 
                     m_score = result.get("confidence_score", 0.0)
-                    html.append("<tr>")
-                    html.append(f'<td style="padding:6px;border:1px solid #ddd;">{model_name}</td>')
-                    html.append(f'<td style="padding:6px;border:1px solid #ddd;">{m_student}</td>')
+                    html.append('<tr style="background:#3a6020;">')
+                    html.append(f'<td style="padding:6px;border:1px solid #5a8c3e;color:#fff;">{model_name}</td>')
+                    html.append(f'<td style="padding:6px;border:1px solid #5a8c3e;color:#fff;">{m_student}</td>')
                     html.append(
-                        f'<td style="padding:6px;border:1px solid #ddd;"><span style="color:{score_color(m_score)};">{m_score:.4f}</span></td>'
+                        f'<td style="padding:6px;border:1px solid #5a8c3e;"><span style="color:{score_color(m_score)};">{m_score:.4f}</span></td>'
                     )
                     html.append("</tr>")
 
@@ -412,9 +412,9 @@ class BoardingEventAdmin(admin.ModelAdmin):
                     vote_items.append(f"{str(student_id)[:8]}...:{vote_count}")
             vote_str = ", ".join(vote_items) or "none"
 
-            html.append('<div style="margin-top:10px;padding:8px;background:#f5f5f5;border-left:4px solid #007bff;">')
-            html.append(f"<strong>Voting:</strong> {reason}<br/>")
-            html.append(f"<small>Result: {max_votes}/{total_crops} frames agreed | Votes: {vote_str}</small>")
+            html.append('<div style="margin-top:10px;padding:8px;background:#4a7c2e;border-left:4px solid #6a9c4e;">')
+            html.append(f'<strong style="color:#fff;">Voting:</strong> <span style="color:#fff;">{reason}</span><br/>')
+            html.append(f'<small style="color:#ddd;">Result: {max_votes}/{total_crops} frames agreed | Votes: {vote_str}</small>')
             html.append("</div>")
             html.append("</div>")
 
@@ -425,23 +425,34 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
             # Get backend student name from UUID
             backend_student_name = ""
+            backend_uuid_display = ""
             if backend_student_uuid:
                 try:
                     from students.models import Student
 
-                    backend_student = Student.objects.get(student_id=backend_student_uuid)
-                    backend_student_name = backend_student.encrypted_name
+                    # Convert to string in case it's already a string
+                    uuid_str = str(backend_student_uuid)
+                    backend_student_obj = Student.objects.get(student_id=uuid_str)
+                    backend_student_name = backend_student_obj.encrypted_name
+                    backend_uuid_display = uuid_str[:8] + "..."
                 except Student.DoesNotExist:
                     backend_student_name = "Unknown Student"
+                    backend_uuid_display = str(backend_student_uuid)[:8] + "..."
                 except Exception:
-                    backend_student_name = str(backend_student_uuid)[:8] + "..."
+                    # If conversion/lookup fails, show what we have
+                    backend_student_name = ""
+                    backend_uuid_display = str(backend_student_uuid)[:20]
+
+            # Get actual models used from model_results
+            models_used = list(model_results.keys()) if model_results else []
+            models_display = " + ".join(models_used) if models_used else "Unknown models"
 
             # Format: NAME (uuid: xxx)
             kiosk_display = f"{kiosk_name} (uuid: {str(kiosk_uuid)[:8]}...)" if kiosk_name else str(kiosk_uuid)[:8] + "..."
             backend_display = (
-                f"{backend_student_name} (uuid: {str(backend_student_uuid)[:8]}...)"
+                f"{backend_student_name} (uuid: {backend_uuid_display})"
                 if backend_student_name
-                else (str(backend_student_uuid)[:8] + "..." if backend_student_uuid else "?")
+                else (backend_uuid_display if backend_uuid_display else "?")
             )
 
             if is_match:
@@ -456,7 +467,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 html.append(f'<td style="padding:6px;color:#155724;font-weight:bold;">{backend_display} @ {backend_score:.4f}</td></tr>')
                 # Models row
                 html.append('<tr><td style="padding:6px;color:#155724;"><strong>Models:</strong></td>')
-                html.append('<td style="padding:6px;color:#155724;">MobileFaceNet (192D) + ArcFace INT8 (512D)</td></tr>')
+                html.append(f'<td style="padding:6px;color:#155724;">{models_display}</td></tr>')
                 html.append("</table></div>")
             else:
                 html.append('<div style="padding:15px;background:#f8d7da;border:3px solid #dc3545;border-radius:6px;">')
@@ -470,7 +481,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 html.append(f'<td style="padding:6px;color:#721c24;font-weight:bold;">{backend_display} @ {backend_score:.4f}</td></tr>')
                 # Models row
                 html.append('<tr><td style="padding:6px;color:#721c24;"><strong>Models:</strong></td>')
-                html.append('<td style="padding:6px;color:#721c24;">MobileFaceNet (192D) + ArcFace INT8 (512D)</td></tr>')
+                html.append(f'<td style="padding:6px;color:#721c24;">{models_display}</td></tr>')
                 html.append("</table></div>")
 
             return format_html("".join(html))
