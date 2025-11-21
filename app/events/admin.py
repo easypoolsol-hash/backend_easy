@@ -192,8 +192,14 @@ class BoardingEventAdmin(admin.ModelAdmin):
             color = confidence_colors.get(obj.backend_verification_confidence, "#6c757d")
             html += f'<br/><span style="color:{color};font-weight:bold;">{obj.backend_verification_confidence.upper()}</span>'
 
-        # Add compact model scores
-        if obj.backend_verification_status != "pending":
+        # Add compact model scores OR pending model info
+        if obj.backend_verification_status == "pending":
+            # Show which models will process this + kiosk prediction
+            html += '<br/><small style="font-size:10px;color:#6c757d;">Awaiting: MFN + ARC</small>'
+            if obj.student:
+                html += f'<br/><small style="font-size:10px;color:#007bff;">Kiosk: S{obj.student.student_id} ({obj.confidence_score:.2f})</small>'
+        else:
+            # Show actual model results after verification
             consensus_data = self._parse_model_consensus(obj)
             if consensus_data:
                 scores_parts = []
