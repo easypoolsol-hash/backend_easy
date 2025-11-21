@@ -76,6 +76,13 @@ class ImageService:
         # Download image bytes from GCS
         image_bytes = storage.download_image(gcs_path)
 
+        # Check if download succeeded (returns None if blob doesn't exist)
+        if image_bytes is None:
+            logger.error(f"Blob does not exist in GCS: {gcs_path}")
+            raise ValueError(f"Image not found in GCS: {gcs_path}")
+
+        logger.debug(f"Downloaded {len(image_bytes)} bytes from {gcs_path}")
+
         # Decode image bytes to numpy array (BGR format)
         image_bgr = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
 
