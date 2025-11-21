@@ -357,10 +357,12 @@ class BoardingEventAdmin(admin.ModelAdmin):
             reason = voting.get("reason", "unknown").replace("_", " ").title()
             total_crops = voting.get("total_crops", 0)
             max_votes = max(vote_dist.values()) if vote_dist.values() else 0
+            # Format vote_dist without curly braces (format_html issue)
+            vote_str = ", ".join([f"S{k}:{v}" for k, v in vote_dist.items()]) or "none"
 
             html.append('<div style="margin-top:10px;padding:8px;background:#f5f5f5;border-left:4px solid #007bff;">')
             html.append(f"<strong>Voting:</strong> {reason}<br/>")
-            html.append(f"<small>Result: {max_votes}/{total_crops} frames agreed | Distribution: {vote_dist}</small>")
+            html.append(f"<small>Result: {max_votes}/{total_crops} frames agreed | Votes: {vote_str}</small>")
             html.append("</div>")
             html.append("</div>")
 
