@@ -247,6 +247,7 @@ class StudentAdmin(admin.ModelAdmin):
     readonly_fields = ["student_id", "created_at", "updated_at"]
     inlines = [StudentParentInline, StudentPhotoInline]  # Parents first, then photos
     change_list_template = "admin/students/student_changelist.html"
+    actions = ["regenerate_embeddings"]
 
     def get_queryset(self, request):
         """Optimize queryset with counts to avoid N+1 queries"""
@@ -459,6 +460,103 @@ class StudentAdmin(admin.ModelAdmin):
 
         return photo_count
 
+    @admin.action(description="🔄 Regenerate face embeddings for selected students")
+    def regenerate_embeddings(self, request, queryset):
+        """
+        Regenerate face embeddings for all photos of selected students.
+
+        This will:
+        1. Delete existing embeddings
+        2. Create new embeddings using all 3 models
+        3. Trigger consensus verification
+        """
+        total_students = queryset.count()
+        total_photos = 0
+        total_embeddings_created = 0
+        errors = []
+
+        for student in queryset:
+            try:
+                # Get all photos for this student
+                photos = student.photos.all()
+                total_photos += photos.count()
+
+                for photo in photos:
+                    # Delete existing embeddings
+                    photo.face_embeddings.all().delete()
+
+                    # Generate new embeddings using all 3 models
+                    try:
+                        import io
+
+                        import numpy as np
+                        from PIL import Image
+
+                        from ml_models.face_recognition.inference.arcface_resnet50 import ArcFaceResNet50
+                        from ml_models.face_recognition.inference.arcface_resnet100 import ArcFaceResNet100
+                        from ml_models.face_recognition.inference.mobilefacenet import MobileFaceNet
+
+                        # Load image
+                        image_data = photo.photo_data
+                        if not image_data:
+                            errors.append(f"Photo {photo.photo_id} has no data")
+                            continue
+
+                        image = Image.open(io.BytesIO(image_data))
+                        image_array = np.array(image)
+
+                        # Generate embeddings for each model
+                        models = [
+                            ("mobilefacenet", MobileFaceNet(), 0.68),
+                            ("arcface_resnet100", ArcFaceResNet100(), 0.75),
+                            ("arcface_resnet50", ArcFaceResNet50(), 0.72),
+                        ]
+
+                        embeddings_created = 0
+                        for model_name, model, quality_threshold in models:
+                            try:
+                                embedding = model.generate_embedding(image_array)
+
+                                # Create embedding metadata
+                                FaceEmbeddingMetadata.objects.create(
+                                    student_photo=photo,
+                                    model_name=model_name,
+                                    embedding=embedding.tolist(),
+                                    quality_score=quality_threshold,  # Use model threshold as initial score
+                                    is_primary=(embeddings_created == 0),  # First is primary
+                                )
+                                embeddings_created += 1
+                                total_embeddings_created += 1
+                            except Exception as e:
+                                errors.append(f"Failed to generate {model_name} embedding for photo {photo.photo_id}: {e!s}")
+
+                        if embeddings_created > 0:
+                            self.message_user(
+                                request, f"✓ Generated {embeddings_created} embeddings for photo {photo.photo_id}", level=messages.SUCCESS
+                            )
+
+                    except Exception as e:
+                        errors.append(f"Failed to process photo {photo.photo_id}: {e!s}")
+
+            except Exception as e:
+                errors.append(f"Failed to process student {student.student_id}: {e!s}")
+
+        # Summary message
+        success_msg = (
+            f"🎉 Regeneration complete!\n"
+            f"Students processed: {total_students}\n"
+            f"Photos processed: {total_photos}\n"
+            f"Embeddings created: {total_embeddings_created}"
+        )
+        self.message_user(request, success_msg, level=messages.SUCCESS)
+
+        # Show errors if any
+        if errors:
+            error_msg = "⚠️ Errors occurred:\n" + "\n".join(errors[:10])  # Show first 10 errors
+            if len(errors) > 10:
+                error_msg += f"\n... and {len(errors) - 10} more errors"
+            self.message_user(request, error_msg, level=messages.WARNING)
+
 
 class FaceEmbeddingInline(admin.TabularInline):
     model = FaceEmbeddingMetadata
@@ -665,15 +763,70 @@ class FaceEmbeddingMetadataAdmin(admin.ModelAdmin):
         "model_name",
         "quality_score",
         "is_primary",
-        "embedding",
+        "embedding_preview",
     ]
     list_filter = ["model_name", "is_primary"]
-    search_fields = ["student_photo__student__name", "embedding"]
-    readonly_fields = ["embedding_id", "embedding", "created_at"]
+    search_fields = ["student_photo__student__name"]
+    readonly_fields = ["embedding_id", "embedding_expanded", "created_at"]
+    fields = [
+        "embedding_id",
+        "student_photo",
+        "model_name",
+        "quality_score",
+        "is_primary",
+        "embedding_expanded",
+        "created_at",
+    ]
 
     @display(description="Student")
     def get_student(self, obj):
         return obj.student_photo.student
+
+    @display(description="Embedding")
+    def embedding_preview(self, obj):
+        """Show compact embedding preview in list view"""
+        if obj.embedding:
+            # Show first few dimensions
+            try:
+                if isinstance(obj.embedding, list):
+                    preview = str(obj.embedding[:3])[1:-1]  # Remove [ ]
+                    total = len(obj.embedding)
+                    return format_html('<span style="font-family: monospace; font-size: 11px;">[{} ... ] ({}D)</span>', preview, total)
+                return format_html('<span style="color: gray;">—</span>')
+            except Exception:
+                return format_html('<span style="color: red;">Error</span>')
+        return format_html('<span style="color: gray;">No embedding</span>')
+
+    @display(description="Embedding Data")
+    def embedding_expanded(self, obj):
+        """Show expandable embedding in detail view"""
+        if obj.embedding:
+            try:
+                import json
+
+                # Pretty print JSON
+                embedding_json = json.dumps(obj.embedding, indent=2)
+                dimensions = len(obj.embedding) if isinstance(obj.embedding, list) else "unknown"
+
+                return format_html(
+                    "<div>"
+                    "<p><strong>Dimensions:</strong> {}</p>"
+                    '<details style="margin-top: 10px;">'
+                    '<summary style="cursor: pointer; padding: 8px; background: #f5f5f5; '
+                    'border: 1px solid #ddd; border-radius: 4px; user-select: none;">'
+                    "<strong>Click to expand/collapse embedding data</strong>"
+                    "</summary>"
+                    '<pre style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; '
+                    "border-radius: 4px; overflow-x: auto; max-height: 400px; margin-top: 10px; "
+                    'font-family: monospace; font-size: 12px;">{}</pre>'
+                    "</details>"
+                    "</div>",
+                    dimensions,
+                    embedding_json,
+                )
+            except Exception as e:
+                return format_html('<span style="color: red;">Error displaying embedding: {}</span>', str(e))
+        return format_html('<span style="color: gray;">No embedding data</span>')
 
 
 @admin.register(FaceEnrollment)
@@ -731,11 +884,7 @@ class FaceEnrollmentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         """Optimize queries with select_related"""
-        return super().get_queryset(request).select_related(
-            "student",
-            "parent",
-            "reviewed_by"
-        )
+        return super().get_queryset(request).select_related("student", "parent", "reviewed_by")
 
     @display(description="Student")
     def get_student_name(self, obj):
@@ -755,16 +904,14 @@ class FaceEnrollmentAdmin(admin.ModelAdmin):
         }
         color = colors.get(obj.status, "#6C757D")
         return format_html(
-            '<span style="background-color: {}; color: white; '
-            'padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
+            '<span style="background-color: {}; color: white; padding: 3px 10px; border-radius: 3px; font-weight: bold;">{}</span>',
             color,
-            obj.get_status_display()
+            obj.get_status_display(),
         )
 
     @display(description="Photos")
     def photo_thumbnails(self, obj):
         """Display photo thumbnails in admin"""
-        import base64
 
         if not obj.photos_data:
             return "No photos"
@@ -800,18 +947,10 @@ class FaceEnrollmentAdmin(admin.ModelAdmin):
                 enrollment.delete()
                 count += 1
             except Exception as e:
-                self.message_user(
-                    request,
-                    f"Failed to approve enrollment {enrollment.enrollment_id}: {e}",
-                    level=messages.ERROR
-                )
+                self.message_user(request, f"Failed to approve enrollment {enrollment.enrollment_id}: {e}", level=messages.ERROR)
 
         if count > 0:
-            self.message_user(
-                request,
-                f"Successfully approved {count} enrollment(s)",
-                level=messages.SUCCESS
-            )
+            self.message_user(request, f"Successfully approved {count} enrollment(s)", level=messages.SUCCESS)
 
     @admin.action(description="Reject selected enrollments")
     def reject_enrollments(self, request, queryset):
@@ -824,18 +963,10 @@ class FaceEnrollmentAdmin(admin.ModelAdmin):
                 enrollment.reject(request.user)
                 count += 1
             except Exception as e:
-                self.message_user(
-                    request,
-                    f"Failed to reject enrollment {enrollment.enrollment_id}: {e}",
-                    level=messages.ERROR
-                )
+                self.message_user(request, f"Failed to reject enrollment {enrollment.enrollment_id}: {e}", level=messages.ERROR)
 
         if count > 0:
-            self.message_user(
-                request,
-                f"Successfully rejected {count} enrollment(s)",
-                level=messages.SUCCESS
-            )
+            self.message_user(request, f"Successfully rejected {count} enrollment(s)", level=messages.SUCCESS)
 
     def has_add_permission(self, request):
         """Prevent manual creation (only created via API)"""
