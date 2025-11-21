@@ -428,19 +428,36 @@ class BoardingEventAdmin(admin.ModelAdmin):
             backend_uuid_display = ""
             if backend_student_uuid:
                 try:
+                    import uuid as uuid_lib
+
                     from students.models import Student
 
-                    # Convert to string in case it's already a string
+                    # Convert to string and extract UUID if it has prefix
                     uuid_str = str(backend_student_uuid)
+
+                    # Try to parse as UUID to validate/clean it
+                    try:
+                        # If it's a valid UUID string, use it directly
+                        clean_uuid = uuid_lib.UUID(uuid_str)
+                        uuid_str = str(clean_uuid)
+                    except (ValueError, AttributeError):
+                        # If not a valid UUID, it might be a UUID object or invalid
+                        # Try to get the hex attribute if it's a UUID object
+                        if hasattr(backend_student_uuid, "hex"):
+                            uuid_str = str(backend_student_uuid)
+                        else:
+                            # Last resort: use string representation
+                            uuid_str = str(backend_student_uuid)
+
                     backend_student_obj = Student.objects.get(student_id=uuid_str)
                     backend_student_name = backend_student_obj.encrypted_name
                     backend_uuid_display = uuid_str[:8] + "..."
                 except Student.DoesNotExist:
                     backend_student_name = "Unknown Student"
                     backend_uuid_display = str(backend_student_uuid)[:8] + "..."
-                except Exception:
-                    # If conversion/lookup fails, show what we have
-                    backend_student_name = ""
+                except Exception as e:
+                    # Debug: show what we have and why it failed
+                    backend_student_name = f"[Error: {type(e).__name__}]"
                     backend_uuid_display = str(backend_student_uuid)[:20]
 
             # Get actual models used from model_results
