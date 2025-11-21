@@ -166,7 +166,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     @display(description="Backend Verification")
     def backend_verification_display(self, obj):
-        """Display backend multi-model verification status with color coding"""
+        """Display backend multi-model verification status with color coding and model scores"""
         status_icons = {
             "pending": "⏳",
             "verified": "✅",
@@ -191,6 +191,37 @@ class BoardingEventAdmin(admin.ModelAdmin):
         if obj.backend_verification_confidence:
             color = confidence_colors.get(obj.backend_verification_confidence, "#6c757d")
             html += f'<br/><span style="color:{color};font-weight:bold;">{obj.backend_verification_confidence.upper()}</span>'
+
+        # Add compact model scores
+        if obj.backend_verification_status != "pending":
+            consensus_data = self._parse_model_consensus(obj)
+            if consensus_data:
+                scores_parts = []
+                for model_name, prediction in consensus_data["predictions"].items():
+                    student_id = prediction["student_id"]
+                    score = prediction["score"]
+
+                    # Abbreviate model name
+                    abbrev = model_name[:3].upper()
+
+                    if student_id:
+                        # Color code score
+                        if score >= 0.7:
+                            score_color = "#28a745"  # green
+                        elif score >= 0.5:
+                            score_color = "#ffc107"  # yellow
+                        else:
+                            score_color = "#dc3545"  # red
+
+                        scores_parts.append(
+                            f'<span style="color:{score_color};font-weight:bold;" title="{model_name}: Student {student_id}">'
+                            f"{abbrev}: {score:.2f}</span>"
+                        )
+                    else:
+                        scores_parts.append(f'<span style="color:#dc3545;" title="{model_name}: No match">{abbrev}: ✗</span>')
+
+                if scores_parts:
+                    html += f'<br/><small style="font-size:10px;">{" | ".join(scores_parts)}</small>'
 
         if has_mismatch:
             html += '<br/><span style="color:#dc3545;font-weight:bold;">🔴 MISMATCH</span>'
@@ -326,9 +357,48 @@ class BoardingEventAdmin(admin.ModelAdmin):
             return f"{obj.latitude:.4f}, {obj.longitude:.4f}"
         return "-"
 
+    def _parse_model_consensus(self, obj):
+        """Parse model consensus data and check for disagreement"""
+        if not obj.model_consensus_data:
+            return None
+
+        try:
+            import json
+
+            consensus = obj.model_consensus_data if isinstance(obj.model_consensus_data, dict) else json.loads(obj.model_consensus_data)
+            model_results = consensus.get("model_results", {})
+
+            if not model_results:
+                return None
+
+            # Extract predictions from each model
+            predictions = {}
+            for model_name, result in model_results.items():
+                predictions[model_name] = {
+                    "student_id": result.get("student_id"),
+                    "score": result.get("confidence_score", 0.0),
+                }
+
+            # Check if models disagree
+            unique_students = {p["student_id"] for p in predictions.values() if p["student_id"]}
+            has_disagreement = len(unique_students) > 1
+
+            return {"predictions": predictions, "has_disagreement": has_disagreement, "unique_students": unique_students}
+
+        except Exception:
+            return None
+
     @display(description="Reference Photo")
     def get_reference_photo_thumbnail(self, obj):
-        """Display student's reference photo thumbnail (N/A for unknown faces)"""
+        """Display reference photo(s) - multiple if models disagree"""
+        # Check for model disagreement
+        consensus_data = self._parse_model_consensus(obj)
+
+        if consensus_data and consensus_data["has_disagreement"]:
+            # Models disagree - show multiple photos
+            return self._render_multiple_reference_photos(consensus_data)
+
+        # Models agree or unknown face - show single photo
         if obj.student is None:
             return format_html(
                 '<div style="width:50px;height:50px;background:#fff3cd;'
@@ -341,14 +411,20 @@ class BoardingEventAdmin(admin.ModelAdmin):
         ref_photo = obj.student.get_reference_photo()
 
         if ref_photo and ref_photo.photo_url:
+            photo_url = ref_photo.get_cached_url()
             return format_html(
                 '<a href="{}" target="_blank">'
-                '<img src="{}" style="width:50px;height:50px;object-fit:cover;'
+                '<img data-src="{}" class="lazy-photo" '
+                "src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' "
+                "width='50' height='50'%3E%3Crect fill='%23e9ecef' "
+                "width='50' height='50'/%3E%3C/svg%3E\" "
+                'style="width:50px;height:50px;object-fit:cover;'
                 'border:2px solid #28a745;border-radius:4px;" '
-                'title="Reference photo (click to enlarge)"/>'
+                'title="Reference photo (click to enlarge)" '
+                'alt="Loading..."/>'
                 "</a>",
-                ref_photo.photo_url,
-                ref_photo.photo_url,
+                photo_url,
+                photo_url,
             )
         else:
             return format_html(
@@ -358,6 +434,53 @@ class BoardingEventAdmin(admin.ModelAdmin):
                 'font-size:10px;color:#6c757d;" '
                 'title="No photo available">No Photo</div>'
             )
+
+    def _render_multiple_reference_photos(self, consensus_data):
+        """Render multiple reference photos when models disagree"""
+        from students.models import Student
+
+        html_parts = ['<div style="display:flex;flex-direction:column;gap:6px;font-size:11px;max-width:120px;">']
+
+        for model_name, prediction in consensus_data["predictions"].items():
+            student_id = prediction["student_id"]
+            score = prediction["score"]
+
+            if not student_id:
+                html_parts.append(f'<div style="padding:4px;border-left:2px solid #dc3545;"><strong>{model_name[:3]}</strong>: No match</div>')
+                continue
+
+            try:
+                student = Student.objects.select_related().get(pk=student_id)
+                ref_photo = student.get_reference_photo()
+
+                html_parts.append('<div style="border-left:2px solid #ffc107;padding-left:6px;">')
+                html_parts.append(f"<strong>{model_name[:3]}</strong>: S{student_id}<br/>")
+
+                if ref_photo:
+                    photo_url = ref_photo.get_cached_url()
+                    html_parts.append(
+                        f'<a href="{photo_url}" target="_blank">'
+                        f'<img data-src="{photo_url}" class="lazy-photo" '
+                        f"src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' "
+                        f"width='40' height='40'%3E%3Crect fill='%23e9ecef' "
+                        f"width='40' height='40'/%3E%3C/svg%3E\" "
+                        f'style="width:40px;height:40px;border-radius:3px;margin:3px 0;object-fit:cover;" '
+                        f'alt="Loading..." />'
+                        f"</a>"
+                    )
+                    html_parts.append(f'<small style="color:#6c757d;">({score:.2f})</small>')
+                else:
+                    html_parts.append('<small style="color:#999;">No photo</small>')
+
+                html_parts.append("</div>")
+
+            except Student.DoesNotExist:
+                html_parts.append(
+                    f'<div style="padding:4px;border-left:2px solid #dc3545;"><strong>{model_name[:3]}</strong>: S{student_id} (not found)</div>'
+                )
+
+        html_parts.append("</div>")
+        return format_html("".join(html_parts))
 
     def get_confirmation_faces_thumbnails(self, obj):
         """Display 3 confirmation face thumbnails inline with lazy loading"""
@@ -402,7 +525,8 @@ class BoardingEventAdmin(admin.ModelAdmin):
             window.lazyLoadInitialized = true;
 
             function lazyLoad() {
-                const images = document.querySelectorAll('img.lazy-load-img[data-src]');
+                // Handle both confirmation faces (.lazy-load-img) and reference photos (.lazy-photo)
+                const images = document.querySelectorAll('img.lazy-load-img[data-src], img.lazy-photo[data-src]');
 
                 const imageObserver = new IntersectionObserver((entries, observer) => {
                     entries.forEach(entry => {
@@ -410,13 +534,31 @@ class BoardingEventAdmin(admin.ModelAdmin):
                             const img = entry.target;
                             img.src = img.dataset.src;
                             img.removeAttribute('data-src');
-                            img.classList.remove('lazy-load-img');
+                            img.classList.remove('lazy-load-img', 'lazy-photo');
                             observer.unobserve(img);
+                        }
+                    });
+                }, {
+                    rootMargin: '50px'  // Start loading 50px before visible
+                });
+
+                images.forEach(img => imageObserver.observe(img));
+
+                // Re-observe when new content loads (e.g., pagination)
+                const mutationObserver = new MutationObserver(() => {
+                    const newImages = document.querySelectorAll('img.lazy-load-img[data-src], img.lazy-photo[data-src]');
+                    newImages.forEach(img => {
+                        if (!img.dataset.observed) {
+                            imageObserver.observe(img);
+                            img.dataset.observed = 'true';
                         }
                     });
                 });
 
-                images.forEach(img => imageObserver.observe(img));
+                mutationObserver.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
             }
 
             if (document.readyState === 'loading') {

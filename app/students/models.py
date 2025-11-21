@@ -167,7 +167,7 @@ class StudentPhoto(models.Model):
         null=True,
         blank=True,
         related_name="submitted_photos",
-        help_text="Parent who submitted this photo (NULL if admin-uploaded)"
+        help_text="Parent who submitted this photo (NULL if admin-uploaded)",
     )
 
     # Store photo as binary data in database (Cloud SQL)
@@ -206,6 +206,38 @@ class StudentPhoto(models.Model):
 
             return reverse("student-photo-serve", kwargs={"photo_id": str(self.photo_id)})
         return None
+
+    def get_cached_url(self, cache_duration_hours=1):
+        """
+        Get photo URL with caching to reduce repeated URL generation.
+
+        For database-stored photos, this returns the same URL but with caching
+        to avoid repeated database queries when displaying photos in lists.
+
+        Args:
+            cache_duration_hours: How long to cache the URL (default 1 hour)
+
+        Returns:
+            str: Photo URL or None if no photo data
+        """
+        from django.core.cache import cache
+
+        if not self.photo_data:
+            return None
+
+        cache_key = f"photo_url_{self.photo_id}_{cache_duration_hours}h"
+        cached_url = cache.get(cache_key)
+
+        if cached_url:
+            return cached_url
+
+        # Generate URL
+        url = self.photo_url
+
+        # Cache for specified duration
+        cache.set(cache_key, url, timeout=cache_duration_hours * 3600)
+
+        return url
 
     def save(self, *args, **kwargs):
         # Ensure only one primary photo per student
@@ -561,58 +593,36 @@ class FaceEnrollment(models.Model):
 
     # Links
     student: models.ForeignKey = models.ForeignKey(
-        Student,
-        on_delete=models.CASCADE,
-        related_name="face_enrollments",
-        help_text="Student for this enrollment"
+        Student, on_delete=models.CASCADE, related_name="face_enrollments", help_text="Student for this enrollment"
     )
     parent: models.ForeignKey = models.ForeignKey(
-        Parent,
-        on_delete=models.CASCADE,
-        related_name="face_enrollments",
-        help_text="Parent who submitted this enrollment"
+        Parent, on_delete=models.CASCADE, related_name="face_enrollments", help_text="Parent who submitted this enrollment"
     )
 
     # Photos data (stored as JSON array of base64-encoded images)
     # Each photo is a dict: {"data": "<base64>", "content_type": "image/jpeg"}
-    photos_data: models.JSONField = models.JSONField(
-        help_text="Array of photo data objects from auto-capture session"
-    )
+    photos_data: models.JSONField = models.JSONField(help_text="Array of photo data objects from auto-capture session")
     photo_count: models.IntegerField = models.IntegerField(help_text="Number of photos in this enrollment")
 
     # Status tracking
     status: models.CharField = models.CharField(
-        max_length=20,
-        choices=ENROLLMENT_STATUS_CHOICES,
-        default="pending_approval",
-        help_text="Approval status"
+        max_length=20, choices=ENROLLMENT_STATUS_CHOICES, default="pending_approval", help_text="Approval status"
     )
 
     # Timestamps
-    submitted_at: models.DateTimeField = models.DateTimeField(
-        default=timezone.now,
-        help_text="When parent submitted enrollment"
-    )
+    submitted_at: models.DateTimeField = models.DateTimeField(default=timezone.now, help_text="When parent submitted enrollment")
     reviewed_by = models.ForeignKey(  # type: ignore[misc]
         "users.User",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="reviewed_enrollments",
-        help_text="Admin who reviewed this enrollment"
+        help_text="Admin who reviewed this enrollment",
     )
-    reviewed_at: models.DateTimeField = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When enrollment was reviewed"
-    )
+    reviewed_at: models.DateTimeField = models.DateTimeField(null=True, blank=True, help_text="When enrollment was reviewed")
 
     # Metadata
-    device_info: models.JSONField = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Device and capture metadata from parent app"
-    )
+    device_info: models.JSONField = models.JSONField(default=dict, blank=True, help_text="Device and capture metadata from parent app")
 
     class Meta:
         db_table = "face_enrollments"
