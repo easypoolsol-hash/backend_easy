@@ -113,6 +113,11 @@ class BoardingEvent(models.Model):
         blank=True,
         help_text="When backend verification completed",
     )
+    backend_config_version = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="ML config version used for backend verification (from BackendModelConfiguration)",
+    )
 
     class Meta:
         db_table = "boarding_events"

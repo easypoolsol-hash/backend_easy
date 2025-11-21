@@ -42,6 +42,7 @@ class ConsensusResult:
     consensus_count: int  # How many models agreed
     model_results: dict[str, dict[str, Any]]  # Detailed results from each model
     verification_status: str  # 'verified', 'flagged', 'failed'
+    config_version: int | None  # Version of ML config used (for tracking)
 
 
 class FaceVerificationConsensusService:
@@ -55,11 +56,48 @@ class FaceVerificationConsensusService:
     - No matches → FAILED
     """
 
-    def __init__(self) -> None:
-        """Initialize service with all enabled models"""
+    def __init__(self, use_database_config: bool = True) -> None:
+        """
+        Initialize service with all enabled models
+
+        Args:
+            use_database_config: If True, load config from database (BackendModelConfiguration).
+                                If False, use static config from ml_models/config.py
+        """
         from ml_models.config import FACE_RECOGNITION_MODELS, MULTI_MODEL_CONFIG
 
-        self.config: dict[str, Any] = MULTI_MODEL_CONFIG
+        # Load configuration from database or fallback to static config
+        self.config_version: int | None = None
+        if use_database_config:
+            try:
+                # Import here to avoid circular dependency
+                from ml_config.models import BackendModelConfiguration
+
+                active_config = BackendModelConfiguration.get_active_config()
+                self.config_version = active_config.version
+
+                # Convert database config to format expected by consensus service
+                # Note: BackendModelConfiguration.to_dict() returns ENSEMBLE_CONFIG format
+                # We need MULTI_MODEL_CONFIG format here
+                self.config: dict[str, Any] = {
+                    "enabled": True,
+                    "models_for_verification": ["mobilefacenet", "arcface_int8", "adaface"],
+                    "consensus_strategy": "weighted",
+                    "minimum_consensus": active_config.minimum_consensus,
+                }
+
+                # Store full ensemble config for use in weighted voting (future enhancement)
+                self.ensemble_config = active_config.to_dict()
+
+                logger.info(f"Loaded ML config V{self.config_version} from database")
+            except Exception as e:
+                logger.warning(f"Failed to load database config: {e}. Falling back to static config.")
+                self.config = MULTI_MODEL_CONFIG
+                self.ensemble_config = {}
+        else:
+            self.config = MULTI_MODEL_CONFIG
+            self.ensemble_config = {}
+
         models_for_verification: list[str] = self.config.get("models_for_verification", [])  # type: ignore[assignment]
         self.enabled_models: dict[str, dict[str, Any]] = {
             name: config for name, config in FACE_RECOGNITION_MODELS.items() if config.get("enabled", False) and name in models_for_verification
@@ -67,6 +105,8 @@ class FaceVerificationConsensusService:
 
         self.models: dict[str, Any] = {}  # Lazy loaded
         logger.info(f"Initialized ConsensusService with {len(self.enabled_models)} models: {list(self.enabled_models.keys())}")
+        if self.config_version:
+            logger.info(f"Using ML Configuration Version: {self.config_version}")
 
     def _load_models(self) -> None:
         """Lazy load all models on first use"""
@@ -212,6 +252,7 @@ class FaceVerificationConsensusService:
                 consensus_count=0,
                 model_results={r.model_name: self._format_model_result(r) for r in model_results},
                 verification_status="failed",
+                config_version=self.config_version,
             )
 
         # Get winning student (most votes)
@@ -242,6 +283,7 @@ class FaceVerificationConsensusService:
             consensus_count=consensus_count,
             model_results={r.model_name: self._format_model_result(r) for r in model_results},
             verification_status=verification_status,
+            config_version=self.config_version,
         )
 
     @staticmethod

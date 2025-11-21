@@ -95,6 +95,7 @@ INSTALLED_APPS = [
     "kiosks",
     "realtime",  # Real-time WebSocket communication
     "notifications",  # Push notifications for parents
+    "ml_config",  # ML model configuration management
 ]
 
 # Custom user model

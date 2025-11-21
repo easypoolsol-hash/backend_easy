@@ -98,11 +98,13 @@ def _mark_event_failed(event: BoardingEvent, reason: str) -> None:
     event.backend_verification_status = "failed"
     event.backend_verified_at = timezone.now()
     event.model_consensus_data = {"failure_reason": reason}
+    event.backend_config_version = None  # No config used for failed verification
     event.save(
         update_fields=[
             "backend_verification_status",
             "backend_verified_at",
             "model_consensus_data",
+            "backend_config_version",
         ]
     )
 
@@ -130,6 +132,7 @@ def _save_verification_result(event: BoardingEvent, result) -> None:
     event.backend_student_id = result.student_id
     event.model_consensus_data = model_consensus_data
     event.backend_verified_at = timezone.now()
+    event.backend_config_version = result.config_version  # Track which config was used
 
     event.save(
         update_fields=[
@@ -138,6 +141,7 @@ def _save_verification_result(event: BoardingEvent, result) -> None:
             "backend_student_id",
             "model_consensus_data",
             "backend_verified_at",
+            "backend_config_version",
         ]
     )
 

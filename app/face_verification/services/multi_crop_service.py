@@ -39,6 +39,7 @@ class MultiCropResult:
     verification_status: str
     model_results: dict
     voting_details: dict  # Details about how voting was decided
+    config_version: int | None  # ML config version used
 
 
 class MultiCropService:
@@ -72,6 +73,7 @@ class MultiCropService:
                 verification_status="failed",
                 model_results={},
                 voting_details={"reason": "no_crop_images"},
+                config_version=self.consensus_service.config_version,
             )
 
         # Step 1: Verify each crop independently
@@ -85,6 +87,7 @@ class MultiCropService:
                 verification_status="failed",
                 model_results={},
                 voting_details={"reason": "all_crops_failed"},
+                config_version=self.consensus_service.config_version,
             )
 
         # Step 2: Apply voting strategy
@@ -188,6 +191,7 @@ class MultiCropService:
                 verification_status="failed",
                 model_results={},
                 voting_details={**voting_details, "reason": "no_votes"},
+                config_version=self.consensus_service.config_version,
             )
 
         winning_student, winning_crops = sorted_votes[0]
@@ -210,6 +214,7 @@ class MultiCropService:
                 verification_status="verified" if winning_student else "failed",
                 model_results=best_crop.model_results,
                 voting_details=voting_details,
+                config_version=self.consensus_service.config_version,
             )
         else:
             # No majority → Use highest confidence crop
@@ -223,4 +228,5 @@ class MultiCropService:
                 verification_status=best_crop.verification_status,
                 model_results=best_crop.model_results,
                 voting_details=voting_details,
+                config_version=self.consensus_service.config_version,
             )
