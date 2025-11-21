@@ -55,7 +55,7 @@ FACE_RECOGNITION_MODELS = {
     "adaface": {
         "class": "ml_models.face_recognition.inference.adaface.AdaFace",
         "dimensions": 512,
-        "enabled": True,
+        "enabled": False,  # DISABLED: ONNX model not available yet - download manually
         "quality_threshold": 0.65,
         "description": "AdaFace IR-101 - Quality-adaptive for varying conditions (512D, 99.4%+ LFW)",
     },
@@ -64,9 +64,9 @@ FACE_RECOGNITION_MODELS = {
 # Multi-model verification config
 MULTI_MODEL_CONFIG = {
     "enabled": True,
-    "models_for_verification": ["mobilefacenet", "arcface_int8", "adaface"],  # 3 models for backend verification
+    "models_for_verification": ["mobilefacenet", "arcface_int8"],  # 2 models (adaface disabled - no ONNX available)
     "consensus_strategy": "weighted",  # voting, weighted, unanimous
-    "minimum_consensus": 2,  # At least 2 models must agree
+    "minimum_consensus": 2,  # Both models must agree (2-model mode)
 }
 
 # =============================================================================
@@ -74,10 +74,11 @@ MULTI_MODEL_CONFIG = {
 # =============================================================================
 ENSEMBLE_CONFIG = {
     # Model weights for weighted ensemble (must sum to 1.0)
+    # 2-MODEL MODE: AdaFace disabled (no ONNX available)
     "model_weights": {
-        "mobilefacenet": 0.35,  # Fast baseline, good for normal conditions
-        "arcface_int8": 0.35,  # Banking-grade accuracy, good at distinguishing similar faces
-        "adaface": 0.30,  # Quality-adaptive, handles difficult lighting/blur
+        "mobilefacenet": 0.50,  # Fast baseline, good for normal conditions
+        "arcface_int8": 0.50,  # Banking-grade accuracy, good at distinguishing similar faces
+        "adaface": 0.0,  # DISABLED - will be 0.30 when enabled
     },
     # Temperature scaling per model (adjusts score distribution)
     # Higher temperature = spread out scores, Lower = sharpen differences

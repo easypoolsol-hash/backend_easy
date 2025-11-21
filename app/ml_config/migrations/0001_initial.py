@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = []
@@ -38,9 +37,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "description",
-                    models.TextField(
-                        blank=True, help_text="What changed in this configuration"
-                    ),
+                    models.TextField(blank=True, help_text="What changed in this configuration"),
                 ),
                 (
                     "is_active",
@@ -151,9 +148,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "mobilefacenet_shift",
-                    models.FloatField(
-                        default=0.0, help_text="Shift scores before scaling"
-                    ),
+                    models.FloatField(default=0.0, help_text="Shift scores before scaling"),
                 ),
                 (
                     "arcface_temperature_enabled",
@@ -189,9 +184,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "adaface_shift",
-                    models.FloatField(
-                        default=0.0, help_text="Shift scores before scaling"
-                    ),
+                    models.FloatField(default=0.0, help_text="Shift scores before scaling"),
                 ),
             ],
             options={
