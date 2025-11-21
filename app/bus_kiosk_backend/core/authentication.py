@@ -67,10 +67,14 @@ class CloudTasksAuthentication(authentication.BaseAuthentication):
             # Not a Cloud Tasks request, let other auth classes handle
             return None
 
-        # Additional validation: check queue name matches expected pattern
-        expected_queue_prefix = getattr(settings, "CLOUD_TASKS_QUEUE_NAME", "notifications-queue")
-        if expected_queue_prefix and expected_queue_prefix not in queue_name:
-            logger.warning(f"Unexpected Cloud Tasks queue: {queue_name}, expected prefix: {expected_queue_prefix}")
+        # Additional validation: check queue name matches allowed patterns
+        # Support multiple queues (notifications, face-verification, etc.)
+        allowed_queue_prefixes = [
+            getattr(settings, "CLOUD_TASKS_QUEUE_NAME", "notifications-queue"),
+            getattr(settings, "FACE_VERIFICATION_QUEUE_NAME", "face-verification-queue"),
+        ]
+        if not any(prefix in queue_name for prefix in allowed_queue_prefixes if prefix):
+            logger.warning(f"Unexpected Cloud Tasks queue: {queue_name}, allowed: {allowed_queue_prefixes}")
             raise exceptions.AuthenticationFailed("Invalid Cloud Tasks queue")
 
         # Get retry count for logging
