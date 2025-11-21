@@ -264,7 +264,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
         # === KIOSK SECTION ===
         kiosk_score = obj.confidence_score or 0.0
-        kiosk_student = f"S{obj.student.student_id}" if obj.student else "Unknown"
+        kiosk_student_id = str(obj.student.student_id) if obj.student else "Unknown"
         kiosk_name = ""
         try:
             kiosk_name = obj.student.encrypted_name if obj.student else ""
@@ -276,7 +276,7 @@ class BoardingEventAdmin(admin.ModelAdmin):
         html.append('<h4 style="margin:0 0 8px 0;color:#1565c0;">📱 KIOSK PREDICTION</h4>')
         html.append('<table style="width:100%;border-collapse:collapse;">')
         html.append(f'<tr><td style="padding:4px;"><strong>Model:</strong></td><td>{kiosk_model}</td></tr>')
-        html.append(f'<tr><td style="padding:4px;"><strong>Student:</strong></td><td><strong>{kiosk_student}</strong> {kiosk_name}</td></tr>')
+        html.append(f'<tr><td style="padding:4px;"><strong>Student:</strong></td><td><strong>{kiosk_name or kiosk_student_id}</strong></td></tr>')
         sc = score_color(kiosk_score)
         html.append('<tr><td style="padding:4px;"><strong>Score:</strong></td>')
         html.append(f'<td><span style="color:{sc};font-weight:bold;font-size:16px;">{kiosk_score:.4f}</span></td></tr>')
@@ -387,21 +387,21 @@ class BoardingEventAdmin(admin.ModelAdmin):
             html.append("</div>")
 
             # === MATCH SUMMARY ===
-            backend_student = obj.backend_student
-            kiosk_student_id = obj.student.student_id if obj.student else None
-            is_match = backend_student and str(backend_student) == str(kiosk_student_id)
+            backend_student_uuid = obj.backend_student
+            kiosk_uuid = obj.student.student_id if obj.student else None
+            is_match = backend_student_uuid and str(backend_student_uuid) == str(kiosk_uuid)
 
             if is_match:
                 html.append('<div style="padding:12px;background:#d4edda;border:2px solid #28a745;border-radius:4px;">')
                 html.append('<strong style="color:#155724;font-size:16px;">✅ MATCH</strong><br/>')
-                html.append(f'<span style="color:#155724;">Kiosk: {kiosk_student} @ {kiosk_score:.4f}</span><br/>')
-                html.append(f'<span style="color:#155724;">Backend: {backend_student} @ {backend_score:.4f}</span>')
+                html.append(f'<span style="color:#155724;">Kiosk: {kiosk_name or kiosk_student_id} @ {kiosk_score:.4f}</span><br/>')
+                html.append(f'<span style="color:#155724;">Backend: {kiosk_name or backend_student_uuid} @ {backend_score:.4f}</span>')
                 html.append("</div>")
             else:
                 html.append('<div style="padding:12px;background:#f8d7da;border:2px solid #dc3545;border-radius:4px;">')
                 html.append('<strong style="color:#721c24;font-size:16px;">🔴 MISMATCH</strong><br/>')
-                html.append(f'<span style="color:#721c24;">Kiosk: {kiosk_student} @ {kiosk_score:.4f}</span><br/>')
-                html.append(f'<span style="color:#721c24;">Backend: {backend_student if backend_student else "?"} @ {backend_score:.4f}</span>')
+                html.append(f'<span style="color:#721c24;">Kiosk: {kiosk_name or kiosk_student_id} @ {kiosk_score:.4f}</span><br/>')
+                html.append(f'<span style="color:#721c24;">Backend: {backend_student_uuid if backend_student_uuid else "?"} @ {backend_score:.4f}</span>')
                 html.append("</div>")
 
             return format_html("".join(html))
