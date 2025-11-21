@@ -289,6 +289,16 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
         try:
             consensus = obj.model_consensus_data if isinstance(obj.model_consensus_data, dict) else json.loads(obj.model_consensus_data)
+
+            # Check for failure reason first
+            failure_reason = consensus.get("failure_reason")
+            if failure_reason:
+                html.append('<div style="padding:15px;background:#f8d7da;border:2px solid #dc3545;border-radius:4px;">')
+                html.append('<h4 style="margin:0 0 8px 0;color:#721c24;">❌ BACKEND VERIFICATION FAILED</h4>')
+                html.append(f'<p style="color:#721c24;margin:0;"><strong>Reason:</strong> {failure_reason}</p>')
+                html.append("</div>")
+                return format_html("".join(html))
+
             voting = consensus.get("voting_details", {})
             crop_results = voting.get("crop_results", [])
             model_results = consensus.get("model_results", {})
