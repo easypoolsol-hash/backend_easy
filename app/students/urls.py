@@ -17,4 +17,5 @@ urlpatterns = [
     path("", include(router.urls)),
     path("kiosk/boarding/", views.KioskBoardingView.as_view(), name="kiosk-boarding"),
     path("photos/<uuid:photo_id>/", views.serve_student_photo, name="student-photo-serve"),
+    path("regenerate-embedding/", views.RegenerateEmbeddingView.as_view(), name="regenerate-embedding"),
 ]

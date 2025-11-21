@@ -460,28 +460,63 @@ class StudentAdmin(admin.ModelAdmin):
 
         return photo_count
 
-    @admin.action(description="🔄 Regenerate face embeddings (select 1-3 students)")
+    @admin.action(description="🔄 Regenerate face embeddings for selected students")
     def regenerate_embeddings(self, request, queryset):
         """
         Regenerate face embeddings for all photos of selected students.
 
         This will:
         1. Delete existing embeddings
-        2. Regenerate using FaceRecognitionService
+        2. Regenerate using FaceRecognitionService (2 models: MobileFaceNet + ArcFace INT8)
         """
+        import json
+        import logging
+
+        from django.conf import settings
+
         from .services.face_recognition_service import FaceRecognitionService
 
+        logger = logging.getLogger(__name__)
         total_students = queryset.count()
 
-        # Limit to prevent timeout
-        if total_students > 3:
-            self.message_user(
-                request,
-                f"⚠️ Please select 3 or fewer students at a time to avoid timeout. You selected {total_students}.",
-                level=messages.ERROR,
-            )
-            return
+        # For large batches, queue via Cloud Tasks
+        if total_students > 10:
+            try:
+                from google.cloud import tasks_v2
 
+                client = tasks_v2.CloudTasksClient()
+                project = getattr(settings, "GCP_PROJECT_ID", "easypool-backend")
+                location = getattr(settings, "GCP_REGION", "asia-south1")
+                queue = "face-verification-queue"
+                parent = client.queue_path(project, location, queue)
+
+                tasks_queued = 0
+                for student in queryset:
+                    payload = {"student_id": str(student.student_id), "action": "regenerate_embeddings"}
+                    task = {
+                        "http_request": {
+                            "http_method": tasks_v2.HttpMethod.POST,
+                            "url": f"{settings.BACKEND_URL}/api/v1/students/regenerate-embedding/",
+                            "headers": {"Content-Type": "application/json"},
+                            "body": json.dumps(payload).encode(),
+                            "oidc_token": {"service_account_email": settings.CLOUD_TASKS_SERVICE_ACCOUNT},
+                        }
+                    }
+                    client.create_task(request={"parent": parent, "task": task})
+                    tasks_queued += 1
+
+                self.message_user(
+                    request,
+                    f"🚀 Queued {tasks_queued} students for async embedding regeneration. Check back in a few minutes.",
+                    level=messages.SUCCESS,
+                )
+                return
+
+            except Exception as e:
+                logger.warning(f"Cloud Tasks not available, falling back to sync: {e}")
+                # Fall through to sync processing
+
+        # Sync processing for smaller batches
         total_photos = 0
         success_count = 0
         errors = []

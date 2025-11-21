@@ -2209,6 +2209,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/Parent'
           description: ''
+  /api/v1/regenerate-embedding/:
+    post:
+      operationId: api_v1_regenerate_embedding_create
+      description: POST /api/v1/students/regenerate-embedding/
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - Bearer: []
+      responses:
+        '200':
+          description: No response body
   /api/v1/routes/:
     get:
       operationId: api_v1_routes_list

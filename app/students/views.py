@@ -704,3 +704,59 @@ def serve_student_photo(request, photo_id):
         return HttpResponse(photo.photo_data, content_type=photo.photo_content_type)
 
     return HttpResponseNotFound("Photo not found")
+
+
+class RegenerateEmbeddingView(APIView):
+    """
+    Endpoint for Cloud Tasks to regenerate embeddings for a student.
+    Called asynchronously from admin action.
+    """
+
+    permission_classes = []  # Cloud Tasks uses OIDC token authentication
+
+    def post(self, request):
+        """POST /api/v1/students/regenerate-embedding/"""
+        import logging
+
+        from .services.face_recognition_service import FaceRecognitionService
+
+        logger = logging.getLogger(__name__)
+
+        student_id = request.data.get("student_id")
+        if not student_id:
+            return Response({"error": "student_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            student = Student.objects.get(student_id=student_id)
+        except Student.DoesNotExist:
+            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        service = FaceRecognitionService()
+        photos = student.photos.all()
+        success_count = 0
+        errors = []
+
+        for photo in photos:
+            # Delete existing embeddings
+            photo.face_embeddings.all().delete()
+
+            # Regenerate
+            try:
+                if service.process_student_photo(photo):
+                    success_count += 1
+                else:
+                    errors.append(f"Failed: {photo.photo_id}")
+            except Exception as e:
+                errors.append(f"{photo.photo_id}: {e!s}")
+
+        logger.info(f"Regenerated embeddings for student {student_id}: {success_count}/{photos.count()} photos")
+
+        return Response(
+            {
+                "student_id": str(student_id),
+                "photos_processed": photos.count(),
+                "success_count": success_count,
+                "errors": errors,
+            },
+            status=status.HTTP_200_OK,
+        )
