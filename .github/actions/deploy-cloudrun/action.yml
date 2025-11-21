@@ -87,10 +87,19 @@ runs:
 
         # Deploy with full traceability metadata (Fortune 500 pattern)
         # Terraform controls infrastructure, CI/CD adds deployment metadata
+
+        # Set min-instances for DEV to prevent cold start timeouts (ML model loading)
+        MIN_INSTANCES_FLAG=""
+        if [ "${{ inputs.environment }}" == "dev" ]; then
+          MIN_INSTANCES_FLAG="--min-instances=1"
+        fi
+
         gcloud run deploy ${SERVICE_NAME} \
           --image=${REGISTRY_URL}:${{ inputs.image_tag }} \
           --region=${REGION} \
           --platform=managed \
+          --cpu-boost \
+          ${MIN_INSTANCES_FLAG} \
           --update-labels=git-sha=${SHORT_SHA},deployed-at=${DEPLOYED_AT},env=${{ inputs.environment }} \
           --update-annotations=git-commit=${{ github.sha }},git-branch=${{ github.ref_name }},deployed-by=github-actions \
           --quiet

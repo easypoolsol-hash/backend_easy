@@ -20,7 +20,7 @@ class ModelLoader:
         self,
         bucket_name: str = "easypool-ml-models",
         model_version: str = "v1",
-        local_models_dir: str = None,
+        local_models_dir: str | None = None,
     ):
         """
         Initialize the model loader.
@@ -43,6 +43,7 @@ class ModelLoader:
         self.local_models_dir.mkdir(parents=True, exist_ok=True)
 
         # Models to download from GCS
+        # Optimized 2-model setup: 70MB total (was 421MB)
         self.models = [
             {
                 "filename": "mobilefacenet.tflite",
@@ -50,14 +51,9 @@ class ModelLoader:
                 "size_mb": 5,
             },
             {
-                "filename": "arcface_resnet100.onnx",
-                "gcs_path": f"face-recognition/{model_version}/arcface_resnet100.onnx",
-                "size_mb": 249,
-            },
-            {
-                "filename": "arcface_w600k_r50.onnx",
-                "gcs_path": f"face-recognition/{model_version}/arcface_w600k_r50.onnx",
-                "size_mb": 167,
+                "filename": "arcfaceresnet100_int8.onnx",
+                "gcs_path": f"face-recognition/{model_version}/arcfaceresnet100_int8.onnx",
+                "size_mb": 63,
             },
         ]
 
@@ -180,7 +176,7 @@ def load_models_on_startup():
 
     if is_cloud_run:
         logger.info("Running on Cloud Run - downloading models from GCS...")
-        results = loader.download_all_models()
+        loader.download_all_models()
 
         if not loader.verify_models_ready():
             logger.error("❌ Not all models are ready. Application may not function correctly.")

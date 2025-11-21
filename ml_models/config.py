@@ -43,30 +43,23 @@ FACE_RECOGNITION_MODELS = {
         "dimensions": 192,
         "enabled": True,
         "quality_threshold": 0.68,
-        "description": "MobileFaceNet - Fast lightweight model (192D, ~90% accuracy)",
+        "description": "MobileFaceNet - Fast lightweight model (192D, 99.4% LFW)",
     },
-    "arcface_resnet100": {
-        "class": "ml_models.face_recognition.inference.arcface_resnet100.ArcFaceResNet100",
+    "arcface_int8": {
+        "class": "ml_models.face_recognition.inference.arcface_int8.ArcFaceINT8",
         "dimensions": 512,
         "enabled": True,
-        "quality_threshold": 0.75,
-        "description": "ArcFace ResNet100 - HIGHEST banking-grade accuracy (512D, 99.82% LFW)",
-    },
-    "arcface_resnet50": {
-        "class": "ml_models.face_recognition.inference.arcface_resnet50.ArcFaceResNet50",
-        "dimensions": 512,
-        "enabled": True,
-        "quality_threshold": 0.72,
-        "description": "ArcFace ResNet50 - Banking-grade accuracy (512D, 99.77% LFW)",
+        "quality_threshold": 0.70,
+        "description": "ArcFace INT8 - Banking-grade accuracy (512D, 99.82% LFW, quantized)",
     },
 }
 
 # Multi-model verification config
 MULTI_MODEL_CONFIG = {
     "enabled": True,
-    "models_for_verification": ["mobilefacenet", "arcface_resnet100", "arcface_resnet50"],  # All 3 for backend verification
+    "models_for_verification": ["mobilefacenet", "arcface_int8"],  # 2 models for backend verification
     "consensus_strategy": "voting",  # voting, weighted, unanimous
-    "minimum_consensus": 2,  # At least 2 models must agree
+    "minimum_consensus": 2,  # Both models must agree
 }
 
 # Service-level config (business logic)
