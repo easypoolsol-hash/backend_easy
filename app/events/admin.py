@@ -95,7 +95,39 @@ class BoardingEventAdmin(admin.ModelAdmin):
     ordering = ["-timestamp"]
 
     # Add custom actions
-    actions = ["delete_selected_with_gcs_cleanup", "download_boarding_report"]
+    actions = ["delete_selected_with_gcs_cleanup", "download_boarding_report", "trigger_verification"]
+
+    @admin.action(description="🔍 Verify Now (Multi-Crop)")
+    def trigger_verification(self, request, queryset):
+        """Manually trigger multi-crop verification for selected pending events.
+
+        Runs the new multi-crop voting verification synchronously.
+        Only processes events with 'pending' status.
+        """
+        from face_verification.tasks import verify_boarding_event
+
+        pending_events = queryset.filter(backend_verification_status="pending")
+        total = pending_events.count()
+
+        if total == 0:
+            self.message_user(request, "No pending events selected.", level="warning")
+            return
+
+        success_count = 0
+        failed_count = 0
+
+        for event in pending_events:
+            try:
+                result = verify_boarding_event(str(event.event_id))
+                if result.get("status") == "success":
+                    success_count += 1
+                else:
+                    failed_count += 1
+            except Exception as e:
+                failed_count += 1
+                self.message_user(request, f"Error verifying {event.event_id}: {e}", level="error")
+
+        self.message_user(request, f"Verification complete: {success_count} verified, {failed_count} failed out of {total} events.")
 
     @admin.action(description="Download Boarding Report (PDF)")
     def download_boarding_report(self, request, queryset):
