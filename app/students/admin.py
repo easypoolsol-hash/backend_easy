@@ -203,17 +203,20 @@ class StudentPhotoInline(admin.TabularInline):
 
             # Color based on quality score
             if emb.quality_score and emb.quality_score >= 0.7:
-                color = "green"
+                color = "#28a745"  # green
+                badge = "✓"
             elif emb.quality_score and emb.quality_score >= 0.5:
-                color = "orange"
+                color = "#ffc107"  # yellow
+                badge = "⚠"
             else:
-                color = "red"
+                color = "#dc3545"  # red
+                badge = "✗"
 
             result.append(
-                f'<div style="margin: 2px 0; padding: 4px; background: #f5f5f5; border-radius: 3px;">'
-                f"<strong>{model_name}</strong>: "
-                f'<span style="color: {color};">Q:{quality}</span> '
-                f'<span style="color: gray;">({dims}D)</span>'
+                f'<div style="margin: 4px 0; padding: 6px; background: #f8f9fa; border-left: 3px solid {color}; font-size: 12px;">'
+                f'<strong style="color: #333;">{model_name}</strong><br/>'
+                f'<span style="color: {color}; font-weight: bold;">{badge} Quality: {quality}</span> '
+                f'<span style="color: #6c757d;">| {dims}D</span>'
                 f"</div>"
             )
 
