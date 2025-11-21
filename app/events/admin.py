@@ -198,155 +198,194 @@ class BoardingEventAdmin(admin.ModelAdmin):
 
     @display(description="Backend Verification")
     def backend_verification_display(self, obj):
-        """Display backend multi-model verification status with color coding and model scores"""
-        status_icons = {
-            "pending": "⏳",
-            "verified": "✅",
-            "flagged": "⚠️",
-            "failed": "❌",
-        }
-        confidence_colors = {
-            "high": "#28a745",  # green
-            "medium": "#ffc107",  # yellow
-            "low": "#dc3545",  # red
-        }
+        """Simple list view: Status + Student + Kiosk/Backend scores + Vote count"""
+        import json
 
+        # Status icons
+        status_icons = {"pending": "⏳", "verified": "✅", "flagged": "⚠️", "failed": "❌"}
         icon = status_icons.get(obj.backend_verification_status, "❓")
-        status_label = obj.backend_verification_status.upper()
 
-        # Check for mismatch
-        has_mismatch = obj.has_verification_mismatch if obj.backend_student else False
+        # Kiosk score
+        kiosk_score = obj.confidence_score or 0.0
+        kiosk_student = f"S{obj.student.student_id}" if obj.student else "?"
 
-        # Build HTML
-        html = f'<span style="font-size:16px;">{icon}</span> {status_label}'
-
-        if obj.backend_verification_confidence:
-            color = confidence_colors.get(obj.backend_verification_confidence, "#6c757d")
-            html += f'<br/><span style="color:{color};font-weight:bold;">{obj.backend_verification_confidence.upper()}</span>'
-
-        # Add compact model scores OR pending model info
         if obj.backend_verification_status == "pending":
-            # Show which models will process this + kiosk prediction
-            html += '<br/><small style="font-size:10px;color:#6c757d;">Awaiting: MFN + ARC</small>'
-            if obj.student:
-                html += f'<br/><small style="font-size:10px;color:#007bff;">Kiosk: S{obj.student.student_id} ({obj.confidence_score:.2f})</small>'
-        else:
-            # Show actual model results after verification
-            consensus_data = self._parse_model_consensus(obj)
-            if consensus_data:
-                scores_parts = []
-                for model_name, prediction in consensus_data["predictions"].items():
-                    student_id = prediction["student_id"]
-                    score = prediction["score"]
+            html = f'{icon} <span style="color:#6c757d;">PENDING</span>'
+            html += f"<br/><small>K:{kiosk_student}@{kiosk_score:.2f}</small>"
+            return format_html(html)
 
-                    # Abbreviate model name
-                    abbrev = model_name[:3].upper()
+        # Parse backend results
+        backend_student = f"S{obj.backend_student}" if obj.backend_student else "?"
+        backend_score = 0.0
+        vote_info = ""
 
-                    if student_id:
-                        # Color code score
-                        if score >= 0.7:
-                            score_color = "#28a745"  # green
-                        elif score >= 0.5:
-                            score_color = "#ffc107"  # yellow
-                        else:
-                            score_color = "#dc3545"  # red
+        if obj.model_consensus_data:
+            try:
+                consensus = obj.model_consensus_data if isinstance(obj.model_consensus_data, dict) else json.loads(obj.model_consensus_data)
+                backend_score = consensus.get("confidence_score", 0.0)
+                voting = consensus.get("voting_details", {})
+                total_crops = voting.get("total_crops", 0)
+                vote_dist = voting.get("vote_distribution", {})
+                # Get winning vote count
+                if vote_dist:
+                    max_votes = max(vote_dist.values()) if vote_dist.values() else 0
+                    vote_info = f"{max_votes}/{total_crops}"
+            except Exception:
+                pass
 
-                        scores_parts.append(
-                            f'<span style="color:{score_color};font-weight:bold;" title="{model_name}: Student {student_id}">'
-                            f"{abbrev}: {score:.2f}</span>"
-                        )
-                    else:
-                        scores_parts.append(f'<span style="color:#dc3545;" title="{model_name}: No match">{abbrev}: ✗</span>')
+        # Color code scores
+        def score_color(s):
+            return "#28a745" if s >= 0.7 else "#ffc107" if s >= 0.5 else "#dc3545"
 
-                if scores_parts:
-                    html += f'<br/><small style="font-size:10px;">{" | ".join(scores_parts)}</small>'
+        # Check mismatch
+        has_mismatch = obj.backend_student and str(obj.student.student_id if obj.student else "") != str(obj.backend_student)
+        match_icon = "🔴" if has_mismatch else ""
 
-        if has_mismatch:
-            html += '<br/><span style="color:#dc3545;font-weight:bold;">🔴 MISMATCH</span>'
+        # Build compact display
+        html = f"{icon} {backend_student} {match_icon}"
+        html += '<br/><small style="font-size:11px;">'
+        html += f'K:<span style="color:{score_color(kiosk_score)}">{kiosk_score:.2f}</span> '
+        html += f'B:<span style="color:{score_color(backend_score)}">{backend_score:.2f}</span>'
+        if vote_info:
+            html += f" [{vote_info}]"
+        html += "</small>"
 
         return format_html(html)
 
-    @display(description="Model Consensus Results")
+    @display(description="Investigation View")
     def model_consensus_display(self, obj):
-        """Display detailed results from each model in multi-model consensus"""
+        """Detailed investigation view: Kiosk vs Backend with per-frame scores"""
+        import json
+
+        def score_color(s):
+            return "#28a745" if s >= 0.7 else "#ffc107" if s >= 0.5 else "#dc3545"
+
+        html = []
+
+        # === KIOSK SECTION ===
+        kiosk_score = obj.confidence_score or 0.0
+        kiosk_student = f"S{obj.student.student_id}" if obj.student else "Unknown"
+        kiosk_name = ""
+        try:
+            kiosk_name = obj.student.encrypted_name if obj.student else ""
+        except Exception:
+            pass
+        kiosk_model = obj.model_version or "MobileFaceNet"
+
+        html.append('<div style="margin-bottom:15px;padding:10px;background:#e3f2fd;border-radius:4px;">')
+        html.append('<h4 style="margin:0 0 8px 0;color:#1565c0;">📱 KIOSK PREDICTION</h4>')
+        html.append('<table style="width:100%;border-collapse:collapse;">')
+        html.append(f'<tr><td style="padding:4px;"><strong>Model:</strong></td><td>{kiosk_model}</td></tr>')
+        html.append(f'<tr><td style="padding:4px;"><strong>Student:</strong></td><td><strong>{kiosk_student}</strong> {kiosk_name}</td></tr>')
+        sc = score_color(kiosk_score)
+        html.append('<tr><td style="padding:4px;"><strong>Score:</strong></td>')
+        html.append(f'<td><span style="color:{sc};font-weight:bold;font-size:16px;">{kiosk_score:.4f}</span></td></tr>')
+        html.append("</table></div>")
+
+        # === BACKEND SECTION ===
         if not obj.model_consensus_data:
-            return format_html('<span style="color: gray;">No consensus data available</span>')
+            html.append('<div style="padding:15px;background:#fff3e0;border-radius:4px;color:#e65100;">⏳ Backend verification pending...</div>')
+            return format_html("".join(html))
 
         try:
-            import json
-
-            # Parse consensus data
             consensus = obj.model_consensus_data if isinstance(obj.model_consensus_data, dict) else json.loads(obj.model_consensus_data)
+            voting = consensus.get("voting_details", {})
+            crop_results = voting.get("crop_results", [])
             model_results = consensus.get("model_results", {})
+            backend_score = consensus.get("confidence_score", 0.0)
 
-            if not model_results:
-                return format_html('<span style="color: gray;">No model results</span>')
+            html.append('<div style="margin-bottom:15px;padding:10px;background:#e8f5e9;border-radius:4px;">')
+            html.append('<h4 style="margin:0 0 8px 0;color:#2e7d32;">🔍 BACKEND MULTI-CROP VERIFICATION</h4>')
 
-            # Build HTML table
-            html_parts = []
-            html_parts.append('<table style="width:100%; border-collapse: collapse; margin-top: 10px;">')
-            html_parts.append(
-                '<thead><tr style="background: #f5f5f5;">'
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Model</th>'
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Predicted Student</th>'
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Confidence</th>'
-                '<th style="padding: 8px; text-align: left; border: 1px solid #ddd;">Top 3 Matches</th>'
-                "</tr></thead><tbody>"
-            )
+            # Per-crop results table
+            if crop_results:
+                html.append('<table style="width:100%;border-collapse:collapse;margin-bottom:10px;">')
+                html.append('<tr style="background:#c8e6c9;">')
+                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Frame</th>')
+                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Matched</th>')
+                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Score</th>')
+                html.append('<th style="padding:8px;border:1px solid #a5d6a7;text-align:left;">Confidence</th>')
+                html.append("</tr>")
 
-            for model_name, result in model_results.items():
-                student_id = result.get("student_id")
-                confidence = result.get("confidence_score", 0.0)
-                top_scores = result.get("top_5_scores", {})
+                for crop in crop_results:
+                    crop_idx = crop.get("crop", "?")
+                    crop_student_id = crop.get("student_id")
+                    crop_student = f"S{crop_student_id}" if crop_student_id else "No match"
+                    crop_score = crop.get("score", 0.0)
+                    crop_conf = crop.get("confidence", "low")
+                    conf_colors = {"high": "#28a745", "medium": "#ffc107", "low": "#dc3545"}
 
-                # Color code confidence
-                if confidence >= 0.7:
-                    conf_color = "#28a745"  # green
-                elif confidence >= 0.5:
-                    conf_color = "#ffc107"  # yellow
-                else:
-                    conf_color = "#dc3545"  # red
+                    sc = score_color(crop_score)
+                    cc = conf_colors.get(crop_conf, "#999")
+                    html.append("<tr>")
+                    html.append(f'<td style="padding:8px;border:1px solid #ddd;">Frame {crop_idx}</td>')
+                    html.append(f'<td style="padding:8px;border:1px solid #ddd;"><strong>{crop_student}</strong></td>')
+                    html.append('<td style="padding:8px;border:1px solid #ddd;">')
+                    html.append(f'<span style="color:{sc};font-weight:bold;">{crop_score:.4f}</span></td>')
+                    html.append('<td style="padding:8px;border:1px solid #ddd;">')
+                    html.append(f'<span style="color:{cc};">{crop_conf.upper()}</span></td>')
+                    html.append("</tr>")
 
-                # Student ID cell
-                if student_id:
-                    student_cell = f"<strong>{student_id}</strong>"
-                else:
-                    student_cell = '<span style="color: #dc3545;">No match</span>'
+                html.append("</table>")
 
-                # Confidence cell
-                conf_cell = f'<span style="color: {conf_color}; font-weight: bold;">{confidence:.3f}</span>'
+            # Model breakdown from best crop
+            if model_results:
+                html.append('<h5 style="margin:10px 0 5px 0;">Model Breakdown (Best Crop):</h5>')
+                html.append('<table style="width:100%;border-collapse:collapse;">')
+                html.append('<tr style="background:#fff3e0;">')
+                html.append('<th style="padding:6px;border:1px solid #ffcc80;text-align:left;">Model</th>')
+                html.append('<th style="padding:6px;border:1px solid #ffcc80;text-align:left;">Student</th>')
+                html.append('<th style="padding:6px;border:1px solid #ffcc80;text-align:left;">Score</th>')
+                html.append("</tr>")
 
-                # Top scores cell
-                top_3 = list(top_scores.items())[:3]
-                if top_3:
-                    scores_html = "<br/>".join([f"ID {sid}: {score:.3f}" for sid, score in top_3])
-                else:
-                    scores_html = '<span style="color: gray;">-</span>'
+                for model_name, result in model_results.items():
+                    m_student_id = result.get("student_id")
+                    m_student = f"S{m_student_id}" if m_student_id else "-"
+                    m_score = result.get("confidence_score", 0.0)
+                    html.append("<tr>")
+                    html.append(f'<td style="padding:6px;border:1px solid #ddd;">{model_name}</td>')
+                    html.append(f'<td style="padding:6px;border:1px solid #ddd;">{m_student}</td>')
+                    html.append(
+                        f'<td style="padding:6px;border:1px solid #ddd;"><span style="color:{score_color(m_score)};">{m_score:.4f}</span></td>'
+                    )
+                    html.append("</tr>")
 
-                html_parts.append(
-                    f"<tr>"
-                    f'<td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_name}</strong></td>'
-                    f'<td style="padding: 8px; border: 1px solid #ddd;">{student_cell}</td>'
-                    f'<td style="padding: 8px; border: 1px solid #ddd;">{conf_cell}</td>'
-                    f'<td style="padding: 8px; border: 1px solid #ddd; font-size: 11px;">{scores_html}</td>'
-                    f"</tr>"
-                )
+                html.append("</table>")
 
-            html_parts.append("</tbody></table>")
+            # Voting summary
+            vote_dist = voting.get("vote_distribution", {})
+            reason = voting.get("reason", "unknown").replace("_", " ").title()
+            total_crops = voting.get("total_crops", 0)
+            max_votes = max(vote_dist.values()) if vote_dist.values() else 0
 
-            # Add consensus summary
-            consensus_count = consensus.get("consensus_count", 0)
-            total_models = len(model_results)
-            html_parts.append(
-                f'<div style="margin-top: 10px; padding: 8px; background: #f9f9f9; border-left: 4px solid #007bff;">'
-                f"<strong>Consensus:</strong> {consensus_count}/{total_models} models agreed"
-                f"</div>"
-            )
+            html.append('<div style="margin-top:10px;padding:8px;background:#f5f5f5;border-left:4px solid #007bff;">')
+            html.append(f"<strong>Voting:</strong> {reason}<br/>")
+            html.append(f"<small>Result: {max_votes}/{total_crops} frames agreed | Distribution: {vote_dist}</small>")
+            html.append("</div>")
+            html.append("</div>")
 
-            return format_html("".join(html_parts))
+            # === MATCH SUMMARY ===
+            backend_student = obj.backend_student
+            kiosk_student_id = obj.student.student_id if obj.student else None
+            is_match = backend_student and str(backend_student) == str(kiosk_student_id)
+
+            if is_match:
+                html.append('<div style="padding:12px;background:#d4edda;border:2px solid #28a745;border-radius:4px;">')
+                html.append('<strong style="color:#155724;font-size:16px;">✅ MATCH</strong><br/>')
+                html.append(f"<span>Kiosk: {kiosk_student} @ {kiosk_score:.4f}</span><br/>")
+                html.append(f"<span>Backend: S{backend_student} @ {backend_score:.4f}</span>")
+                html.append("</div>")
+            else:
+                html.append('<div style="padding:12px;background:#f8d7da;border:2px solid #dc3545;border-radius:4px;">')
+                html.append('<strong style="color:#721c24;font-size:16px;">🔴 MISMATCH</strong><br/>')
+                html.append(f"<span>Kiosk predicted: {kiosk_student} @ {kiosk_score:.4f}</span><br/>")
+                html.append(f"<span>Backend predicted: S{backend_student if backend_student else '?'} @ {backend_score:.4f}</span>")
+                html.append("</div>")
+
+            return format_html("".join(html))
 
         except Exception as e:
-            return format_html(f'<span style="color: red;">Error displaying consensus data: {e}</span>')
+            return format_html(f'<span style="color:red;">Error: {e}</span>')
 
     @display(description="Student Name")
     def get_student_name(self, obj):
