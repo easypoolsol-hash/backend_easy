@@ -31,7 +31,7 @@ def create_verification_task(event_id: str) -> str | None:
         # Configure task
         project = settings.GCP_PROJECT_ID
         location = settings.GCP_REGION
-        queue = "face-verification-queue"
+        queue = settings.FACE_VERIFICATION_QUEUE_NAME
 
         parent = client.queue_path(project, location, queue)
 

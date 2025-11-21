@@ -424,8 +424,9 @@ except (ImportError, ValueError, KeyError) as e:
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "easypool-backend")
 GCP_REGION = os.getenv("GCP_REGION", "asia-south1")
 
-# Cloud Tasks queue name (environment-specific)
+# Cloud Tasks queue names (environment-specific)
 CLOUD_TASKS_QUEUE_NAME = os.getenv("CLOUD_TASKS_QUEUE_NAME", "notifications-queue-dev")
+FACE_VERIFICATION_QUEUE_NAME = os.getenv("FACE_VERIFICATION_QUEUE_NAME", "face-verification-queue-dev")
 
 # Service account for Cloud Tasks to invoke Cloud Run
 CLOUD_TASKS_SERVICE_ACCOUNT = os.getenv("CLOUD_TASKS_SERVICE_ACCOUNT", "easypool-cloud-run-sa@easypool-backend.iam.gserviceaccount.com")
