@@ -20,27 +20,30 @@ class EmbeddingService:
     """Service for loading and managing student face embeddings"""
 
     @staticmethod
-    def load_all_student_embeddings() -> dict[int, list[dict]]:
+    def load_all_student_embeddings() -> dict[str, list[dict]]:
         """
         Load all student embeddings from database
 
         Returns:
-            Dict mapping student_id to list of embeddings per model
+            Dict mapping student_id (as string) to list of embeddings per model
             Format: {
-                student_id: [
+                "student_id": [
                     {'model': 'mobilefacenet', 'embedding': np.array(...), 'quality': 0.95},
                     {'model': 'arcface_int8', 'embedding': np.array(...), 'quality': 0.92}
                 ]
             }
+
+        Note: student_id is converted to string for JSON serialization compatibility
         """
         embeddings_qs = FaceEmbeddingMetadata.objects.select_related("student_photo__student").filter(embedding__isnull=False)
 
-        student_embeddings: dict[int, list[dict]] = {}
+        student_embeddings: dict[str, list[dict]] = {}
         loaded_count = 0
 
         for emb_meta in embeddings_qs:
             try:
-                student_id = emb_meta.student_photo.student.student_id
+                # Convert UUID to string for JSON serialization compatibility
+                student_id = str(emb_meta.student_photo.student.student_id)
 
                 # Convert stored embedding to numpy array
                 embedding_array = EmbeddingService._convert_to_numpy(emb_meta.embedding)

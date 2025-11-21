@@ -27,16 +27,16 @@ class ModelResult:
     """Result from a single model"""
 
     model_name: str
-    student_id: int | None
+    student_id: str | None  # UUID as string for JSON serialization
     confidence_score: float
-    all_scores: dict[int, float]  # {student_id: score} for debugging
+    all_scores: dict[str, float]  # {student_id: score} for debugging
 
 
 @dataclass
 class ConsensusResult:
     """Final consensus result from all models"""
 
-    student_id: int | None
+    student_id: str | None  # UUID as string for JSON serialization
     confidence_level: str  # 'high', 'medium', 'low'
     consensus_count: int  # How many models agreed
     model_results: dict[str, dict[str, Any]]  # Detailed results from each model
@@ -92,7 +92,7 @@ class FaceVerificationConsensusService:
 
         logger.info(f"All {len(self.models)} models loaded successfully")
 
-    def verify_face(self, face_image: np.ndarray, student_embeddings: dict[int, list[dict[str, Any]]]) -> ConsensusResult:
+    def verify_face(self, face_image: np.ndarray, student_embeddings: dict[str, list[dict[str, Any]]]) -> ConsensusResult:
         """
         Run multi-model verification with consensus voting
 
@@ -137,7 +137,7 @@ class FaceVerificationConsensusService:
         return consensus
 
     def _run_single_model(
-        self, model_name: str, model: Any, face_image: np.ndarray, student_embeddings: dict[int, list[dict[str, Any]]]
+        self, model_name: str, model: Any, face_image: np.ndarray, student_embeddings: dict[str, list[dict[str, Any]]]
     ) -> ModelResult:
         """Run inference on a single model"""
 
@@ -152,9 +152,9 @@ class FaceVerificationConsensusService:
             return ModelResult(model_name=model_name, student_id=None, confidence_score=0.0, all_scores={})
 
         # Compare with all student embeddings for this model
-        best_student_id: int | None = None
+        best_student_id: str | None = None
         best_score = 0.0
-        all_scores: dict[int, float] = {}
+        all_scores: dict[str, float] = {}
 
         for student_id, embedding_list in student_embeddings.items():
             # Get embeddings for this specific model
@@ -192,7 +192,7 @@ class FaceVerificationConsensusService:
         """
 
         # Count votes for each student
-        votes: dict[int | None, list[ModelResult]] = {}
+        votes: dict[str | None, list[ModelResult]] = {}
         for result in model_results:
             student_id = result.student_id
             if student_id not in votes:

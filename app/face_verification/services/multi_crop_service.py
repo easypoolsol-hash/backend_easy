@@ -22,7 +22,7 @@ class CropResult:
     """Result from verifying a single crop image"""
 
     crop_index: int
-    student_id: int | None
+    student_id: str | None  # UUID as string for JSON serialization
     confidence_score: float
     confidence_level: str  # high, medium, low
     verification_status: str  # verified, flagged, failed
@@ -33,7 +33,7 @@ class CropResult:
 class MultiCropResult:
     """Aggregated result from multi-crop voting"""
 
-    student_id: int | None
+    student_id: str | None  # UUID as string for JSON serialization
     confidence_score: float
     confidence_level: str
     verification_status: str
@@ -47,7 +47,7 @@ class MultiCropService:
     def __init__(self):
         self.consensus_service = FaceVerificationConsensusService()
 
-    def verify_with_multiple_crops(self, crop_images: list[np.ndarray], student_embeddings: dict[int, list[dict]]) -> MultiCropResult:
+    def verify_with_multiple_crops(self, crop_images: list[np.ndarray], student_embeddings: dict[str, list[dict]]) -> MultiCropResult:
         """
         Run verification on ALL crop images and apply voting strategy
 
@@ -99,7 +99,7 @@ class MultiCropService:
 
         return final_result
 
-    def _verify_all_crops(self, crop_images: list[np.ndarray], student_embeddings: dict[int, list[dict]]) -> list[CropResult]:
+    def _verify_all_crops(self, crop_images: list[np.ndarray], student_embeddings: dict[str, list[dict]]) -> list[CropResult]:
         """
         Verify each crop image independently
 
@@ -155,7 +155,7 @@ class MultiCropService:
             MultiCropResult with final decision
         """
         # Count votes for each student
-        votes: dict[int | None, list[CropResult]] = {}
+        votes: dict[str | None, list[CropResult]] = {}
         for crop_result in crop_results:
             student_id = crop_result.student_id
             if student_id not in votes:
