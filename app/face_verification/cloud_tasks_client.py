@@ -53,14 +53,14 @@ def create_verification_task(event_id: str) -> str | None:
             }
         }
 
-        # Create the task
-        response = client.create_task(request={"parent": parent, "task": task})
+        # Create the task (same pattern as notifications service)
+        response = client.create_task(parent=parent, task=task)
 
         logger.info(f"✅ Created verification task for event {event_id}: {response.name}")
         return response.name
 
-    except ImportError:
-        logger.warning("google-cloud-tasks not installed, skipping task creation (local development?)")
+    except ImportError as e:
+        logger.error(f"❌ google-cloud-tasks not installed: {e}")
         return None
     except Exception as e:
         logger.error(f"❌ Failed to create verification task for event {event_id}: {e}", exc_info=True)
