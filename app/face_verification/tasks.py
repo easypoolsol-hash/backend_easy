@@ -1,28 +1,36 @@
 """
-Face Verification Tasks
+Face Verification Tasks - Single Responsibility: Orchestration
 
-Handles async verification of boarding events using Cloud Tasks
+This module ONLY orchestrates the verification process.
+Actual work is delegated to specialized services:
+- ImageService: Load and convert images
+- EmbeddingService: Load student embeddings
+- MultiCropService: Multi-crop voting strategy
+
+Called asynchronously by Cloud Tasks after a boarding event is created.
 """
 
 import logging
 
 from django.utils import timezone
-import numpy as np
 
 from events.models import BoardingEvent
-from students.models import FaceEmbeddingMetadata
 
-from .services import FaceVerificationConsensusService
+from .services.embedding_service import EmbeddingService
+from .services.image_service import ImageService
+from .services.multi_crop_service import MultiCropService
 
 logger = logging.getLogger(__name__)
 
 
 def verify_boarding_event(event_id: str) -> dict:
     """
-    Verify a boarding event using multi-model consensus
+    Verify a boarding event using multi-model consensus with multi-crop voting
 
-    This function is called asynchronously by Cloud Tasks after a boarding
-    event is created by the kiosk.
+    ORCHESTRATOR ONLY - delegates actual work to specialized services:
+    1. ImageService: Load ALL confirmation face crops (not just first one!)
+    2. EmbeddingService: Load student embeddings from database
+    3. MultiCropService: Run multi-crop verification with voting strategy
 
     Args:
         event_id: BoardingEvent primary key (ULID)
@@ -31,76 +39,38 @@ def verify_boarding_event(event_id: str) -> dict:
         Dict with verification results
     """
     try:
-        # Load boarding event
+        # Step 1: Load boarding event
         event = BoardingEvent.objects.get(event_id=event_id)
-        logger.info(f"Processing verification for event {event_id}, kiosk predicted: {event.student_id}")
+        logger.info(f"[VERIFY] Starting verification for event {event_id}, kiosk predicted: {event.student_id}")
 
-        # Check if we have confirmation faces to verify
-        if not event.confirmation_face_1_gcs:
-            logger.warning(f"No confirmation faces for event {event_id}, skipping verification")
-            event.backend_verification_status = "failed"
-            event.backend_verified_at = timezone.now()
-            event.save(update_fields=["backend_verification_status", "backend_verified_at"])
+        # Step 2: Load ALL confirmation face crops (not just first one!)
+        try:
+            crop_images = ImageService.load_all_confirmation_faces(event)
+            logger.info(f"[VERIFY] Loaded {len(crop_images)} crop images for event {event_id}")
+        except ValueError as e:
+            logger.warning(f"[VERIFY] No confirmation faces for event {event_id}: {e}")
+            _mark_event_failed(event, "no_confirmation_faces")
             return {"status": "failed", "reason": "no_confirmation_faces"}
 
-        # Load face image from GCS
-        from events.services.storage_service import BoardingEventStorageService
-
-        storage_service = BoardingEventStorageService()
-
-        # Use first confirmation face (highest quality typically)
-        face_image_bytes = storage_service.download_file(event.confirmation_face_1_gcs)
-
-        # Convert to numpy array
-        import cv2
-
-        face_image = cv2.imdecode(np.frombuffer(face_image_bytes, np.uint8), cv2.IMREAD_COLOR)
-        face_image = cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB)
-
-        # Load all student embeddings from database
-        student_embeddings = _load_student_embeddings()
+        # Step 3: Load student embeddings
+        student_embeddings = EmbeddingService.load_all_student_embeddings()
 
         if not student_embeddings:
-            logger.warning("No student embeddings found in database")
-            event.backend_verification_status = "failed"
-            event.backend_verified_at = timezone.now()
-            event.save(update_fields=["backend_verification_status", "backend_verified_at"])
+            logger.warning("[VERIFY] No student embeddings found in database")
+            _mark_event_failed(event, "no_embeddings")
             return {"status": "failed", "reason": "no_embeddings"}
 
-        # Run consensus verification
-        consensus_service = FaceVerificationConsensusService()
-        result = consensus_service.verify_face(face_image, student_embeddings)
+        logger.info(f"[VERIFY] Loaded embeddings for {len(student_embeddings)} students")
 
-        # Update boarding event with results
-        event.backend_verification_status = result.verification_status
-        event.backend_verification_confidence = result.confidence_level
-        event.backend_student_id = result.student_id
-        event.model_consensus_data = result.model_results
-        event.backend_verified_at = timezone.now()
+        # Step 4: Run multi-crop verification with voting strategy
+        multi_crop_service = MultiCropService()
+        result = multi_crop_service.verify_with_multiple_crops(crop_images, student_embeddings)
 
-        event.save(
-            update_fields=[
-                "backend_verification_status",
-                "backend_verification_confidence",
-                "backend_student_id",
-                "model_consensus_data",
-                "backend_verified_at",
-            ]
-        )
+        # Step 5: Save results to event
+        _save_verification_result(event, result)
 
-        logger.info(
-            f"Verification complete for event {event_id}: "
-            f"status={result.verification_status}, "
-            f"confidence={result.confidence_level}, "
-            f"student={result.student_id}, "
-            f"kiosk_match={event.student_id == result.student_id}"
-        )
-
-        # Log if there's a mismatch
-        if event.student_id != result.student_id:
-            logger.warning(
-                f"MISMATCH: Kiosk predicted {event.student_id}, backend predicted {result.student_id} (confidence: {result.confidence_level})"
-            )
+        # Step 6: Log result
+        _log_verification_result(event, result)
 
         return {
             "status": "success",
@@ -108,54 +78,93 @@ def verify_boarding_event(event_id: str) -> dict:
             "verification_status": result.verification_status,
             "confidence_level": result.confidence_level,
             "student_id": result.student_id,
-            "kiosk_student_id": event.student_id,
-            "is_mismatch": event.student_id != result.student_id,
+            "kiosk_student_id": str(event.student_id) if event.student_id else None,
+            "is_mismatch": str(event.student_id) != str(result.student_id) if result.student_id else True,
+            "voting_details": result.voting_details,
         }
 
     except BoardingEvent.DoesNotExist:
-        logger.error(f"Boarding event {event_id} not found")
+        logger.error(f"[VERIFY] Boarding event {event_id} not found")
         return {"status": "error", "reason": "event_not_found"}
+
     except Exception as e:
-        logger.error(f"Failed to verify event {event_id}: {e}", exc_info=True)
-        # Update event as failed
-        try:
-            event = BoardingEvent.objects.get(event_id=event_id)
-            event.backend_verification_status = "failed"
-            event.backend_verified_at = timezone.now()
-            event.save(update_fields=["backend_verification_status", "backend_verified_at"])
-        except Exception:
-            pass
+        logger.error(f"[VERIFY] Failed to verify event {event_id}: {e}", exc_info=True)
+        _mark_event_failed_safe(event_id, str(e))
         return {"status": "error", "reason": str(e)}
 
 
-def _load_student_embeddings() -> dict[int, list[dict]]:
-    """
-    Load all student embeddings from database
+def _mark_event_failed(event: BoardingEvent, reason: str) -> None:
+    """Mark a boarding event as failed verification"""
+    event.backend_verification_status = "failed"
+    event.backend_verified_at = timezone.now()
+    event.model_consensus_data = {"failure_reason": reason}
+    event.save(
+        update_fields=[
+            "backend_verification_status",
+            "backend_verified_at",
+            "model_consensus_data",
+        ]
+    )
 
-    Returns:
-        Dict mapping student_id to list of embeddings per model
-        Format: {
-            student_id: [
-                {'model': 'mobilefacenet', 'embedding': np.array(...)},
-                {'model': 'arcface', 'embedding': np.array(...)}
-            ]
-        }
-    """
-    embeddings_qs = FaceEmbeddingMetadata.objects.select_related("student_photo__student").filter(embedding__isnull=False)
 
-    student_embeddings: dict[int, list[dict]] = {}
+def _mark_event_failed_safe(event_id: str, reason: str) -> None:
+    """Safely mark event as failed (handles missing event)"""
+    try:
+        event = BoardingEvent.objects.get(event_id=event_id)
+        _mark_event_failed(event, reason)
+    except Exception:
+        pass
 
-    for emb_meta in embeddings_qs:
-        student_id = emb_meta.student_photo.student_id
 
-        if student_id not in student_embeddings:
-            student_embeddings[student_id] = []
+def _save_verification_result(event: BoardingEvent, result) -> None:
+    """Save multi-crop verification result to boarding event"""
+    # Build model consensus data including voting details
+    model_consensus_data = {
+        "model_results": result.model_results,
+        "voting_details": result.voting_details,
+        "confidence_score": result.confidence_score,
+    }
 
-        # Convert pgvector to numpy array
-        embedding_array = np.array(emb_meta.embedding, dtype=np.float32)
+    event.backend_verification_status = result.verification_status
+    event.backend_verification_confidence = result.confidence_level
+    event.backend_student_id = result.student_id
+    event.model_consensus_data = model_consensus_data
+    event.backend_verified_at = timezone.now()
 
-        student_embeddings[student_id].append({"model": emb_meta.model_name, "embedding": embedding_array})
+    event.save(
+        update_fields=[
+            "backend_verification_status",
+            "backend_verification_confidence",
+            "backend_student_id",
+            "model_consensus_data",
+            "backend_verified_at",
+        ]
+    )
 
-    logger.info(f"Loaded embeddings for {len(student_embeddings)} students")
 
-    return student_embeddings
+def _log_verification_result(event: BoardingEvent, result) -> None:
+    """Log verification result with mismatch detection"""
+    kiosk_student = str(event.student_id) if event.student_id else "Unknown"
+    backend_student = str(result.student_id) if result.student_id else "Unknown"
+
+    logger.info(
+        f"[VERIFY] Complete for event {event.event_id}: "
+        f"status={result.verification_status}, "
+        f"confidence={result.confidence_level}, "
+        f"student={backend_student}, "
+        f"kiosk_match={kiosk_student == backend_student}"
+    )
+
+    # Log mismatch warning
+    if kiosk_student != backend_student:
+        logger.warning(
+            f"[VERIFY] MISMATCH: Kiosk predicted {kiosk_student}, backend predicted {backend_student} (confidence: {result.confidence_level})"
+        )
+
+    # Log voting details
+    voting = result.voting_details
+    logger.info(
+        f"[VERIFY] Voting: {voting.get('reason', 'unknown')}, "
+        f"crops_used={voting.get('total_crops', 0)}, "
+        f"distribution={voting.get('vote_distribution', {})}"
+    )
