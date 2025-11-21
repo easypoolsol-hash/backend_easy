@@ -1,7 +1,11 @@
 """
-ArcFace ResNet100 INT8 Quantized ONNX Inference
-99.82% accuracy on LFW benchmark - same as FP32, 1.78x faster
+ArcFace W600K ResNet50 ONNX Inference
+Trained on WebFace600K dataset - excellent accuracy with good separation
 Uses ONNXRuntime for fast, production-ready inference
+
+NOTE: The INT8 quantized model (arcfaceresnet100_int8.onnx) was broken -
+      all embeddings collapsed to similar values with no separation.
+      Using W600K ResNet50 instead which has proper embedding separation.
 """
 
 from pathlib import Path
@@ -13,14 +17,13 @@ from .base import BaseFaceRecognitionModel
 
 class ArcFaceINT8(BaseFaceRecognitionModel):
     """
-    ArcFace with ResNet100 backbone - INT8 quantized version.
-    99.82% accuracy on LFW benchmark (0% accuracy drop vs FP32).
-    63MB instead of 249MB, 1.78x faster inference.
-    Outputs 512-dimensional face embeddings.
+    ArcFace with ResNet50 backbone - WebFace600K trained version.
+    Better embedding separation than INT8 quantized model.
+    174MB model size, 512-dimensional embeddings.
     """
 
     def __init__(self):
-        model_path = Path(__file__).parent.parent / "models" / "arcfaceresnet100_int8.onnx"
+        model_path = Path(__file__).parent.parent / "models" / "arcface_w600k_r50.onnx"
         super().__init__(model_path)
         self.session = None  # Lazy loaded ONNX session
 
@@ -54,9 +57,10 @@ class ArcFaceINT8(BaseFaceRecognitionModel):
 
         # Keep RGB format (this model expects RGB, not BGR)
         # Normalize: subtract mean, divide by std
+        # ArcFace W600K uses 127.5 for both (not 128 like MobileFaceNet)
         mean = np.array([127.5, 127.5, 127.5], dtype=np.float32)
         image = image.astype(np.float32) - mean
-        image = image / 128.0  # Range: approximately [-1, 1]
+        image = image / 127.5  # Range: [-1, 1]
 
         # Transpose from HWC to CHW format (ONNX uses NCHW)
         image = np.transpose(image, (2, 0, 1))
