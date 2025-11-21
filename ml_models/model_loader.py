@@ -43,8 +43,8 @@ class ModelLoader:
         self.local_models_dir.mkdir(parents=True, exist_ok=True)
 
         # Models to download from GCS
-        # 2-model setup: MobileFaceNet (5MB) + ArcFace W600K (174MB)
-        # NOTE: INT8 model was broken (no embedding separation), using W600K instead
+        # 3-model setup: MobileFaceNet (5MB) + ArcFace W600K (174MB) + AdaFace (250MB)
+        # Total: 429MB for banking-grade verification
         self.models = [
             {
                 "filename": "mobilefacenet.tflite",
@@ -55,6 +55,11 @@ class ModelLoader:
                 "filename": "arcface_w600k_r50.onnx",
                 "gcs_path": f"face-recognition/{model_version}/arcface_w600k_r50.onnx",
                 "size_mb": 174,
+            },
+            {
+                "filename": "adaface_ir101_webface12m.onnx",
+                "gcs_path": f"face-recognition/{model_version}/adaface_ir101_webface12m.onnx",
+                "size_mb": 250,
             },
         ]
 

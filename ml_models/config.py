@@ -50,16 +50,23 @@ FACE_RECOGNITION_MODELS = {
         "dimensions": 512,
         "enabled": True,
         "quality_threshold": 0.70,
-        "description": "ArcFace INT8 - Banking-grade accuracy (512D, 99.82% LFW, quantized)",
+        "description": "ArcFace W600K - Banking-grade accuracy (512D, 99.82% LFW)",
+    },
+    "adaface": {
+        "class": "ml_models.face_recognition.inference.adaface.AdaFace",
+        "dimensions": 512,
+        "enabled": True,
+        "quality_threshold": 0.65,
+        "description": "AdaFace IR-101 - Quality-adaptive for varying conditions (512D, 99.4%+ LFW)",
     },
 }
 
 # Multi-model verification config
 MULTI_MODEL_CONFIG = {
     "enabled": True,
-    "models_for_verification": ["mobilefacenet", "arcface_int8"],  # 2 models for backend verification
+    "models_for_verification": ["mobilefacenet", "arcface_int8", "adaface"],  # 3 models for backend verification
     "consensus_strategy": "weighted",  # voting, weighted, unanimous
-    "minimum_consensus": 2,  # Both models must agree
+    "minimum_consensus": 2,  # At least 2 models must agree
 }
 
 # =============================================================================
@@ -68,9 +75,9 @@ MULTI_MODEL_CONFIG = {
 ENSEMBLE_CONFIG = {
     # Model weights for weighted ensemble (must sum to 1.0)
     "model_weights": {
-        "mobilefacenet": 0.6,  # Higher weight - better recall on varying conditions
-        "arcface_int8": 0.4,  # Lower weight but good at distinguishing similar faces
-        "adaface": 0.0,  # Disabled until model is added
+        "mobilefacenet": 0.35,  # Fast baseline, good for normal conditions
+        "arcface_int8": 0.35,  # Banking-grade accuracy, good at distinguishing similar faces
+        "adaface": 0.30,  # Quality-adaptive, handles difficult lighting/blur
     },
     # Temperature scaling per model (adjusts score distribution)
     # Higher temperature = spread out scores, Lower = sharpen differences
@@ -86,7 +93,7 @@ ENSEMBLE_CONFIG = {
             "shift": -0.15,  # Center around 0.15 (typical score)
         },
         "adaface": {
-            "enabled": False,
+            "enabled": False,  # AdaFace outputs well-distributed scores
             "temperature": 1.0,
             "shift": 0.0,
         },
