@@ -37,6 +37,7 @@ class ConsensusResult:
     """Final consensus result from all models"""
 
     student_id: str | None  # UUID as string for JSON serialization
+    confidence_score: float  # Best score from agreeing models
     confidence_level: str  # 'high', 'medium', 'low'
     consensus_count: int  # How many models agreed
     model_results: dict[str, dict[str, Any]]  # Detailed results from each model
@@ -206,6 +207,7 @@ class FaceVerificationConsensusService:
             # No model found any match
             return ConsensusResult(
                 student_id=None,
+                confidence_score=0.0,
                 confidence_level="low",
                 consensus_count=0,
                 model_results={r.model_name: self._format_model_result(r) for r in model_results},
@@ -217,6 +219,9 @@ class FaceVerificationConsensusService:
         student_id, agreeing_models = winning_student
         consensus_count = len(agreeing_models)
         total_models = len(model_results)
+
+        # Get best confidence score from agreeing models
+        best_score = max(m.confidence_score for m in agreeing_models)
 
         # Determine confidence level and status
         minimum_consensus: int = self.config.get("minimum_consensus", 2)  # type: ignore[assignment]
@@ -232,6 +237,7 @@ class FaceVerificationConsensusService:
 
         return ConsensusResult(
             student_id=student_id,
+            confidence_score=best_score,
             confidence_level=confidence_level,
             consensus_count=consensus_count,
             model_results={r.model_name: self._format_model_result(r) for r in model_results},
