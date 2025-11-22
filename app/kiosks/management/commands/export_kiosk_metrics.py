@@ -141,10 +141,11 @@ class Command(BaseCommand):
         now = timezone.now()
         interval = monitoring_v3.TimeInterval({"end_time": {"seconds": int(now.timestamp())}})
 
-        # Use int64_value for integers, double_value for floats
-        # This is required because metric descriptors specify value_type (INT64 vs DOUBLE)
-        if isinstance(value, int) and not isinstance(value, bool):
-            point_value = {"int64_value": value}
+        # Use int64_value for INT64 metrics, double_value for DOUBLE metrics
+        # This must match the value_type in the metric descriptor definitions
+        int64_metrics = {"custom.googleapis.com/kiosk/network_quality"}
+        if metric_type in int64_metrics:
+            point_value = {"int64_value": int(value)}
         else:
             point_value = {"double_value": float(value)}
 
