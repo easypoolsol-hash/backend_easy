@@ -77,7 +77,7 @@ class Command(BaseCommand):
                         temp_celsius,
                         {
                             "kiosk_id": kiosk.kiosk_id,
-                            "bus_route": kiosk.route.route_number if kiosk.route else "unknown",
+                            "bus_route": kiosk.bus.route.name if kiosk.bus and kiosk.bus.route else "unknown",
                         },
                         dry_run,
                     )
