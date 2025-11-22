@@ -52,21 +52,21 @@ FACE_RECOGNITION_MODELS = {
         "quality_threshold": 0.70,
         "description": "ArcFace W600K - Banking-grade accuracy (512D, 99.82% LFW)",
     },
-    "adaface": {
-        "class": "ml_models.face_recognition.inference.adaface.AdaFace",
+    "w600k_r50": {
+        "class": "ml_models.face_recognition.inference.w600k_r50.W600kResNet50",
         "dimensions": 512,
-        "enabled": False,  # DISABLED: ONNX model not available yet - download manually
-        "quality_threshold": 0.65,
-        "description": "AdaFace IR-101 - Quality-adaptive for varying conditions (512D, 99.4%+ LFW)",
+        "enabled": True,  # InsightFace buffalo_l recognition model (99.65%+ LFW)
+        "quality_threshold": 0.50,
+        "description": "W600K ResNet50 - InsightFace buffalo_l, production-ready (512D, 99.65%+ LFW)",
     },
 }
 
 # Multi-model verification config
 MULTI_MODEL_CONFIG = {
     "enabled": True,
-    "models_for_verification": ["mobilefacenet", "arcface_int8"],  # 2 models (adaface disabled - no ONNX available)
+    "models_for_verification": ["mobilefacenet", "arcface_int8", "w600k_r50"],  # 3-model ensemble
     "consensus_strategy": "weighted",  # voting, weighted, unanimous
-    "minimum_consensus": 2,  # Both models must agree (2-model mode)
+    "minimum_consensus": 2,  # At least 2 models must agree
 }
 
 # =============================================================================
@@ -74,11 +74,11 @@ MULTI_MODEL_CONFIG = {
 # =============================================================================
 ENSEMBLE_CONFIG = {
     # Model weights for weighted ensemble (must sum to 1.0)
-    # 2-MODEL MODE: AdaFace disabled (no ONNX available)
+    # 3-MODEL MODE: A/B testing enabled - use BigQuery to find optimal weights
     "model_weights": {
-        "mobilefacenet": 0.50,  # Fast baseline, good for normal conditions
-        "arcface_int8": 0.50,  # Banking-grade accuracy, good at distinguishing similar faces
-        "adaface": 0.0,  # DISABLED - will be 0.30 when enabled
+        "mobilefacenet": 0.30,  # Fast baseline, good for normal conditions
+        "arcface_int8": 0.40,  # Banking-grade accuracy (highest weight - most reliable)
+        "w600k_r50": 0.30,  # InsightFace buffalo_l (production-proven)
     },
     # Temperature scaling per model (adjusts score distribution)
     # Higher temperature = spread out scores, Lower = sharpen differences
@@ -93,8 +93,8 @@ ENSEMBLE_CONFIG = {
             "temperature": 3.0,  # Spread out the 0.01-0.39 range
             "shift": -0.15,  # Center around 0.15 (typical score)
         },
-        "adaface": {
-            "enabled": False,  # AdaFace outputs well-distributed scores
+        "w600k_r50": {
+            "enabled": False,  # W600K ResNet50 outputs well-distributed scores
             "temperature": 1.0,
             "shift": 0.0,
         },
