@@ -96,6 +96,7 @@ INSTALLED_APPS = [
     "realtime",  # Real-time WebSocket communication
     "notifications",  # Push notifications for parents
     "ml_config",  # ML model configuration management
+    "analytics",  # BigQuery exports for ML analytics (separate from backend)
 ]
 
 # Custom user model

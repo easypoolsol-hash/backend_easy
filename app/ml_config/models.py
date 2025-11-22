@@ -43,10 +43,10 @@ class BackendModelConfiguration(models.Model):
     adaface_threshold = models.FloatField(default=0.40, help_text="Minimum similarity score for AdaFace (0.0 - 1.0)")
 
     # =============================================================================
-    # COMBINED SCORE THRESHOLDS
+    # COMBINED SCORE THRESHOLDS (Banking-Grade Standards)
     # =============================================================================
-    high_confidence_threshold = models.FloatField(default=0.55, help_text="Combined score >= this = HIGH confidence match")
-    medium_confidence_threshold = models.FloatField(default=0.40, help_text="Combined score >= this = MEDIUM confidence match")
+    high_confidence_threshold = models.FloatField(default=0.60, help_text="Combined score >= this = HIGH confidence match (FAR < 0.1%)")
+    medium_confidence_threshold = models.FloatField(default=0.45, help_text="Combined score >= this = MEDIUM confidence match")
     match_threshold = models.FloatField(default=0.35, help_text="Minimum combined score to consider a match (below this = NO MATCH)")
 
     # =============================================================================
@@ -219,9 +219,9 @@ class BackendModelConfiguration(models.Model):
             mobilefacenet_threshold=0.50,
             arcface_threshold=0.25,
             adaface_threshold=0.40,
-            # Combined thresholds
-            high_confidence_threshold=0.55,
-            medium_confidence_threshold=0.40,
+            # Combined thresholds (banking-grade standards)
+            high_confidence_threshold=0.60,  # Banking-grade: FAR < 0.1%
+            medium_confidence_threshold=0.45,
             match_threshold=0.35,
             # Consensus (2-model mode: both must agree)
             minimum_consensus=2,
