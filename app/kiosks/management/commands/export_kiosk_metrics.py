@@ -43,7 +43,7 @@ class Command(BaseCommand):
             project_name = f"projects/{project_id}"
 
             # Get all active kiosks with their latest status
-            kiosks = Kiosk.objects.select_related("status").filter(is_active=True)
+            kiosks = Kiosk.objects.select_related("status", "bus", "bus__route").filter(is_active=True)
 
             metrics_sent = 0
             for kiosk in kiosks:
@@ -60,7 +60,7 @@ class Command(BaseCommand):
                     status.battery_level if status.battery_level is not None else 0.0,
                     {
                         "kiosk_id": kiosk.kiosk_id,
-                        "bus_route": kiosk.route.route_number if kiosk.route else "unknown",
+                        "bus_route": kiosk.bus.route.route_number if kiosk.bus and kiosk.bus.route else "unknown",
                         "is_charging": str(status.is_charging).lower(),
                     },
                     dry_run,
