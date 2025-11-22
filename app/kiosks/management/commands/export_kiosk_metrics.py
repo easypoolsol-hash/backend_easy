@@ -60,7 +60,7 @@ class Command(BaseCommand):
                     status.battery_level if status.battery_level is not None else 0.0,
                     {
                         "kiosk_id": kiosk.kiosk_id,
-                        "bus_route": kiosk.bus.route.route_number if kiosk.bus and kiosk.bus.route else "unknown",
+                        "bus_route": kiosk.bus.route.name if kiosk.bus and kiosk.bus.route else "unknown",
                         "is_charging": str(status.is_charging).lower(),
                     },
                     dry_run,
