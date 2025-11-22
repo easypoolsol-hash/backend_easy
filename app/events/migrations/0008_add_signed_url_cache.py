@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("events", "0004_remove_deprecated_binary_fields"),
+        ("events", "0007_boardingevent_backend_config_version"),
     ]
 
     operations = [
