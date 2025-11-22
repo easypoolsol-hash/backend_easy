@@ -140,10 +140,18 @@ class Command(BaseCommand):
         # Add data point
         now = timezone.now()
         interval = monitoring_v3.TimeInterval({"end_time": {"seconds": int(now.timestamp())}})
+
+        # Use int64_value for integers, double_value for floats
+        # This is required because metric descriptors specify value_type (INT64 vs DOUBLE)
+        if isinstance(value, int) and not isinstance(value, bool):
+            point_value = {"int64_value": value}
+        else:
+            point_value = {"double_value": float(value)}
+
         point = monitoring_v3.Point(
             {
                 "interval": interval,
-                "value": {"double_value": float(value)} if isinstance(value, (int, float)) else {"int64_value": int(value)},
+                "value": point_value,
             }
         )
         series.points = [point]
