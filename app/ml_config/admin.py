@@ -291,12 +291,7 @@ class BackendModelConfigurationAdmin(admin.ModelAdmin):
 
     def weights_summary(self, obj):
         """Display model weights summary"""
-        return format_html(
-            "MFN: {:.2f} | ARC: {:.2f} | ADA: {:.2f}",
-            obj.mobilefacenet_weight,
-            obj.arcface_weight,
-            obj.adaface_weight,
-        )
+        return f"MFN: {obj.mobilefacenet_weight:.2f} | ARC: {obj.arcface_weight:.2f} | ADA: {obj.adaface_weight:.2f}"
 
     weights_summary.short_description = "Model Weights"  # type: ignore[attr-defined]
 
