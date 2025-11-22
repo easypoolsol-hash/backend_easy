@@ -79,9 +79,10 @@ class FaceVerificationConsensusService:
                 # Convert database config to format expected by consensus service
                 # Note: BackendModelConfiguration.to_dict() returns ENSEMBLE_CONFIG format
                 # We need MULTI_MODEL_CONFIG format here
+                # Use models from MULTI_MODEL_CONFIG (which has the correct 3-model ensemble)
                 self.config: dict[str, Any] = {
                     "enabled": True,
-                    "models_for_verification": ["mobilefacenet", "arcface_int8", "adaface"],
+                    "models_for_verification": MULTI_MODEL_CONFIG["models_for_verification"],
                     "consensus_strategy": "weighted",
                     "minimum_consensus": active_config.minimum_consensus,
                 }
