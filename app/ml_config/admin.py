@@ -5,7 +5,148 @@ ML Configuration Admin Interface
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import BackendModelConfiguration
+from .models import BackendModelConfiguration, FaceRecognitionModel
+
+
+@admin.register(FaceRecognitionModel)
+class FaceRecognitionModelAdmin(admin.ModelAdmin):
+    """
+    Admin interface for individual face recognition models.
+    Configure models from here - enable/disable, set GCS paths, weights, thresholds.
+    """
+
+    list_display = [
+        "display_name",
+        "name",
+        "is_enabled_display",
+        "weight_display",
+        "threshold_display",
+        "file_size_display",
+        "updated_at",
+    ]
+    list_filter = ["is_enabled", "temperature_enabled"]
+    search_fields = ["name", "display_name"]
+    ordering = ["name"]
+
+    readonly_fields = ["created_at", "updated_at"]
+
+    fieldsets = (
+        (
+            "Model Info",
+            {
+                "fields": (
+                    "name",
+                    "display_name",
+                    "is_enabled",
+                )
+            },
+        ),
+        (
+            "GCS Configuration",
+            {
+                "fields": (
+                    "gcs_bucket",
+                    "gcs_path",
+                    "local_filename",
+                    "file_size_mb",
+                ),
+                "description": "Where to download model from Google Cloud Storage",
+            },
+        ),
+        (
+            "Model Parameters",
+            {
+                "fields": (
+                    "weight",
+                    "threshold",
+                ),
+                "description": "Weight in ensemble and minimum match threshold",
+            },
+        ),
+        (
+            "Temperature Scaling",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "temperature_enabled",
+                    "temperature",
+                    "shift",
+                ),
+                "description": "Adjust score distribution if needed",
+            },
+        ),
+        (
+            "Inference Configuration",
+            {
+                "fields": ("inference_class",),
+                "description": "Python class path for model inference",
+            },
+        ),
+        (
+            "Metadata",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+            },
+        ),
+    )
+
+    def is_enabled_display(self, obj):
+        if obj.is_enabled:
+            return format_html('<span style="color:#28a745;font-weight:bold;">ON</span>')
+        return format_html('<span style="color:#dc3545;">OFF</span>')
+
+    is_enabled_display.short_description = "Enabled"  # type: ignore[attr-defined]
+
+    def weight_display(self, obj):
+        return f"{obj.weight:.2f}"
+
+    weight_display.short_description = "Weight"  # type: ignore[attr-defined]
+
+    def threshold_display(self, obj):
+        return f"{obj.threshold:.2f}"
+
+    threshold_display.short_description = "Threshold"  # type: ignore[attr-defined]
+
+    def file_size_display(self, obj):
+        return f"{obj.file_size_mb} MB"
+
+    file_size_display.short_description = "Size"  # type: ignore[attr-defined]
+
+    actions = ["enable_models", "disable_models", "create_default_models"]
+
+    def enable_models(self, request, queryset):
+        count = queryset.update(is_enabled=True)
+        self.message_user(request, f"Enabled {count} model(s)", level="SUCCESS")
+
+    enable_models.short_description = "Enable selected models"  # type: ignore[attr-defined]
+
+    def disable_models(self, request, queryset):
+        count = queryset.update(is_enabled=False)
+        self.message_user(request, f"Disabled {count} model(s)", level="WARNING")
+
+    disable_models.short_description = "Disable selected models"  # type: ignore[attr-defined]
+
+    def create_default_models(self, request, queryset):
+        """Create default model configurations"""
+        created = FaceRecognitionModel.create_default_models()
+        if created:
+            self.message_user(
+                request,
+                f"Created default models: {', '.join(created)}",
+                level="SUCCESS",
+            )
+        else:
+            self.message_user(
+                request,
+                "All default models already exist",
+                level="INFO",
+            )
+
+    create_default_models.short_description = "Create default models (MobileFaceNet, ArcFace, W600K)"  # type: ignore[attr-defined]
 
 
 @admin.register(BackendModelConfiguration)

@@ -1,6 +1,7 @@
 """
 Model Loader for Cloud Run
 Downloads ML models from Google Cloud Storage to local container storage on startup.
+Now reads model configuration from database (FaceRecognitionModel).
 """
 
 import logging
@@ -13,27 +14,21 @@ logger = logging.getLogger(__name__)
 class ModelLoader:
     """
     Downloads face recognition models from GCS to local storage.
+    Reads enabled models from database (FaceRecognitionModel).
     Should be called once during Cloud Run container startup.
     """
 
     def __init__(
         self,
-        bucket_name: str = "easypool-ml-models",
-        model_version: str = "v1",
         local_models_dir: str | None = None,
     ):
         """
         Initialize the model loader.
 
         Args:
-            bucket_name: GCS bucket name containing models
-            model_version: Version subdirectory (e.g., "v1")
             local_models_dir: Local directory to download models to.
                             Defaults to ml_models/face_recognition/models/
         """
-        self.bucket_name = bucket_name
-        self.model_version = model_version
-
         if local_models_dir is None:
             # Default to the face_recognition models directory
             self.local_models_dir = Path(__file__).parent / "face_recognition" / "models"
@@ -42,26 +37,55 @@ class ModelLoader:
 
         self.local_models_dir.mkdir(parents=True, exist_ok=True)
 
-        # Models to download from GCS
-        # 3-model setup: MobileFaceNet (5MB) + ArcFace W600K (174MB) + AdaFace (250MB)
-        # Total: 429MB for banking-grade verification
-        self.models = [
-            {
-                "filename": "mobilefacenet.tflite",
-                "gcs_path": f"face-recognition/{model_version}/mobilefacenet.tflite",
-                "size_mb": 5,
-            },
-            {
-                "filename": "arcface_w600k_r50.onnx",
-                "gcs_path": f"face-recognition/{model_version}/arcface_w600k_r50.onnx",
-                "size_mb": 174,
-            },
-            {
-                "filename": "adaface_ir101_webface12m.onnx",
-                "gcs_path": f"face-recognition/{model_version}/adaface_ir101_webface12m.onnx",
-                "size_mb": 250,
-            },
-        ]
+    def get_models_from_database(self) -> list[dict]:
+        """
+        Get enabled models from database.
+        Falls back to hardcoded defaults if database not available.
+        """
+        try:
+            from ml_config.models import FaceRecognitionModel
+
+            enabled_models = FaceRecognitionModel.get_enabled_models()
+
+            if not enabled_models.exists():
+                logger.warning("No enabled models in database, creating defaults...")
+                FaceRecognitionModel.create_default_models()
+                enabled_models = FaceRecognitionModel.get_enabled_models()
+
+            models = []
+            for model in enabled_models:
+                models.append(
+                    {
+                        "name": model.name,
+                        "filename": model.local_filename,
+                        "gcs_bucket": model.gcs_bucket,
+                        "gcs_path": model.gcs_path,
+                        "size_mb": model.file_size_mb,
+                    }
+                )
+
+            logger.info(f"Loaded {len(models)} models from database: {[m['name'] for m in models]}")
+            return models
+
+        except Exception as e:
+            logger.warning(f"Cannot load models from database: {e}. Using hardcoded defaults.")
+            # Fallback to hardcoded defaults
+            return [
+                {
+                    "name": "mobilefacenet",
+                    "filename": "mobilefacenet.tflite",
+                    "gcs_bucket": "easypool-ml-models",
+                    "gcs_path": "face-recognition/v1/mobilefacenet.tflite",
+                    "size_mb": 5,
+                },
+                {
+                    "name": "arcface_int8",
+                    "filename": "arcface_int8.onnx",
+                    "gcs_bucket": "easypool-ml-models",
+                    "gcs_path": "face-recognition/v1/arcface_int8.onnx",
+                    "size_mb": 63,
+                },
+            ]
 
     def model_exists_locally(self, filename: str) -> bool:
         """Check if model already exists in local storage."""
@@ -73,7 +97,7 @@ class ModelLoader:
         Download a single model from GCS to local storage.
 
         Args:
-            model: Dictionary with 'filename', 'gcs_path', and 'size_mb'
+            model: Dictionary with 'filename', 'gcs_path', 'gcs_bucket', and 'size_mb'
 
         Returns:
             True if download succeeded, False otherwise
@@ -81,8 +105,9 @@ class ModelLoader:
         from google.cloud import storage
 
         filename = model["filename"]
+        gcs_bucket = model.get("gcs_bucket", "easypool-ml-models")
         gcs_path = model["gcs_path"]
-        size_mb = model["size_mb"]
+        size_mb = model.get("size_mb", 0)
         local_path = self.local_models_dir / filename
 
         # Skip if already exists
@@ -91,10 +116,10 @@ class ModelLoader:
             return True
 
         try:
-            logger.info(f"[DOWNLOADING] {filename} ({size_mb} MB) from GCS...")
+            logger.info(f"[DOWNLOADING] {filename} ({size_mb} MB) from gs://{gcs_bucket}/{gcs_path}...")
 
             storage_client = storage.Client()
-            bucket = storage_client.bucket(self.bucket_name)
+            bucket = storage_client.bucket(gcs_bucket)
             blob = bucket.blob(gcs_path)
 
             # Download to local file
@@ -114,35 +139,38 @@ class ModelLoader:
 
     def download_all_models(self) -> dict[str, bool]:
         """
-        Download all models from GCS to local storage.
+        Download all enabled models from GCS to local storage.
+        Reads model list from database (FaceRecognitionModel).
 
         Returns:
             Dictionary mapping filename to download success status
         """
+        # Get models from database
+        models = self.get_models_from_database()
+
         logger.info("=" * 70)
         logger.info("ML Models Download from Google Cloud Storage")
-        logger.info(f"Bucket: gs://{self.bucket_name}")
         logger.info(f"Local directory: {self.local_models_dir}")
         logger.info("=" * 70)
 
         results = {}
-        total_size_mb = sum(model["size_mb"] for model in self.models)
+        total_size_mb = sum(model.get("size_mb", 0) for model in models)
 
-        logger.info(f"Total models to download: {len(self.models)} ({total_size_mb} MB)")
+        logger.info(f"Total models to download: {len(models)} ({total_size_mb} MB)")
 
-        for model in self.models:
+        for model in models:
             success = self.download_model(model)
             results[model["filename"]] = success
 
         # Summary
         logger.info("=" * 70)
         successful = sum(1 for success in results.values() if success)
-        logger.info(f"Download complete: {successful}/{len(self.models)} models ready")
+        logger.info(f"Download complete: {successful}/{len(models)} models ready")
 
-        if successful < len(self.models):
-            logger.warning("⚠️  Some models failed to download. Face verification may not work correctly.")
+        if successful < len(models):
+            logger.warning("Some models failed to download. Face verification may not work correctly.")
         else:
-            logger.info("✅ All models downloaded successfully")
+            logger.info("All models downloaded successfully")
 
         logger.info("=" * 70)
 
@@ -155,10 +183,11 @@ class ModelLoader:
         Returns:
             True if all models are ready, False otherwise
         """
-        all_present = all(self.model_exists_locally(model["filename"]) for model in self.models)
+        models = self.get_models_from_database()
+        all_present = all(self.model_exists_locally(model["filename"]) for model in models)
 
         if not all_present:
-            missing = [model["filename"] for model in self.models if not self.model_exists_locally(model["filename"])]
+            missing = [model["filename"] for model in models if not self.model_exists_locally(model["filename"])]
             logger.error(f"Missing models: {missing}")
 
         return all_present

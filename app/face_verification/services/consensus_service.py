@@ -58,56 +58,87 @@ class FaceVerificationConsensusService:
 
     def __init__(self, use_database_config: bool = True) -> None:
         """
-        Initialize service with all enabled models
+        Initialize service with all enabled models from database
 
         Args:
-            use_database_config: If True, load config from database (BackendModelConfiguration).
+            use_database_config: If True, load config from database (FaceRecognitionModel).
                                 If False, use static config from ml_models/config.py
         """
-        from ml_models.config import FACE_RECOGNITION_MODELS, MULTI_MODEL_CONFIG
-
         # Load configuration from database or fallback to static config
         self.config_version: int | None = None
+        self.enabled_models: dict[str, dict[str, Any]] = {}
+
         if use_database_config:
             try:
                 # Import here to avoid circular dependency
-                from ml_config.models import BackendModelConfiguration
+                from ml_config.models import BackendModelConfiguration, FaceRecognitionModel
 
+                # Get active consensus configuration
                 active_config = BackendModelConfiguration.get_active_config()
                 self.config_version = active_config.version
 
-                # Convert database config to format expected by consensus service
-                # Note: BackendModelConfiguration.to_dict() returns ENSEMBLE_CONFIG format
-                # We need MULTI_MODEL_CONFIG format here
-                # Use models from MULTI_MODEL_CONFIG (which has the correct 3-model ensemble)
+                # Get enabled models from database
+                db_models = FaceRecognitionModel.get_enabled_models()
+
+                if not db_models.exists():
+                    logger.warning("No enabled models in database, creating defaults...")
+                    FaceRecognitionModel.create_default_models()
+                    db_models = FaceRecognitionModel.get_enabled_models()
+
+                # Build enabled_models dict from database
+                for model in db_models:
+                    self.enabled_models[model.name] = {
+                        "enabled": True,
+                        "class": model.inference_class,
+                        "quality_threshold": model.threshold,
+                        "weight": model.weight,
+                        "temperature_scaling": {
+                            "enabled": model.temperature_enabled,
+                            "temperature": model.temperature,
+                            "shift": model.shift,
+                        },
+                        "gcs_bucket": model.gcs_bucket,
+                        "gcs_path": model.gcs_path,
+                        "local_filename": model.local_filename,
+                    }
+
                 self.config: dict[str, Any] = {
                     "enabled": True,
-                    "models_for_verification": MULTI_MODEL_CONFIG["models_for_verification"],
+                    "models_for_verification": list(self.enabled_models.keys()),
                     "consensus_strategy": "weighted",
                     "minimum_consensus": active_config.minimum_consensus,
                 }
 
-                # Store full ensemble config for use in weighted voting (future enhancement)
+                # Store full ensemble config for use in weighted voting
                 self.ensemble_config = active_config.to_dict()
 
-                logger.info(f"Loaded ML config V{self.config_version} from database")
+                logger.info(
+                    f"Loaded ML config V{self.config_version} from database "
+                    f"with {len(self.enabled_models)} models: {list(self.enabled_models.keys())}"
+                )
+
             except Exception as e:
                 logger.warning(f"Failed to load database config: {e}. Falling back to static config.")
-                self.config = MULTI_MODEL_CONFIG
-                self.ensemble_config = {}
+                self._load_static_config()
         else:
-            self.config = MULTI_MODEL_CONFIG
-            self.ensemble_config = {}
-
-        models_for_verification: list[str] = self.config.get("models_for_verification", [])  # type: ignore[assignment]
-        self.enabled_models: dict[str, dict[str, Any]] = {
-            name: config for name, config in FACE_RECOGNITION_MODELS.items() if config.get("enabled", False) and name in models_for_verification
-        }
+            self._load_static_config()
 
         self.models: dict[str, Any] = {}  # Lazy loaded
         logger.info(f"Initialized ConsensusService with {len(self.enabled_models)} models: {list(self.enabled_models.keys())}")
         if self.config_version:
             logger.info(f"Using ML Configuration Version: {self.config_version}")
+
+    def _load_static_config(self) -> None:
+        """Fallback: Load static config from ml_models/config.py"""
+        from ml_models.config import FACE_RECOGNITION_MODELS, MULTI_MODEL_CONFIG
+
+        self.config = MULTI_MODEL_CONFIG
+        self.ensemble_config = {}
+
+        models_for_verification: list[str] = self.config.get("models_for_verification", [])  # type: ignore[assignment]
+        self.enabled_models = {
+            name: config for name, config in FACE_RECOGNITION_MODELS.items() if config.get("enabled", False) and name in models_for_verification
+        }
 
     def _load_models(self) -> None:
         """Lazy load all models on first use"""

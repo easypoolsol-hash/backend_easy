@@ -7,6 +7,152 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
+class FaceRecognitionModel(models.Model):
+    """
+    Individual face recognition model configuration.
+    Each model (MobileFaceNet, ArcFace, W600K, etc.) is a separate entry.
+
+    Configure models from Django Admin:
+    - Enable/disable models
+    - Set GCS paths for auto-download
+    - Configure weights, thresholds, temperature scaling
+    """
+
+    # Identification
+    name = models.CharField(max_length=100, unique=True, help_text="Internal name (e.g., 'mobilefacenet', 'w600k_r50')")
+    display_name = models.CharField(max_length=255, help_text="Display name (e.g., 'MobileFaceNet', 'W600K ResNet50')")
+
+    # GCS Configuration
+    gcs_bucket = models.CharField(max_length=255, default="easypool-ml-models", help_text="GCS bucket name")
+    gcs_path = models.CharField(max_length=500, help_text="Path in GCS (e.g., 'face-recognition/v1/w600k_r50.onnx')")
+    local_filename = models.CharField(max_length=255, help_text="Local filename (e.g., 'w600k_r50.onnx')")
+    file_size_mb = models.IntegerField(default=0, help_text="Approximate file size in MB (for progress indication)")
+
+    # Model State
+    is_enabled = models.BooleanField(default=True, help_text="Enable this model for verification")
+
+    # Model Parameters
+    weight = models.FloatField(default=0.33, help_text="Weight in ensemble (0.0 - 1.0). All enabled models' weights should sum to 1.0")
+    threshold = models.FloatField(default=0.40, help_text="Minimum similarity score to consider a match (0.0 - 1.0)")
+
+    # Temperature Scaling
+    temperature_enabled = models.BooleanField(default=False, help_text="Enable temperature scaling for this model")
+    temperature = models.FloatField(default=1.0, help_text="Temperature value (higher = spread out scores)")
+    shift = models.FloatField(default=0.0, help_text="Shift scores before scaling")
+
+    # Inference Configuration
+    inference_class = models.CharField(
+        max_length=500, help_text="Full path to inference class (e.g., 'ml_models.face_recognition.inference.w600k_r50.W600KModel')"
+    )
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Face Recognition Model"
+        verbose_name_plural = "Face Recognition Models"
+
+    def __str__(self):
+        status = "ON" if self.is_enabled else "OFF"
+        return f"{self.display_name} [{status}] (weight={self.weight:.2f})"
+
+    def clean(self):
+        """Validate model parameters"""
+        errors = {}
+
+        if not (0 <= self.weight <= 1):
+            errors["weight"] = "Weight must be between 0.0 and 1.0"
+
+        if not (0 <= self.threshold <= 1):
+            errors["threshold"] = "Threshold must be between 0.0 and 1.0"
+
+        if self.temperature_enabled and self.temperature <= 0:
+            errors["temperature"] = "Temperature must be positive"
+
+        if errors:
+            raise ValidationError(errors)
+
+    def to_dict(self):
+        """Convert to dictionary for consensus service"""
+        return {
+            "name": self.name,
+            "weight": self.weight,
+            "threshold": self.threshold,
+            "temperature_scaling": {
+                "enabled": self.temperature_enabled,
+                "temperature": self.temperature,
+                "shift": self.shift,
+            },
+            "gcs_bucket": self.gcs_bucket,
+            "gcs_path": self.gcs_path,
+            "local_filename": self.local_filename,
+            "inference_class": self.inference_class,
+        }
+
+    @classmethod
+    def get_enabled_models(cls):
+        """Get all enabled models"""
+        return cls.objects.filter(is_enabled=True)
+
+    @classmethod
+    def create_default_models(cls):
+        """Create default model configurations"""
+        defaults = [
+            {
+                "name": "mobilefacenet",
+                "display_name": "MobileFaceNet",
+                "gcs_path": "face-recognition/v1/mobilefacenet.tflite",
+                "local_filename": "mobilefacenet.tflite",
+                "file_size_mb": 5,
+                "is_enabled": True,
+                "weight": 0.35,
+                "threshold": 0.50,
+                "temperature_enabled": False,
+                "temperature": 1.0,
+                "shift": 0.0,
+                "inference_class": "ml_models.face_recognition.inference.mobilefacenet.MobileFaceNetModel",
+            },
+            {
+                "name": "arcface_int8",
+                "display_name": "ArcFace INT8",
+                "gcs_path": "face-recognition/v1/arcface_int8.onnx",
+                "local_filename": "arcface_int8.onnx",
+                "file_size_mb": 63,
+                "is_enabled": True,
+                "weight": 0.35,
+                "threshold": 0.25,
+                "temperature_enabled": True,
+                "temperature": 3.0,
+                "shift": -0.15,
+                "inference_class": "ml_models.face_recognition.inference.arcface_int8.ArcFaceINT8Model",
+            },
+            {
+                "name": "w600k_r50",
+                "display_name": "W600K ResNet50",
+                "gcs_path": "face-recognition/v1/w600k_r50.onnx",
+                "local_filename": "w600k_r50.onnx",
+                "file_size_mb": 174,
+                "is_enabled": True,
+                "weight": 0.30,
+                "threshold": 0.40,
+                "temperature_enabled": False,
+                "temperature": 1.0,
+                "shift": 0.0,
+                "inference_class": "ml_models.face_recognition.inference.w600k_r50.W600KModel",
+            },
+        ]
+
+        created = []
+        for model_data in defaults:
+            model, was_created = cls.objects.get_or_create(name=model_data["name"], defaults=model_data)
+            if was_created:
+                created.append(model.name)
+
+        return created
+
+
 class BackendModelConfiguration(models.Model):
     """
     Dynamic configuration for backend face recognition 3-model ensemble.
