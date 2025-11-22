@@ -182,6 +182,13 @@ BIGQUERY_STREAMING_ENABLED = True
 BIGQUERY_PROJECT_ID = "easypool-backend"
 BIGQUERY_DATASET_ID = "ml_analytics"
 
+# =============================================================================
+# KIOSK METRICS REAL-TIME STREAMING (Development Only)
+# =============================================================================
+# Sends kiosk health metrics to Cloud Monitoring on every heartbeat
+# Dashboard updates in real-time when kiosk sends heartbeat!
+KIOSK_METRICS_STREAMING_ENABLED = True
+
 print("[DEVELOPMENT] Development settings loaded successfully")
 print(f"[DEVELOPMENT] DEBUG = {DEBUG}")
 print("[DEVELOPMENT] Database: PostgreSQL (Cloud SQL)")
@@ -190,3 +197,4 @@ print("[DEVELOPMENT] Channel Layers: In-memory")
 print("[DEVELOPMENT] Celery: Synchronous (no broker)")
 print("[DEVELOPMENT] HTTPS: Not enforced (Cloud Run handles it)")
 print("[DEVELOPMENT] BigQuery Streaming: ENABLED (real-time analytics)")
+print("[DEVELOPMENT] Kiosk Metrics Streaming: ENABLED (real-time dashboard)")
