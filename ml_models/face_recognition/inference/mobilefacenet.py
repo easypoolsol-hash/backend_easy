@@ -20,23 +20,43 @@ class MobileFaceNet(BaseFaceRecognitionModel):
     """
     MobileFaceNet implementation using TensorFlow Lite.
     Same model as frontend - zero drift guaranteed.
+    Supports loading from local path or GCS URL.
     """
 
-    def __init__(self):
-        model_path = MOBILEFACENET_CONFIG["model_path"]
-        super().__init__(model_path)
+    def __init__(self, model_source: str | None = None):
+        """
+        Initialize MobileFaceNet model.
+
+        Args:
+            model_source: Local path, GCS URL (gs://...), or None for default config path
+        """
+        if model_source is None:
+            model_source = MOBILEFACENET_CONFIG["model_path"]
+        super().__init__(model_source)
 
     def _validate_model(self) -> None:
-        if not self.model_path.exists():
-            raise FileNotFoundError(f"Model not found: {self.model_path}")
-        if self.model_path.suffix != ".tflite":
-            raise ValueError("Model must be .tflite format")
+        if self.is_gcs:
+            # For GCS, just check we have bytes
+            if not self.model_bytes:
+                raise ValueError("Model bytes not loaded from GCS")
+        else:
+            # For local files, check path exists
+            if not self.model_path or not self.model_path.exists():
+                raise FileNotFoundError(f"Model not found: {self.model_path}")
+            if self.model_path.suffix != ".tflite":
+                raise ValueError("Model must be .tflite format")
 
     def _load_model(self) -> None:
-        """Load TFLite model - lazy import ai_edge_litert here."""
+        """Load TFLite model from bytes or path."""
         from ai_edge_litert.interpreter import Interpreter
 
-        self.interpreter = Interpreter(model_path=str(self.model_path))
+        if self.is_gcs:
+            # Load from bytes (model_content parameter)
+            self.interpreter = Interpreter(model_content=self.model_bytes)
+        else:
+            # Load from file path
+            self.interpreter = Interpreter(model_path=str(self.model_path))
+
         self.interpreter.allocate_tensors()
 
         # Get input/output details

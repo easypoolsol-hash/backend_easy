@@ -20,25 +20,43 @@ class ArcFaceINT8(BaseFaceRecognitionModel):
     ArcFace with ResNet50 backbone - WebFace600K trained version.
     Better embedding separation than INT8 quantized model.
     174MB model size, 512-dimensional embeddings.
+    Supports loading from local path or GCS URL.
     """
 
-    def __init__(self):
-        model_path = Path(__file__).parent.parent / "models" / "arcface_w600k_r50.onnx"
-        super().__init__(model_path)
+    def __init__(self, model_source: str | Path | None = None):
+        """
+        Initialize ArcFace INT8 model.
+
+        Args:
+            model_source: Local path, GCS URL (gs://...), or None for default path
+        """
+        if model_source is None:
+            model_source = Path(__file__).parent.parent / "models" / "arcface_w600k_r50.onnx"
+        super().__init__(model_source)
         self.session = None  # Lazy loaded ONNX session
 
     def _validate_model(self) -> None:
-        if not self.model_path.exists():
-            raise FileNotFoundError(f"ArcFace INT8 model not found: {self.model_path}")
-        if self.model_path.suffix != ".onnx":
-            raise ValueError("ArcFace model must be .onnx format")
+        if self.is_gcs:
+            # For GCS, just check we have bytes
+            if not self.model_bytes:
+                raise ValueError("Model bytes not loaded from GCS")
+        else:
+            # For local files, check path exists
+            if not self.model_path or not self.model_path.exists():
+                raise FileNotFoundError(f"ArcFace INT8 model not found: {self.model_path}")
+            if self.model_path.suffix != ".onnx":
+                raise ValueError("ArcFace model must be .onnx format")
 
     def _load_model(self) -> None:
-        """Load ONNX model using ONNXRuntime"""
+        """Load ONNX model from bytes or path using ONNXRuntime"""
         import onnxruntime as ort
 
-        # Create inference session with CPU provider
-        self.session = ort.InferenceSession(str(self.model_path), providers=["CPUExecutionProvider"])
+        if self.is_gcs:
+            # Load from bytes
+            self.session = ort.InferenceSession(self.model_bytes, providers=["CPUExecutionProvider"])
+        else:
+            # Load from file path
+            self.session = ort.InferenceSession(str(self.model_path), providers=["CPUExecutionProvider"])
 
     def preprocess(self, image: np.ndarray) -> np.ndarray:
         """

@@ -109,14 +109,7 @@ set -e\n\
 \n\
 echo "🚀 Starting EasyPool Backend - Industry Standard Startup"\n\
 echo "ℹ️  Application will start FIRST, then initialize database"\n\
-\n\
-# Download ML models from GCS (Cloud Run only)\n\
-if [ -n "$K_SERVICE" ]; then\n\
-    echo "📦 [ML-MODELS] Downloading face recognition models from GCS..."\n\
-    python -c "from ml_models.model_loader import load_models_on_startup; load_models_on_startup()" || echo "⚠️  [ML-MODELS] Model download failed - face verification may not work"\n\
-else\n\
-    echo "📦 [ML-MODELS] Running locally - using local models"\n\
-fi\n\
+echo "📦 [ML-MODELS] Models will load from GCS on first verification request"\n\
 \n\
 # Function to run database operations in background\n\
 run_db_init() {\n\

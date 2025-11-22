@@ -141,7 +141,7 @@ class FaceVerificationConsensusService:
         }
 
     def _load_models(self) -> None:
-        """Lazy load all models on first use"""
+        """Lazy load all models on first use from GCS or local paths"""
         if self.models:
             return
 
@@ -155,8 +155,15 @@ class FaceVerificationConsensusService:
                 module = __import__(module_path, fromlist=[class_name])
                 model_class = getattr(module, class_name)
 
-                # Instantiate model (models determine their own paths)
-                self.models[model_name] = model_class()
+                # Build GCS URL if we have GCS config, otherwise use default local path
+                if "gcs_bucket" in config and "gcs_path" in config:
+                    gcs_url = f"gs://{config['gcs_bucket']}/{config['gcs_path']}"
+                    logger.info(f"Loading {model_name} from GCS: {gcs_url}")
+                    self.models[model_name] = model_class(model_source=gcs_url)
+                else:
+                    # Use default local path
+                    logger.info(f"Loading {model_name} from local filesystem")
+                    self.models[model_name] = model_class()
 
                 logger.info(f"✅ Loaded model: {model_name}")
             except Exception as e:
