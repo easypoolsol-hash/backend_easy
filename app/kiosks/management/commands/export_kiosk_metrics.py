@@ -9,6 +9,7 @@ Usage:
 """
 
 import logging
+import os
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -38,7 +39,8 @@ class Command(BaseCommand):
         try:
             # Initialize Cloud Monitoring client
             client = monitoring_v3.MetricServiceClient()
-            project_name = f"projects/{client.project_path.split('/')[1]}"
+            project_id = os.environ.get("GCP_PROJECT_ID", "easypool-backend")
+            project_name = f"projects/{project_id}"
 
             # Get all active kiosks with their latest status
             kiosks = Kiosk.objects.select_related("status").filter(is_active=True)

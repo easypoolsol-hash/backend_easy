@@ -12,6 +12,7 @@ Usage:
 
 from datetime import timedelta
 import logging
+import os
 
 from django.core.management.base import BaseCommand
 from django.db.models import F, Q
@@ -51,7 +52,8 @@ class Command(BaseCommand):
         try:
             # Initialize Cloud Monitoring client
             client = monitoring_v3.MetricServiceClient()
-            project_name = f"projects/{client.project_path.split('/')[1]}"
+            project_id = os.environ.get("GCP_PROJECT_ID", "easypool-backend")
+            project_name = f"projects/{project_id}"
 
             # Calculate time window
             now = timezone.now()
