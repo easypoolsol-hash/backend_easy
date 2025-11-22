@@ -93,13 +93,15 @@ class BoardingEventStorageService:
     def get_signed_url(
         self,
         gcs_path: str,
-        expiration_minutes: int = 60,
+        expiration_minutes: int | None = None,
+        expiration_days: int | None = None,
     ) -> str:
         """Generates a signed URL for temporary secure access to a private GCS object.
 
         Args:
             gcs_path: The GCS path of the object (e.g., "boarding_events/01HQXYZ123/face_1.jpg").
-            expiration_minutes: URL expiration time in minutes (default: 60).
+            expiration_minutes: URL expiration time in minutes (default: 60 if expiration_days not set).
+            expiration_days: URL expiration time in days (overrides expiration_minutes if set).
 
         Returns:
             A signed URL that provides temporary access to the object.
@@ -123,11 +125,19 @@ class BoardingEventStorageService:
         auth_request = requests.Request()
         credentials.refresh(auth_request)
 
+        # Calculate expiration (days takes precedence over minutes)
+        if expiration_days:
+            expiration = timedelta(days=expiration_days)
+        elif expiration_minutes:
+            expiration = timedelta(minutes=expiration_minutes)
+        else:
+            expiration = timedelta(minutes=60)  # Default: 1 hour
+
         # Generate signed URL using IAM signBlob API
         # Requires both service_account_email and access_token for Cloud Run
         signed_url = blob.generate_signed_url(
             version="v4",
-            expiration=timedelta(minutes=expiration_minutes),
+            expiration=expiration,
             method="GET",
             service_account_email=credentials.service_account_email,
             access_token=credentials.token,

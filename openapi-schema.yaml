@@ -611,6 +611,41 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/boarding-events/{event_id}/photos/:
+    get:
+      operationId: api_v1_boarding_events_photos_retrieve
+      description: |-
+        Get confirmation face photos for a boarding event.
+
+        Separate endpoint for loading photos independently from page load.
+        This allows the frontend to:
+        1. Load page fast without photos
+        2. Lazy load photos when visible/needed
+        3. Parallel load photos for multiple events
+
+        Returns:
+            {
+                "event_id": "01HQXYZ123",
+                "confirmation_face_urls": [url1, url2, url3]
+            }
+      parameters:
+      - in: path
+        name: event_id
+        schema:
+          type: string
+          description: ULID primary key for global uniqueness and time sorting
+        required: true
+      tags:
+      - api
+      security:
+      - Bearer: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoardingEvent'
+          description: ''
   /api/v1/boarding-events/bulk/:
     post:
       operationId: api_v1_boarding_events_bulk_create

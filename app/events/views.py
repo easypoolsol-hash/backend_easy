@@ -7,7 +7,6 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from bus_kiosk_backend.core.authentication import FirebaseAuthentication
@@ -96,6 +95,40 @@ class BoardingEventViewSet(viewsets.ModelViewSet):
         events = self.get_queryset().filter(timestamp__gte=since)[:100]
         serializer = self.get_serializer(events, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="photos")
+    def photos(self, request, pk=None):
+        """Get confirmation face photos for a boarding event.
+
+        Separate endpoint for loading photos independently from page load.
+        This allows the frontend to:
+        1. Load page fast without photos
+        2. Lazy load photos when visible/needed
+        3. Parallel load photos for multiple events
+
+        Returns:
+            {
+                "event_id": "01HQXYZ123",
+                "confirmation_face_urls": [url1, url2, url3]
+            }
+        """
+        from .models import MAX_CONFIRMATION_FACES
+
+        event = self.get_object()
+
+        # Get all available confirmation face URLs
+        urls = []
+        for i in range(1, MAX_CONFIRMATION_FACES + 1):
+            url = getattr(event, f"confirmation_face_{i}_url", None)
+            if url:
+                urls.append(url)
+
+        return Response(
+            {
+                "event_id": event.event_id,
+                "confirmation_face_urls": urls,
+            }
+        )
 
 
 class AttendanceRecordViewSet(viewsets.ReadOnlyModelViewSet):

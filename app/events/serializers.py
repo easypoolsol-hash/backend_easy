@@ -38,7 +38,17 @@ class BoardingEventSerializer(serializers.ModelSerializer):
 
         Returns list of signed URLs for all confirmation faces that exist.
         Easily adjustable via MAX_CONFIRMATION_FACES constant.
+
+        Performance optimization:
+        - If `include_photos=false` in query params, returns empty list
+        - This allows page load without waiting for signed URL generation
+        - Use separate `/events/{id}/photos/` endpoint for lazy loading
         """
+        # Check if request context has include_photos=false
+        request = self.context.get("request")
+        if request and request.query_params.get("include_photos", "true").lower() == "false":
+            return []
+
         urls = []
         # Dynamically get all confirmation face URLs (uses MAX_CONFIRMATION_FACES config)
         for i in range(1, MAX_CONFIRMATION_FACES + 1):

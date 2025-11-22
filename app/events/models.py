@@ -72,6 +72,42 @@ class BoardingEvent(models.Model):
         help_text="GCS path for third confirmation face (112x112 JPEG, ~5-10KB)",
     )
 
+    # Cached signed URLs for confirmation faces (stored in PostgreSQL for persistence)
+    # These avoid regenerating signed URLs on every request
+    # URLs are generated with 7-day expiry and cached in database
+    confirmation_face_1_signed_url = models.TextField(
+        blank=True,
+        default="",
+        help_text="Cached signed URL for first confirmation face (7-day expiry)",
+    )
+    confirmation_face_1_url_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the cached signed URL for face 1 expires",
+    )
+
+    confirmation_face_2_signed_url = models.TextField(
+        blank=True,
+        default="",
+        help_text="Cached signed URL for second confirmation face (7-day expiry)",
+    )
+    confirmation_face_2_url_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the cached signed URL for face 2 expires",
+    )
+
+    confirmation_face_3_signed_url = models.TextField(
+        blank=True,
+        default="",
+        help_text="Cached signed URL for third confirmation face (7-day expiry)",
+    )
+    confirmation_face_3_url_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the cached signed URL for face 3 expires",
+    )
+
     # Backend Multi-Model Verification Fields (for async verification after boarding)
     backend_verification_status = models.CharField(
         max_length=20,
@@ -165,42 +201,54 @@ class BoardingEvent(models.Model):
 
     @property
     def confirmation_face_1_url(self) -> str | None:
-        """Get signed GCS URL for first confirmation face (cached).
+        """Get signed GCS URL for first confirmation face (cached in database).
 
-        Uses Redis cache to avoid regenerating URLs on every request.
-        Cache duration: 55 minutes (matches signed URL expiration).
+        Multi-tier caching strategy:
+        1. Check PostgreSQL database cache (persistent, 7-day expiry)
+        2. If expired/missing → generate new signed URL and save to database
+        3. Also cache in Redis for fast repeated access
 
         Returns:
-            Signed GCS URL (1-hour expiration) or None if no face image exists.
+            Signed GCS URL (7-day expiration) or None if no face image exists.
         """
         if not self.confirmation_face_1_gcs:
             return None
 
+        from datetime import timedelta
         import logging
 
         from django.core.cache import cache
+        from django.utils import timezone
 
         from .services.storage_service import BoardingEventStorageService
 
         logger = logging.getLogger(__name__)
 
-        # Try to get cached URL first (Google best practice: cache signed URLs)
-        cache_key = f"boarding_event_face_{self.event_id}_1"
-        cached_url = cache.get(cache_key)
+        # 1. Check database cache first (persistent)
+        if self.confirmation_face_1_signed_url and self.confirmation_face_1_url_expires_at:
+            if self.confirmation_face_1_url_expires_at > timezone.now():
+                logger.debug(f"Using database-cached signed URL for {self.event_id} face 1")
+                # Also cache in Redis for fast access
+                cache_key = f"boarding_event_face_{self.event_id}_1"
+                cache.set(cache_key, self.confirmation_face_1_signed_url, timeout=55 * 60)
+                return self.confirmation_face_1_signed_url
 
-        if cached_url:
-            logger.debug(f"Using cached signed URL for {self.event_id} face 1")
-            return cached_url
-
-        # Generate new signed URL if not cached
+        # 2. Database cache expired or missing - generate new signed URL
         try:
             storage_service = BoardingEventStorageService()
-            url = storage_service.get_signed_url(self.confirmation_face_1_gcs)
+            # Generate signed URL with 7-day expiry
+            url = storage_service.get_signed_url(self.confirmation_face_1_gcs, expiration_days=7)
 
-            # Cache URL for 55 minutes (slightly less than 60-min expiration for safety)
+            # Save to database (persistent cache)
+            self.confirmation_face_1_signed_url = url
+            self.confirmation_face_1_url_expires_at = timezone.now() + timedelta(days=7)
+            self.save(update_fields=["confirmation_face_1_signed_url", "confirmation_face_1_url_expires_at"])
+
+            # Also cache in Redis for fast access
+            cache_key = f"boarding_event_face_{self.event_id}_1"
             cache.set(cache_key, url, timeout=55 * 60)
 
-            logger.info(f"Generated and cached signed URL for {self.event_id} face 1: SUCCESS")
+            logger.info(f"Generated and cached signed URL (7-day) for {self.event_id} face 1: SUCCESS")
             return url
         except Exception as e:
             logger.error(f"Failed to generate signed URL for {self.event_id} face 1: {e}", exc_info=True)
@@ -208,42 +256,54 @@ class BoardingEvent(models.Model):
 
     @property
     def confirmation_face_2_url(self) -> str | None:
-        """Get signed GCS URL for second confirmation face (cached).
+        """Get signed GCS URL for second confirmation face (cached in database).
 
-        Uses Redis cache to avoid regenerating URLs on every request.
-        Cache duration: 55 minutes (matches signed URL expiration).
+        Multi-tier caching strategy:
+        1. Check PostgreSQL database cache (persistent, 7-day expiry)
+        2. If expired/missing → generate new signed URL and save to database
+        3. Also cache in Redis for fast repeated access
 
         Returns:
-            Signed GCS URL (1-hour expiration) or None if no face image exists.
+            Signed GCS URL (7-day expiration) or None if no face image exists.
         """
         if not self.confirmation_face_2_gcs:
             return None
 
+        from datetime import timedelta
         import logging
 
         from django.core.cache import cache
+        from django.utils import timezone
 
         from .services.storage_service import BoardingEventStorageService
 
         logger = logging.getLogger(__name__)
 
-        # Try to get cached URL first (Google best practice: cache signed URLs)
-        cache_key = f"boarding_event_face_{self.event_id}_2"
-        cached_url = cache.get(cache_key)
+        # 1. Check database cache first (persistent)
+        if self.confirmation_face_2_signed_url and self.confirmation_face_2_url_expires_at:
+            if self.confirmation_face_2_url_expires_at > timezone.now():
+                logger.debug(f"Using database-cached signed URL for {self.event_id} face 2")
+                # Also cache in Redis for fast access
+                cache_key = f"boarding_event_face_{self.event_id}_2"
+                cache.set(cache_key, self.confirmation_face_2_signed_url, timeout=55 * 60)
+                return self.confirmation_face_2_signed_url
 
-        if cached_url:
-            logger.debug(f"Using cached signed URL for {self.event_id} face 2")
-            return cached_url
-
-        # Generate new signed URL if not cached
+        # 2. Database cache expired or missing - generate new signed URL
         try:
             storage_service = BoardingEventStorageService()
-            url = storage_service.get_signed_url(self.confirmation_face_2_gcs)
+            # Generate signed URL with 7-day expiry
+            url = storage_service.get_signed_url(self.confirmation_face_2_gcs, expiration_days=7)
 
-            # Cache URL for 55 minutes (slightly less than 60-min expiration for safety)
+            # Save to database (persistent cache)
+            self.confirmation_face_2_signed_url = url
+            self.confirmation_face_2_url_expires_at = timezone.now() + timedelta(days=7)
+            self.save(update_fields=["confirmation_face_2_signed_url", "confirmation_face_2_url_expires_at"])
+
+            # Also cache in Redis for fast access
+            cache_key = f"boarding_event_face_{self.event_id}_2"
             cache.set(cache_key, url, timeout=55 * 60)
 
-            logger.info(f"Generated and cached signed URL for {self.event_id} face 2: SUCCESS")
+            logger.info(f"Generated and cached signed URL (7-day) for {self.event_id} face 2: SUCCESS")
             return url
         except Exception as e:
             logger.error(f"Failed to generate signed URL for {self.event_id} face 2: {e}", exc_info=True)
@@ -251,42 +311,54 @@ class BoardingEvent(models.Model):
 
     @property
     def confirmation_face_3_url(self) -> str | None:
-        """Get signed GCS URL for third confirmation face (cached).
+        """Get signed GCS URL for third confirmation face (cached in database).
 
-        Uses Redis cache to avoid regenerating URLs on every request.
-        Cache duration: 55 minutes (matches signed URL expiration).
+        Multi-tier caching strategy:
+        1. Check PostgreSQL database cache (persistent, 7-day expiry)
+        2. If expired/missing → generate new signed URL and save to database
+        3. Also cache in Redis for fast repeated access
 
         Returns:
-            Signed GCS URL (1-hour expiration) or None if no face image exists.
+            Signed GCS URL (7-day expiration) or None if no face image exists.
         """
         if not self.confirmation_face_3_gcs:
             return None
 
+        from datetime import timedelta
         import logging
 
         from django.core.cache import cache
+        from django.utils import timezone
 
         from .services.storage_service import BoardingEventStorageService
 
         logger = logging.getLogger(__name__)
 
-        # Try to get cached URL first (Google best practice: cache signed URLs)
-        cache_key = f"boarding_event_face_{self.event_id}_3"
-        cached_url = cache.get(cache_key)
+        # 1. Check database cache first (persistent)
+        if self.confirmation_face_3_signed_url and self.confirmation_face_3_url_expires_at:
+            if self.confirmation_face_3_url_expires_at > timezone.now():
+                logger.debug(f"Using database-cached signed URL for {self.event_id} face 3")
+                # Also cache in Redis for fast access
+                cache_key = f"boarding_event_face_{self.event_id}_3"
+                cache.set(cache_key, self.confirmation_face_3_signed_url, timeout=55 * 60)
+                return self.confirmation_face_3_signed_url
 
-        if cached_url:
-            logger.debug(f"Using cached signed URL for {self.event_id} face 3")
-            return cached_url
-
-        # Generate new signed URL if not cached
+        # 2. Database cache expired or missing - generate new signed URL
         try:
             storage_service = BoardingEventStorageService()
-            url = storage_service.get_signed_url(self.confirmation_face_3_gcs)
+            # Generate signed URL with 7-day expiry
+            url = storage_service.get_signed_url(self.confirmation_face_3_gcs, expiration_days=7)
 
-            # Cache URL for 55 minutes (slightly less than 60-min expiration for safety)
+            # Save to database (persistent cache)
+            self.confirmation_face_3_signed_url = url
+            self.confirmation_face_3_url_expires_at = timezone.now() + timedelta(days=7)
+            self.save(update_fields=["confirmation_face_3_signed_url", "confirmation_face_3_url_expires_at"])
+
+            # Also cache in Redis for fast access
+            cache_key = f"boarding_event_face_{self.event_id}_3"
             cache.set(cache_key, url, timeout=55 * 60)
 
-            logger.info(f"Generated and cached signed URL for {self.event_id} face 3: SUCCESS")
+            logger.info(f"Generated and cached signed URL (7-day) for {self.event_id} face 3: SUCCESS")
             return url
         except Exception as e:
             logger.error(f"Failed to generate signed URL for {self.event_id} face 3: {e}", exc_info=True)
