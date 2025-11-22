@@ -4,8 +4,9 @@ from django.db import migrations
 
 
 def seed_default_models(apps, schema_editor):
-    """Create default face recognition models on first migration"""
-    FaceRecognitionModel = apps.get_model('ml_config', 'FaceRecognitionModel')
+    """Create default face recognition models and 3-model config on first migration"""
+    FaceRecognitionModel = apps.get_model("ml_config", "FaceRecognitionModel")
+    BackendModelConfiguration = apps.get_model("ml_config", "BackendModelConfiguration")
 
     defaults = [
         {
@@ -53,10 +54,46 @@ def seed_default_models(apps, schema_editor):
     ]
 
     for model_data in defaults:
-        FaceRecognitionModel.objects.get_or_create(
-            name=model_data["name"],
-            defaults=model_data
-        )
+        FaceRecognitionModel.objects.get_or_create(name=model_data["name"], defaults=model_data)
+
+    # Create default 3-model BackendModelConfiguration (V2)
+    # Deactivate any existing configs first
+    BackendModelConfiguration.objects.filter(is_active=True).update(is_active=False)
+
+    BackendModelConfiguration.objects.get_or_create(
+        version=2,
+        defaults={
+            "name": "3-Model Ensemble (MobileFaceNet + ArcFace + W600K)",
+            "description": "Banking-grade 3-model consensus with weighted voting. Activate this to use all 3 models.",
+            "is_active": True,  # V2 3-model is active by default
+            # Weights (sum to 1.0)
+            "mobilefacenet_weight": 0.35,
+            "arcface_weight": 0.35,
+            "adaface_weight": 0.30,  # W600K uses adaface slot
+            # Per-model thresholds
+            "mobilefacenet_threshold": 0.50,
+            "arcface_threshold": 0.25,
+            "adaface_threshold": 0.40,
+            # Combined thresholds
+            "high_confidence_threshold": 0.60,
+            "medium_confidence_threshold": 0.45,
+            "match_threshold": 0.35,
+            # Consensus strategy
+            "minimum_consensus": 2,
+            "require_all_agree": False,
+            "use_weighted_vote": True,
+            # Temperature scaling
+            "mobilefacenet_temperature_enabled": False,
+            "mobilefacenet_temperature": 1.0,
+            "mobilefacenet_shift": 0.0,
+            "arcface_temperature_enabled": True,
+            "arcface_temperature": 3.0,
+            "arcface_shift": -0.15,
+            "adaface_temperature_enabled": False,
+            "adaface_temperature": 1.0,
+            "adaface_shift": 0.0,
+        },
+    )
 
 
 def reverse_seed(apps, schema_editor):
@@ -65,9 +102,8 @@ def reverse_seed(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('ml_config', '0002_add_face_recognition_model'),
+        ("ml_config", "0002_add_face_recognition_model"),
     ]
 
     operations = [
