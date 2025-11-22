@@ -95,7 +95,13 @@ class BoardingEventAdmin(admin.ModelAdmin):
     ordering = ["-timestamp"]
 
     # Add custom actions
-    actions = ["delete_selected_with_gcs_cleanup", "download_boarding_report", "trigger_verification"]
+    actions = [
+        "delete_selected_with_gcs_cleanup",
+        "download_boarding_report",
+        "trigger_verification",
+        "export_selected_to_bigquery",
+        "export_last_hour_to_bigquery",
+    ]
 
     @admin.action(description="🔍 Verify Now (Multi-Crop)")
     def trigger_verification(self, request, queryset):

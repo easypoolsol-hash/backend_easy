@@ -17,7 +17,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from google.cloud import bigquery
+from google.cloud import bigquery  # type: ignore[attr-defined]
 
 from events.models import BoardingEvent
 

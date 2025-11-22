@@ -173,6 +173,15 @@ SPECTACULAR_SETTINGS["SERVERS"] = [  # noqa: F405
     {"url": os.getenv("DEV_URL", "https://easypool-backend-dev.run.app"), "description": "Development API"},
 ]
 
+# =============================================================================
+# BIGQUERY REAL-TIME STREAMING (Development Only)
+# =============================================================================
+# Sends boarding events to BigQuery immediately after verification
+# Perfect for A/B testing - see results in Looker Studio instantly!
+BIGQUERY_STREAMING_ENABLED = True
+BIGQUERY_PROJECT_ID = "easypool-backend"
+BIGQUERY_DATASET_ID = "ml_analytics"
+
 print("[DEVELOPMENT] Development settings loaded successfully")
 print(f"[DEVELOPMENT] DEBUG = {DEBUG}")
 print("[DEVELOPMENT] Database: PostgreSQL (Cloud SQL)")
@@ -180,3 +189,4 @@ print("[DEVELOPMENT] Cache: In-memory")
 print("[DEVELOPMENT] Channel Layers: In-memory")
 print("[DEVELOPMENT] Celery: Synchronous (no broker)")
 print("[DEVELOPMENT] HTTPS: Not enforced (Cloud Run handles it)")
+print("[DEVELOPMENT] BigQuery Streaming: ENABLED (real-time analytics)")

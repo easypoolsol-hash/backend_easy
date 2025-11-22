@@ -7,4 +7,7 @@ class EventsConfig(AppConfig):
 
     def ready(self):
         """Import signal handlers when the app is ready"""
+        # BigQuery real-time streaming (enabled in DEV settings)
+        import analytics.signals  # noqa: F401
+
         import events.signals  # noqa: F401
